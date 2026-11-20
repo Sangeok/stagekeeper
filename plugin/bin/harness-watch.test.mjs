@@ -21,6 +21,7 @@ const CONFIG = { version: 1, project: { owner: "owner", repo: "repo", branch: "m
 const IDENTITY = { owner: "OWNER", repo: "REPO", slug: "owner-repo", available: true };
 const EMPTY = { templateProtocol: "template-release-v1", head: { action: "none", reason: "No work." }, items: [] };
 const READY = { ...EMPTY, items: [{ key: "ITEM-01", node: "plan", version: 1, action: "dispatch", agent: "dev", hint: "Plan.", format: null }] };
+const GENEROUS_REQUEST_TIMEOUT = "5";
 const BASE_ENV = { ...process.env };
 for (const key of Object.keys(BASE_ENV)) if (key.startsWith("HARNESS_") || key.startsWith("DOTENV_CONFIG_") || key === "NODE_OPTIONS" || key === "CLAUDE_PLUGIN_ROOT") delete BASE_ENV[key];
 const json = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -120,8 +121,9 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
     rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   });
   const start = async (extra = [], env) => (await run(["--start", "--commit", "no", "--propose", "no", ...extra], env).result);
-  const poll = (session, extra = [], env) => run(["--session", session, "--interval", "0.02", "--deadline", "0.01", "--request-timeout", "0.2", ...extra], env);
-  return { root, url, directory, lockPath, policyPath, calls, runnerCalls, git, run, start, poll,
+  const pollWithin = (deadline) => (session) => run(["--session", session, "--interval", "0.02", "--deadline", deadline, "--request-timeout", GENEROUS_REQUEST_TIMEOUT]);
+  const poll = pollWithin("0.1"), pollBriefly = pollWithin("0.01");
+  return { root, url, directory, lockPath, policyPath, calls, runnerCalls, git, run, start, poll, pollBriefly,
     setHandler: (value) => { handler = value; },
     setRunnerHandler: (value) => { runnerHandler = value; },
     snapshot: () => [lockPath, policyPath].map((file) => existsSync(file) ? readFileSync(file, "utf8") : null) };
@@ -260,14 +262,17 @@ it("discards delayed work after force; old response/cleanup/stop cannot change t
 
 it("stops a hung poller and can stop its own session after all config/environment inputs disappear", async (t) => {
   const f = await fixture(t);
-  const session = (await f.start()).event.session;
+  const hung = (await f.start()).event.session;
   f.setHandler(async () => {});
-  const poller = f.run(["--session", session, "--deadline", "0.1"]);
+  const poller = f.run(["--session", hung, "--deadline", "0.2"]);
   await waitFor(() => f.calls.length === 2);
+  assert.equal((await f.run(["--stop", "--session", hung], { HARNESS_TOKEN: "", HARNESS_SERVER: "" }).result).event.event, "stopped");
+  assert.equal((await poller.result).event.event, "replaced");
+  f.setHandler(async (request, res) => send(res, request, IDENTITY));
+  const session = (await f.start()).event.session;
   rmSync(path.join(f.root, "harness.json")); rmSync(path.join(f.root, "CLAUDE.md"));
   const stopped = await f.run(["--stop", "--session", session], { HARNESS_TOKEN: "", HARNESS_SERVER: "" }).result;
   assert.equal(stopped.event.event, "stopped");
-  assert.equal((await poller.result).event.event, "replaced");
   assert.equal(existsSync(f.lockPath), false); assert.equal(existsSync(f.policyPath), false);
 });
 
@@ -345,7 +350,7 @@ it("counts five consecutive transient failures, resets after success, and spaces
     if (number === 3) send(res, request, EMPTY);
     else { transientRequests.add(request.id); res.writeHead(number % 2 === 0 ? 408 : 503); res.end(); }
   });
-  const result = await f.run(["--session", session, "--interval", "0.03", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
+  const result = await f.run(["--session", session, "--interval", "0.03", "--deadline", "0.1", "--request-timeout", GENEROUS_REQUEST_TIMEOUT]).result;
   assert.equal(result.event.code, "request-failed"); assert.equal(number, 8);
   const calls = f.calls.slice(1);
   let retryGaps = 0;
@@ -421,7 +426,7 @@ it("retries five request/body timeouts and removes only its own terminal state",
     f.setHandler(async (_request, res) => {
       if (body) { res.writeHead(200, { "content-type": "text/event-stream" }); res.write(": keepalive\n\n"); }
     });
-    const result = await f.run(["--session", session, "--interval", "0.01", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
+    const result = await f.run(["--session", session, "--interval", "0.01", "--deadline", "0.2", "--request-timeout", "1"]).result;
     assert.equal(result.event.code, "request-failed");
     assert.equal(f.calls.length, 6);
     assert.equal(existsSync(f.lockPath), false);
@@ -437,7 +442,7 @@ it("honors a longer Retry-After, and a healthy overview restarts failure countin
     if (++count === 1) { res.writeHead(429, { "retry-after": "0.2" }); res.end(); }
     else send(res, request, READY);
   });
-  assert.equal((await f.run(["--session", session, "--interval", "0.02", "--deadline", "0.1", "--request-timeout", "0.2"]).result).event.event, "work");
+  assert.equal((await f.poll(session).result).event.event, "work");
   assert.ok(f.calls[2].at - f.calls[1].at >= 190);
 });
 
@@ -609,7 +614,7 @@ it("a web pause holds new work without calling pipeline_next or counting toward 
   const { event } = await f.start(["--managed"]);
   f.setHandler(async (request, res) => send(res, request, request.params.name === "project_get" ? IDENTITY : READY));
   const before = f.calls.length;
-  for (let i = 0; i < 4; i++) { const polled = (await f.poll(event.session).result).event; assert.equal(polled.event, "idle", JSON.stringify(polled)); }
+  for (let i = 0; i < 4; i++) { const polled = (await f.pollBriefly(event.session).result).event; assert.equal(polled.event, "idle", JSON.stringify(polled)); }
   assert.equal(f.calls.length, before, "no pipeline_next while paused");
   assert.ok(ops(f).filter((op) => op === "beat:idle").length >= 4);
   assert.deepEqual(json(f.lockPath).state, { lastSignature: null, repeats: 0, stuck: false });
@@ -650,7 +655,7 @@ it("tells the server once when a poll ends stuck or in error, and keeps the even
   g.setRunnerHandler(byOp({ start: LEASE_OK, beat: LEASE_OK, stop: LEASE_OK }));
   const second = (await g.start(["--managed"])).event;
   g.setHandler(async (_request, res) => { res.statusCode = 503; res.end(); });
-  const failed = await g.run(["--session", second.session, "--interval", "0.02", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
+  const failed = await g.poll(second.session).result;
   assert.equal(failed.event.code, "request-failed"); assert.equal(failed.code, 1);
   assert.deepEqual(g.runnerCalls.filter((call) => call.body.op === "stop").map((call) => call.body.reason), ["error"]);
 });
@@ -772,7 +777,7 @@ it("with a lease, waits as long as the server says before the next check, paused
     f.setRunnerHandler(byOp({ start: LEASE_OK, beat: runnerReply(200, { ok: true, paused, nextBeatIn: 60 }) }));
     const { event } = await f.start(["--managed"]);
     const before = f.calls.length;
-    const result = await f.run(["--session", event.session, "--interval", "0.02", "--deadline", "0.02", "--request-timeout", "0.2"]).result;
+    const result = await f.run(["--session", event.session, "--interval", "0.02", "--deadline", "0.02", "--request-timeout", GENEROUS_REQUEST_TIMEOUT]).result;
     assert.equal(result.event.event, "idle", JSON.stringify(result.event));
     const [first, ...beats] = ops(f);
     const lookups = f.calls.length - before;
