@@ -114,6 +114,19 @@ PR이 `dev`에 병합된 뒤에 도는 검사가 실패하면 지금은 커밋 �
   아니다(`scripts/lib/plugin-payload.mjs`의 `isShippedPluginFile`). 원인이 시험이
   아니라 `plugin/bin`이나 `plugin/runtime`의 제품 코드에 있으면 그 수정은 배포
   파일을 바꾸므로 두 매니페스트의 버전을 함께 올린다.
+- 원인을 찾은 결과는 다음과 같다(2026-11-20).
+  - `harness-watch`: 시험이 폴링 한 번에 0.6초만 주었다. 느린 러너에서는 그 안에
+    잠금, 신호, 조회, 상태 기록을 끝내지 못해 `idle`이 반환됐다. 제품 동작은
+    맞다. 기대하는 일이 일어날 때까지의 한도를 6초로 늘렸다. 폴링은 일이 생기면
+    바로 반환한다.
+  - `windows-role-readlink`: 방금 실행한 `node.exe`가 잠겨 있는 동안 재시도 없이
+    폴더를 지웠다. 재시도를 넣었다.
+  - `harness-background`: 원인이 시험이 아니라 제품 코드다. Windows에서 다른
+    프로세스가 지우는 중인 잠금 폴더를 만들면 `EEXIST`가 아니라 `EPERM`이 나고,
+    `plugin/runtime/local-session.mjs`의 `withGuard`가 이를 `corrupt-state`로
+    끝낸다. 잠금만 떼어 낸 실험으로 확인했다. 시험은 고치지 않았고, 제품 수정은
+    별도 PR로 한다. 배포 파일이 바뀌므로 플러그인 버전을 올린다. 이 문서의 승인
+    범위 밖이며 소유자가 2026-11-20에 원인이 확인되면 바로 고치라고 정했다.
 - 이 수정은 Opus 5.5, effort `medium`으로 실행한 에이전트에 맡긴다(소유자 결정,
   2026-11-20). 처음에는 뒤에 올 실패 자동 수정의 첫 시도 설정(Sonnet 5.5
   `medium`)을 미리 시험하려고 했으나, 그 확인은 실패 자동 수정을 수동 실행으로
@@ -323,7 +336,10 @@ npm run find:green-dev
 | `npm run test:architecture` | Not run yet | |
 | `npm test` | Not run yet | |
 | `node .github/actions/post-merge-failure-record/record.mjs --dry-run ...` | Not run yet | 실패 14건이 이슈 5개로 묶여야 한다 |
-| 대상 러너에서 부하를 건 전후 비교 | Not run yet | |
+| 대상 러너에서 부하를 건 전후 비교, `harness-watch` (`macos-15-intel`) | 고치기 전 105회 중 26회 실패, 고친 후 105회 중 1회 실패 | 실행 `44700056975`. 시험 파일을 세 개씩 동시에 돌렸다. 남은 1회는 요청당 0.2초 한도에서 신호가 한 번 더 간 경우로, 실제 병합 후 실행에서는 본 적이 없다 |
+| 같은 비교, `windows-role-readlink` (`windows-2022`) | 고치기 전 105회 중 0회, 고친 후 105회 중 0회 | 재현되지 않아 효과를 확인하지 못했다. 정리 단계의 재시도는 제품 코드의 같은 정리가 쓰는 값이다 |
+| 같은 비교, `harness-background` (`windows-2022`) | 고치기 전 105회 중 23회, 고친 후 105회 중 37회 | 이 시험은 고치지 않았다. 실패 메시지에 실행기 기록을 붙였을 뿐이다 |
+| 잠금을 네 프로세스가 60초 동안 잡았다 놓는 실험 | `windows-2022`: 45,843회 중 27회가 `guard-create`의 `EPERM`으로 `corrupt-state`. `macos-15-intel`: 49,965회 중 0회 | 같은 실행의 `guard race` 잡 |
 | `main`에 올린 뒤의 실제 기록 | Not run yet | |
 
 ## Risks and Rollback
