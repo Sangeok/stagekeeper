@@ -1,0 +1,56 @@
+name: tmp-slow-runner-stress
+
+on:
+  pull_request:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: watch macos-15-intel ${{ matrix.variant }} x${{ matrix.parallel }} ${{ matrix.shard }}
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [before, after]
+        parallel: [3]
+        shard: [1, 2, 3, 4, 5]
+        include:
+          - { variant: after, parallel: 4, shard: 1 }
+          - { variant: after, parallel: 4, shard: 2 }
+          - { variant: after, parallel: 4, shard: 3 }
+          - { variant: after, parallel: 4, shard: 4 }
+          - { variant: after, parallel: 4, shard: 5 }
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Restore the test as it was before the fix
+        if: matrix.variant == 'before'
+        shell: bash
+        run: git checkout origin/dev -- plugin/bin/harness-watch.test.mjs
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run db:generate
+      - name: Build the verified native macOS runtime
+        shell: bash
+        run: |
+          architecture="$(node -p process.arch)"
+          archive="$RUNNER_TEMP/node-v22.23.3-darwin-$architecture.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-$architecture.tar.gz" -o "$archive"
+          node scripts/macos/build-runtime.mjs --archive "$archive" --output "$GITHUB_WORKSPACE/plugin/runtime/macos/node"
+      - name: Repeat harness-watch under load
+        env:
+          STAGEKEEPER_MACOS_RUNTIME_REQUIRED: "1"
+          STAGEKEEPER_RELEASED_READERS: required
+        run: node .github/tmp/stress.mjs --file=plugin/bin/harness-watch.test.mjs --rounds=7 --parallel=${{ matrix.parallel }} --label=watch-${{ matrix.variant }}-x${{ matrix.parallel }}-${{ matrix.shard }}
