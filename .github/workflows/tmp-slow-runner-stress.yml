@@ -13,17 +13,22 @@ concurrency:
 
 jobs:
   macos:
-    name: stress macos-15-intel ${{ matrix.shard }}
+    name: stress macos-15-intel ${{ matrix.variant }} ${{ matrix.shard }}
     runs-on: macos-15-intel
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
+        variant: [before, after]
         shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - name: Restore the tests as they were before the fix
+        if: matrix.variant == 'before'
+        shell: bash
+        run: git checkout origin/dev -- plugin/bin/harness-watch.test.mjs plugin/bin/harness-background.test.mjs scripts/windows/windows-role-readlink.test.mjs
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -41,19 +46,24 @@ jobs:
         env:
           STAGEKEEPER_MACOS_RUNTIME_REQUIRED: "1"
           STAGEKEEPER_RELEASED_READERS: required
-        run: node .github/tmp/stress.mjs --file=plugin/bin/harness-watch.test.mjs --rounds=5 --parallel=4 --label=harness-watch-macos-intel-${{ matrix.shard }}
+        run: node .github/tmp/stress.mjs --file=plugin/bin/harness-watch.test.mjs --rounds=7 --parallel=3 --label=harness-watch-macos-intel-${{ matrix.variant }}-${{ matrix.shard }}
   windows:
-    name: stress windows-2022 ${{ matrix.shard }}
+    name: stress windows-2022 ${{ matrix.variant }} ${{ matrix.shard }}
     runs-on: windows-2022
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
+        variant: [before, after]
         shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - name: Restore the tests as they were before the fix
+        if: matrix.variant == 'before'
+        shell: bash
+        run: git checkout origin/dev -- plugin/bin/harness-watch.test.mjs plugin/bin/harness-background.test.mjs scripts/windows/windows-role-readlink.test.mjs
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -77,10 +87,28 @@ jobs:
         shell: pwsh
         env:
           STAGEKEEPER_RELEASED_READERS: required
-        run: node .github/tmp/stress.mjs --file=plugin/bin/harness-background.test.mjs --rounds=5 --parallel=4 --label=harness-background-windows-${{ matrix.shard }}
+        run: node .github/tmp/stress.mjs --file=plugin/bin/harness-background.test.mjs --rounds=7 --parallel=3 --label=harness-background-windows-${{ matrix.variant }}-${{ matrix.shard }}
       - name: Repeat readlink cleanup under load
         if: steps.node-cache.outputs.cache-hit == 'true'
         shell: pwsh
         run: |
           $env:STAGEKEEPER_TEST_WINDOWS_RUNTIME = "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
-          node .github/tmp/stress.mjs --file=scripts/windows/windows-role-readlink.test.mjs --rounds=5 --parallel=4 --label=readlink-windows-${{ matrix.shard }}
+          node .github/tmp/stress.mjs --file=scripts/windows/windows-role-readlink.test.mjs --rounds=7 --parallel=3 --label=readlink-windows-${{ matrix.variant }}-${{ matrix.shard }}
+  guard-race:
+    name: guard race ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Take and release the same guard from four processes
+        env:
+          GUARD_RACE_SECONDS: "60"
+          GUARD_RACE_WORKERS: "4"
+        run: node .github/tmp/guard-race.mjs
