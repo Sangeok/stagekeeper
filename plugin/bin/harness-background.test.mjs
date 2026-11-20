@@ -502,7 +502,7 @@ it("stops with an error after three failed runs and tells the server", async t =
   await waitFor(() => !existsSync(f.lockPath) && f.notices().some(notice => notice.kind === "error"), 60000, "the error stop and its notice");
   const session = startedSession(f);
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "error" && call.session === session), stopEvidence(f, session));
-  assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 3);
+  assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 3, stopEvidence(f, session));
 });
 
 it("waits on Claude's usage limit with one notice, shows when it continues and keeps running", async t => {
@@ -661,7 +661,7 @@ it("refuses to release a runner that is still running", async t => {
   assert.equal(started.event.event, "started");
   for (const args of [["--release"], ["--release", "--session", started.event.session]]) {
     const refused = await f.run(args);
-    assert.deepEqual([refused.code, refused.event.code, refused.event.reason], [1, "still-running", REASONS["still-running"]]);
+    assert.deepEqual([refused.code, refused.event.code, refused.event.reason], [1, "still-running", REASONS["still-running"]], stopEvidence(f, started.event.session));
   }
   assert.equal(JSON.parse(readFileSync(f.lockPath, "utf8")).id, started.event.session);
 });

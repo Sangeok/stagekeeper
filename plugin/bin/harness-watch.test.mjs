@@ -120,8 +120,9 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
     rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   });
   const start = async (extra = [], env) => (await run(["--start", "--commit", "no", "--propose", "no", ...extra], env).result);
-  const poll = (session, extra = [], env) => run(["--session", session, "--interval", "0.02", "--deadline", "0.01", "--request-timeout", "0.2", ...extra], env);
-  return { root, url, directory, lockPath, policyPath, calls, runnerCalls, git, run, start, poll,
+  const pollWithin = (deadline) => (session) => run(["--session", session, "--interval", "0.02", "--deadline", deadline, "--request-timeout", "0.2"]);
+  const poll = pollWithin("0.1"), pollBriefly = pollWithin("0.01");
+  return { root, url, directory, lockPath, policyPath, calls, runnerCalls, git, run, start, poll, pollBriefly,
     setHandler: (value) => { handler = value; },
     setRunnerHandler: (value) => { runnerHandler = value; },
     snapshot: () => [lockPath, policyPath].map((file) => existsSync(file) ? readFileSync(file, "utf8") : null) };
@@ -437,7 +438,7 @@ it("honors a longer Retry-After, and a healthy overview restarts failure countin
     if (++count === 1) { res.writeHead(429, { "retry-after": "0.2" }); res.end(); }
     else send(res, request, READY);
   });
-  assert.equal((await f.run(["--session", session, "--interval", "0.02", "--deadline", "0.1", "--request-timeout", "0.2"]).result).event.event, "work");
+  assert.equal((await f.poll(session).result).event.event, "work");
   assert.ok(f.calls[2].at - f.calls[1].at >= 190);
 });
 
@@ -609,7 +610,7 @@ it("a web pause holds new work without calling pipeline_next or counting toward 
   const { event } = await f.start(["--managed"]);
   f.setHandler(async (request, res) => send(res, request, request.params.name === "project_get" ? IDENTITY : READY));
   const before = f.calls.length;
-  for (let i = 0; i < 4; i++) { const polled = (await f.poll(event.session).result).event; assert.equal(polled.event, "idle", JSON.stringify(polled)); }
+  for (let i = 0; i < 4; i++) { const polled = (await f.pollBriefly(event.session).result).event; assert.equal(polled.event, "idle", JSON.stringify(polled)); }
   assert.equal(f.calls.length, before, "no pipeline_next while paused");
   assert.ok(ops(f).filter((op) => op === "beat:idle").length >= 4);
   assert.deepEqual(json(f.lockPath).state, { lastSignature: null, repeats: 0, stuck: false });
@@ -650,7 +651,7 @@ it("tells the server once when a poll ends stuck or in error, and keeps the even
   g.setRunnerHandler(byOp({ start: LEASE_OK, beat: LEASE_OK, stop: LEASE_OK }));
   const second = (await g.start(["--managed"])).event;
   g.setHandler(async (_request, res) => { res.statusCode = 503; res.end(); });
-  const failed = await g.run(["--session", second.session, "--interval", "0.02", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
+  const failed = await g.poll(second.session).result;
   assert.equal(failed.event.code, "request-failed"); assert.equal(failed.code, 1);
   assert.deepEqual(g.runnerCalls.filter((call) => call.body.op === "stop").map((call) => call.body.reason), ["error"]);
 });
