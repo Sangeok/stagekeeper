@@ -202,7 +202,10 @@ commits that were already green on `dev`.
   an older deployment.
 - **Neither `main` nor `dev` may be the head of a pull request.** Release promotion
   remains fast-forward only. The active GitHub ruleset `Keep dev and main` forbids
-  deletion of both protected refs and has no bypass actors; retain that protection.
+  deletion and force pushes of both protected refs. The active ruleset
+  `Require pull request on dev` accepts a change to `dev` only through a pull
+  request, so a direct push to `dev` is refused. Neither ruleset has bypass actors;
+  retain that protection.
 - Feature branches are deleted automatically when their pull request merges
   (`deleteBranchOnMerge` is on). That is intended — it keeps `harness/<topic>` branches
   from piling up — and `gh pr merge` needs no `--delete-branch`.
