@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -133,6 +133,32 @@ export function isAlive(pid) {
   try { process.kill(pid, 0); return true; }
   catch (error) { return error.code !== "ESRCH"; }
 }
+
+export const PROCESS_START_LIMIT = 5000;
+export const PROCESS_START_TOLERANCE = 2000;
+const processStartCommand = pids => `Get-Process -Id ${pids.join(",")} -ErrorAction SilentlyContinue | ForEach-Object { try { '{0} {1}' -f $_.Id, $_.StartTime.ToUniversalTime().ToString('o') } catch {} }`;
+function windowsProcessStarts(pids) {
+  const result = spawnSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+    ["-NoProfile", "-NonInteractive", "-Command", processStartCommand(pids)],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: PROCESS_START_LIMIT, windowsHide: true });
+  if (result.error || typeof result.stdout !== "string") return new Map();
+  return new Map(result.stdout.split(/\r?\n/).map(line => line.trim().split(" ")).filter(parts => parts.length === 2)
+    .map(([pid, start]) => [Number(pid), Date.parse(start)]).filter(([pid, start]) => Number.isInteger(pid) && Number.isFinite(start)));
+}
+const recordedAt = record => (typeof record.at === "string" && Number.isFinite(Date.parse(record.at)) ? Date.parse(record.at) : null);
+export const recordKey = record => `${record.pid}:${record.nonce}`;
+export function replacedProcesses(records, { platform = process.platform, starts = windowsProcessStarts } = {}) {
+  if (platform !== "win32") return new Set();
+  const dated = records.filter(record => recordedAt(record) !== null && record.pid !== process.pid && isAlive(record.pid));
+  if (dated.length === 0) return new Set();
+  let answer;
+  try { answer = starts([...new Set(dated.map(record => record.pid))]); } catch { return new Set(); }
+  return new Set(dated.filter(record => {
+    const start = answer instanceof Map ? answer.get(record.pid) : undefined;
+    return Number.isFinite(start) && start - recordedAt(record) > PROCESS_START_TOLERANCE;
+  }).map(recordKey));
+}
+export const recordAlive = (record, replaced = new Set()) => record.pid !== process.pid && !replaced.has(recordKey(record)) && isAlive(record.pid);
 
 export async function withGuard(files, action, expires = Infinity) {
   const directory = path.dirname(files.lock), common = path.dirname(directory);
@@ -285,7 +311,7 @@ export async function registerChild(files, session, binding, child) {
     state.lock.children ??= [];
     if (state.lock.children.some(item => item.nonce === child.nonce)) fail("corrupt-state");
     if (child.sandbox !== undefined) state.lock.schemaVersion = 2;
-    state.lock.children.push(child);
+    state.lock.children.push({ ...child, at: new Date().toISOString() });
     atomicWrite(files.lock, state.lock);
   });
 }

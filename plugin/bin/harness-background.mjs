@@ -11,7 +11,7 @@ import { actionableWork } from "../runtime/execution/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
   readStreamLine, ResidentRunUnsettled, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
 import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, lifecycleOf, markUnsettled, matchesBinding, NewerState, readState, readStateWithGuard,
-  recordedChildren, registerChild, requestStop, residentLock, settleChild, stateFiles, withGuard, writeStopRequest } from "../runtime/local-session.mjs";
+  recordAlive, recordedChildren, registerChild, replacedProcesses, requestStop, residentLock, settleChild, stateFiles, withGuard, writeStopRequest } from "../runtime/local-session.mjs";
 import { callTool, connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 import { createCodexExecution } from "../runtime/codex-main-loop.mjs";
@@ -295,13 +295,22 @@ function staleResident(state) {
     && recordedChildren(state.lock).every(child => !isAlive(child.pid));
 }
 
-function processLeft(lock) {
-  const runner = lock.poller === null ? Date.now() - Date.parse(lock.startedAt) <= START_SETTLE : isAlive(lock.poller.pid);
-  return runner || recordedChildren(lock).some(child => isAlive(child.pid));
+function processProbe() {
+  const injected = process.env.STAGEKEEPER_TEST_PROCESS_STARTS;
+  if (!injected) return {};
+  let starts;
+  try { starts = new Map(Object.entries(JSON.parse(injected)).map(([pid, at]) => [Number(pid), Date.parse(at)])); } catch { starts = new Map(); }
+  return { platform: "win32", starts: () => starts };
+}
+const replacedIn = lock => (lock.mode === "resident" ? replacedProcesses([...(lock.poller ? [lock.poller] : []), ...recordedChildren(lock)], processProbe()) : new Set());
+
+function processLeft(lock, replaced) {
+  const runner = lock.poller === null ? Date.now() - Date.parse(lock.startedAt) <= START_SETTLE : recordAlive(lock.poller, replaced);
+  return runner || recordedChildren(lock).some(child => recordAlive(child, replaced));
 }
 
-const heldResident = state => state.lock.mode === "resident" && !processLeft(state.lock) && !staleResident(state);
-const occupied = (state, client) => refuse(heldResident(state) ? "held" : "locked", { startedAt: state.lock.startedAt }, client);
+const heldResident = (state, replaced) => state.lock.mode === "resident" && !processLeft(state.lock, replaced) && !staleResident(state);
+const occupied = (state, client, replaced) => refuse(heldResident(state, replaced) ? "held" : "locked", { startedAt: state.lock.startedAt }, client);
 
 async function startChecks(location, files, options) {
   const input = connection(location.root, options);
@@ -316,7 +325,7 @@ async function startChecks(location, files, options) {
   const remotes = pushUrlRemotes(location.root);
   if (remotes.length > 0) refuse("push-url", { remote: remotes[0] });
   const state = await readStateWithGuard(files);
-  if (state && !staleResident(state)) occupied(state, input.client);
+  if (state && !staleResident(state)) occupied(state, input.client, replacedIn(state.lock));
   if (input.client === "codex") { codexExecutable(); await verifyCodexSupport(input); }
   else claudeCommand();
   let identity;
@@ -408,7 +417,11 @@ async function start(location, files, options) {
 
 async function stop(files) {
   if (!existsSync(files.directory)) return { event: "error", code: "not-running", reason: REASONS["not-running"] };
-  let stopped = null;
+  let stopped = null, replaced;
+  try {
+    const before = await readStateWithGuard(files);
+    if (before) replaced = replacedIn(before.lock);
+  } catch (error) { if (!(error instanceof NewerState)) throw error; }
   const event = await withGuard(files, () => {
     let state;
     try { state = readState(files); }
@@ -423,7 +436,7 @@ async function stop(files) {
       clearState(files);
       return { event: "stopped", session: state.lock.id };
     }
-    if (heldResident(state)) refuse("held", { startedAt: state.lock.startedAt }, state.lock.client);
+    if (heldResident(state, replaced)) refuse("held", { startedAt: state.lock.startedAt }, state.lock.client);
     state.lock.lifecycle = "stopping";
     atomicWrite(files.lock, state.lock);
     writeStopRequest(files, state.lock.id);
@@ -459,7 +472,8 @@ async function release(location, files, options) {
   const state = existsSync(files.directory) ? await readStateWithGuard(files) : null;
   if (state === null || state.lock.mode !== "resident") return { event: "error", code: "not-running", reason: REASONS["not-running"] };
   const client = state.lock.client ?? "claude";
-  if (processLeft(state.lock)) refuse("still-running", {}, client);
+  const replaced = replacedIn(state.lock);
+  if (processLeft(state.lock, replaced)) refuse("still-running", {}, client);
   const dirty = treeState(location.root).dirty;
   const print = lines => { for (const line of lines) process.stdout.write(forClient(line, client) + "\n"); };
   if (!options.session) {
@@ -473,7 +487,7 @@ async function release(location, files, options) {
   const released = await withGuard(files, () => {
     const current = readState(files);
     if (current?.lock.id !== options.session) refuse("release-changed", {}, client);
-    if (processLeft(current.lock)) refuse("still-running", {}, client);
+    if (processLeft(current.lock, replaced)) refuse("still-running", {}, client);
     if (recordedChildren(current.lock).some(child => child.sandbox)) refuse("held", {}, client);
     clearState(files);
     return current.lock;
@@ -499,7 +513,7 @@ async function status(files) {
   const autostart = readOptional(autostartFile(directory));
   const running = state?.lock.mode === "resident" && state.lock.poller !== null && isAlive(state.lock.poller.pid);
   const limitedUntil = running && typeof saved?.limitedUntil === "string" && Date.parse(saved.limitedUntil) > Date.now() ? saved.limitedUntil : null;
-  return { event: "status", running, limitedUntil, held: state !== null && heldResident(state), newer: newer !== null,
+  return { event: "status", running, limitedUntil, held: state !== null && heldResident(state, replacedIn(state.lock)), newer: newer !== null,
     client: state?.lock.client ?? newer?.client ?? saved?.client ?? "claude", session: state?.lock.mode === "resident" ? state.lock.id : newer?.session ?? null,
     lifecycle: state?.lock.mode === "resident" ? state.lock.lifecycle : null,
     otherSession: state && state.lock.mode !== "resident" ? state.lock.mode ?? "watch" : null,
@@ -588,7 +602,7 @@ async function resident(location, files, options) {
     if (state?.lock.id !== session || state.lock.mode !== "resident" || !matchesBinding(state.lock.binding, input.binding)) refuse("corrupt-state");
     if ((state.lock.client ?? "claude") !== input.client || (saved.client ?? "claude") !== input.client) refuse("corrupt-state");
     if (state.lock.poller && isAlive(state.lock.poller.pid)) refuse("locked", { startedAt: state.lock.startedAt });
-    state.lock.poller = { pid: process.pid, nonce };
+    state.lock.poller = { pid: process.pid, nonce, at: now() };
     state.lock.seenAt = now();
     atomicWrite(files.lock, state.lock);
   });

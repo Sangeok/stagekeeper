@@ -47,8 +47,8 @@ function extractPlugin(commit, scratch) {
   return path.join(target, "plugin");
 }
 
-const deadPid = () => spawnSync(process.execPath, ["-e", ""], { windowsHide: true }).pid;
-const child = pid => ({ pid, nonce: randomUUID() });
+const deadPid = () => 2147483644;
+const child = pid => ({ pid, nonce: randomUUID(), at: new Date().toISOString() });
 const crashed = lock => {
   lock.poller = child(deadPid());
   lock.children.push(child(deadPid()));
