@@ -156,6 +156,21 @@ commits that were already green on `dev`.
   Read the other open `[gate]` issues too, and stop when one concerns a change in this
   promotion. When only the `record` job of a gate run failed, re-run that job; it
   reuses the gate job's outputs and starts no model.
+- A post-merge run on `dev` or `main` that fails is rerun once by the
+  `post-merge-failure-record` workflow, and the failure and the rerun result are
+  recorded in a `[post-merge] <workflow>/<job>: <step>` issue. Triage that issue.
+  When the merged change caused the failure (it changed the failing test or the code
+  that test uses, and the rerun failed too), revert it first through a pull request
+  and fix it afterwards. When an unrelated test failed and the rerun passed, or the
+  issue collects different commits, fix the test; the count in the issue sets the
+  order. When the failure is outside the tests, such as a runner that did not start,
+  confirm that the rerun passed. Write the cause and what was done in the issue, then
+  close it; the workflow never closes one.
+- Before promoting, read the open `[post-merge]` issues. Stop while one concerns the
+  commit being promoted or a change in this promotion: write the cause and the
+  decision in it and close it first. After `git fetch origin`,
+  `npm run find:green-dev` prints the newest `origin/dev` commit whose post-merge
+  workflows all passed and the newer commits it leaves out.
 - Before promoting, run the `client-init-smoke` workflow on the `dev` commit being
   promoted (`gh workflow run client-init-smoke.yml --ref dev`), and also `agent-eval`
   when shipped `plugin/` files changed. Stop unless every job is green, and promote

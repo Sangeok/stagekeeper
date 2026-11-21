@@ -146,7 +146,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   협조적 oracle은 시험 정리에만 사용하며 제품 backend에 연결하지 않는다.
   실제 Codex resident의 macOS 권한 격리·설치·로그인·A→Z·110분 인수는 이 CI의 범위가 아니다.
 - `npm run test:scripts`: `scripts/**/*.test.mjs`와 `scripts/**/*.test.ts`를 재귀 검색하고
-  기록 Action의 `.github/actions/gate-record/record.test.mjs`도 실행한다. CI의 `npm run check`에 포함된다.
+  기록 Action의 `.github/actions/gate-record/record.test.mjs`와
+  `.github/actions/post-merge-failure-record/record.test.mjs`도 실행한다. CI의 `npm run check`에 포함된다.
   Windows native 시험은 기존처럼 플랫폼과 전용 runtime이 필요하며 미준비 시 skip한다.
 - `npm run test:architecture`: 위 두 위치에서 JavaScript 시험을 실행한다.
   `npm run test:project-availability`는 `scripts/project-ownership/project-availability*.test.ts`를 실행한다.
@@ -324,6 +325,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | init 스킬의 모델 동작 | 공통 | | `agent-eval/init-skill` | | | 모델 동작은 OS와 무관하다. eval은 셸 명령을 가두는 샌드박스가 있는 OS에서만 돌고 Windows에는 없다 |
 | 파이프라인 전체 | OS별 | `pipeline-smoke/pipeline` | `pipeline-smoke/pipeline` | | | `scripts/rehearsals/rehearse-pipeline-smoke.ts` |
 | 게이트 실행 기록 | 공통 | | | `client-init-smoke/record`, `agent-eval/record`, `pipeline-smoke/record` | | |
+| 병합 후 실패 기록 | 공통 | | | `post-merge-failure-record/record` | | |
 | 템플릿 release 운영 | 공통 | | | `template-release/validate`, `template-release/deploy` | | |
 | 이동한 정책 계약 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm run test:policy-contracts`로 기존 core/GitHub의 서버·FSD 이동 사례를 실행. Linux는 test-web/server에서 같은 파일을 발견 |
 | 공유 모듈 배포와 경계 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `scripts/plugin-lib.test.mjs`, `scripts/lib/shared-module-graph.test.mjs`, `scripts/checks/verify-shared-boundaries.test.mjs`, `scripts/macos/package-plugin.test.mjs`, `scripts/windows/package-windows-plugin.test.mjs`. native package 사례는 해당 OS 결과를 구분 |
@@ -590,7 +592,8 @@ artifact 업로드를 정한다. 도구와 CI 연결의 경계는 이 방식으�
 스크립트 전체의 경계와 재사용 판단에는 전용 자동 검사기가 없다. 변경 리뷰에서 실제 호출·import,
 입출력·종료 코드와 로컬 재현 경로를 확인한다. 경로를 옮기거나 CI 연결 코드를 추출하면
 테스트 검색·lint·타입 검사 범위와 workflow 경로 필터도 함께 갱신하고 실제 실행을 확인한다.
-`test:scripts`와 `test:architecture`는 기존 `scripts/` 탐색과 함께 `.github/actions/gate-record/record.test.mjs`를 직접 실행한다.
+`test:scripts`와 `test:architecture`는 기존 `scripts/` 탐색과 함께 `.github/actions/gate-record/record.test.mjs`와
+`.github/actions/post-merge-failure-record/record.test.mjs`를 직접 실행한다.
 
 리허설의 모듈 경계는 `scripts/checks/rehearsal-boundaries.test.mjs`가 검사한다.
 현재 checkout의 init·pipeline·Codex·shared-distribution 소비자는 `support/`의 명령·DB·
@@ -674,6 +677,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `checks/verify-server-boundaries.mjs` | `npm run verify:server`, `npm run lint`, `npm run check` | CI마다 | 서버 공개 API·모듈 방향·runtime 초기화·정확한 내부 시험 목록 검사. 미추적 source도 포함 |
 | `checks/verify-docs.mjs`, `checks/verify-docs.test.mjs` | `npm run docs:check`, `npm run check`; `test:scripts` | CI마다 | `docs/test-reports`의 front matter 규칙([보고서 README](../test-reports/README.md)의 Validation 절)과 추적 중인 모든 Markdown 본문의 상대 링크가 추적 파일·디렉터리를 가리키는지 검사한다. 대소문자를 구분하며 외부 URL·anchor는 검사하지 않는다 |
 | `checks/verify-ci-coverage.mjs`, `checks/verify-ci-coverage.test.mjs` | `npm run verify:ci-coverage`, `npm run check`; `test:scripts` | CI마다 | `.github/workflows/`의 job과 위 [CI 검사의 OS 범위](#ci-검사의-os-범위) 표를 대조한다. 표에 없는 job, 지원 OS의 job이나 확인 문자열이 없는 "OS별" 검사, 이유 없는 "단일 OS" 검사, 낡은 "미충족" 칸, gate job의 출력과 다른 `record` job의 `legs`에서 실패한다. 읽지 못하는 모양의 workflow도 실패로 처리한다. 파일을 읽기만 한다 |
+| `checks/find-green-dev-commit.mjs`, `checks/find-green-dev-commit.test.mjs` | `npm run find:green-dev [-- --limit <수> --json]`; `test:scripts`, `test:architecture` | 승격 전, 요청 시 | `git fetch origin` 뒤에 실행한다. `origin/dev`의 first-parent 커밋을 최신부터 읽어 `check`, `windows-role-runtime`, `macos-runtime-contracts`의 push 실행이 모두 성공한 가장 최근 커밋의 전체 SHA를 출력하고, 그보다 뒤의 커밋과 각 상태(failed, pending, missing)를 함께 출력한다. 다시 실행해 통과했으면 통과로 본다. 읽기만 하며 브랜치나 태그를 만들지 않는다. 토큰은 `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token` 순으로 쓴다. 찾지 못하면 1로 끝난다 |
 | `checks/verify-plugin-version.mjs`, `checks/verify-plugin-version.test.mjs` | `npm run verify:plugin-version [-- --base <ref> --head <ref>]`; `test:scripts` | `main` 승격 직전 | `origin`의 `main`·`dev`를 fetch한 뒤 기본값 `origin/main`→`origin/dev` 사이에서 출하 대상 `plugin/` 파일(Windows 패키지와 같은 기준: `plugin/templates/`·`plugin/evals/`·`*.test.mjs` 제외)이 바뀌었으면 두 plugin manifest의 판이 같고 둘 다 base보다 높은지 검사한다. dev CI에는 넣지 않는다. 판은 배포 때 올리므로 dev는 이 검사에서 실패하는 상태일 수 있다 |
 | `tests/server/register-server-only.mjs` | `npm run test:server` | CI마다, 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | CI마다(일회용 PostgreSQL 18), 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. migrate 출력은 숨기고 시험 출력은 그대로 보인다. DB 생성·삭제·reset 없음 |
@@ -688,6 +692,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/support/smoke-server.mjs`, `rehearsals/support/smoke-server-listener.cjs` | client-init·pipeline·Codex macOS·shared-distribution 리허설이 `startSmokeServer`를 호출. 시험은 `node --test scripts/rehearsals/support/smoke-server.test.mjs` | 공통 스크립트 시험과 Windows·macOS runtime CI | 실행별 loopback 주소, 소유 자식의 listen IPC, HTTP 준비 검사와 종료 확인을 소유한다. 제품 HTTP 경로는 추가하지 않는다 |
 | `rehearsals/rehearse-shared-distribution.mjs`, `shared-distribution-contract.mjs`, `shared-template-snapshot.mjs` | `shared-distribution-acceptance/acceptance`의 OS matrix | 기존 template 읽기 권한이 있는 신뢰 PR/dev CI | 실제 native runtime으로 이전/후보 bundle을 만들고 고정 Codex CLI의 선택 cache를 검사한다. 별도 test DB에서 S0/P0 → S/P0 → S/P를 확인하며 private 원문은 runner Temp에만 두고 정제한 summary만 artifact로 보존한다. 전체 job 성공과 summary PASS를 함께 확인하며 모델·개인 로그인·운영 배포를 요구하지 않는다 |
 | `.github/actions/gate-record/record.mjs`, `.github/actions/gate-record/record.test.mjs` | `GATE_SUMMARIES=<job 출력 JSON> node .github/actions/gate-record/record.mjs --workflow <게이트> --result <gate job 결과> --legs <다리,다리> --event <이벤트> --ref <전체 ref> --commit <커밋 전체> --run-id <번호> --run-attempt <n> --repository <owner/name> --record-issue <번호> --out <새 폴더> [--open-issues <NDJSON>]`. 시험은 `test:scripts` | 세 게이트의 `record` job(`.github/actions/gate-record`), 시험은 CI마다 | 실행 정보를 검증하고 요약을 다시 필터링해 기존 parent 아래 새 폴더에 배타적으로 쓴다. 기존 출력은 거부하며 composite action은 성공 단계의 경로 output만 소비한다. 네트워크를 쓰지 않는다. PR 이벤트, `dev`·`main` 밖의 ref, 형식이 틀린 값은 아무것도 쓰지 않고 거부한다 |
+| `.github/actions/post-merge-failure-record/record.mjs`, `.github/actions/post-merge-failure-record/record.test.mjs` | `GH_TOKEN=<토큰> node .github/actions/post-merge-failure-record/record.mjs --repository <owner/name> [--since <시각>] [--until <시각>] [--dry-run]`; `post-merge-failure-record/record`; `test:scripts`, `test:architecture` | 병합 후 워크플로가 끝날 때, 1시간마다, 수동 실행 | `dev`의 `check`, `windows-role-runtime`, `macos-runtime-contracts`와 `main`의 `check`에서 최근 72시간의 push 실행을 읽는다. 첫 시도가 실패한 실행은 실패한 job만 한 번 다시 실행하고, 실패와 다시 실행한 결과를 `[post-merge] <workflow>/<job>: <step>` 이슈에 적는다. 같은 실패는 열린 이슈 하나에 쌓고, 실행 번호와 시도 번호의 표시로 중복을 막는다. 이 Action이 연 이슈(`github-actions[bot]`)만 읽는다. `--dry-run`은 쓰지 않고 할 일만 출력한다. 이슈는 자동으로 닫지 않는다 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
 | `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |

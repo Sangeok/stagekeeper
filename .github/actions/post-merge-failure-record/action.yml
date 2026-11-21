@@ -1,0 +1,19 @@
+name: post-merge-failure-record
+description: Rerun a failed post-merge run once and record the failure and the rerun result in an issue.
+inputs:
+  dry-run:
+    description: When true, print what would be done and write nothing.
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Record post-merge failures
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RECORD_DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        arguments=(--repository "$GITHUB_REPOSITORY")
+        if [ "$RECORD_DRY_RUN" = "true" ]; then arguments+=(--dry-run); fi
+        node .github/actions/post-merge-failure-record/record.mjs "${arguments[@]}"
