@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-11-21"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "user"
+approved-at: "2026-11-21"
+approval-scope: "이 문서의 Proposal과 Execution Plan 전체. 구현 전 실험, 1단계(processLeft 경로), 2단계(자동 정리와 나머지 경로), 시험 수정, protocol.md 수정, 플러그인 버전 올림. 2단계는 1단계가 dev에서 맞게 동작하는 것을 확인한 뒤에 한다."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -203,7 +203,7 @@ Windows는 죽은 프로세스의 번호를 몇 초 안에 새 프로세스에 �
 
 승인 메모:
 
-- 승인 전.
+- 구현 전 실험의 결과가 이 문서의 전제와 다르면 문서를 고치고 다시 확인받은 뒤 구현한다.
 
 ## Execution Plan
 
@@ -301,7 +301,7 @@ npm run docs:check
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
-- [x] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다. 지금은 승인 전이다.
+- [x] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
 - [x] `proposal-size`는 `small` 또는 `standard`만 사용했고, standard 강제 조건에 해당하는 작업을 small로 낮추지 않았다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
