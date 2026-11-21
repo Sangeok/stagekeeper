@@ -403,9 +403,7 @@ it("leaves an abandoned guard untouched and requires explicit force for an expir
 it("recovers only a provably dead poller and preserves a live or unknown PID", async (t) => {
   const f = await fixture(t);
   const session = (await f.start()).event.session;
-  const exited = spawn(process.execPath, ["-e", ""], { windowsHide: true });
-  const deadPid = exited.pid;
-  await new Promise((resolve) => exited.once("close", resolve));
+  const deadPid = 2147483644;
   let lock = json(f.lockPath);
   lock.poller = { pid: process.pid, nonce: "live-owner" };
   writeFileSync(f.lockPath, JSON.stringify(lock));

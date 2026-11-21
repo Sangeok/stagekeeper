@@ -205,7 +205,8 @@ foreground와 resident 조회도 같은 guard 안에서 두 파일을 함께 읽
 resident lifecycle 조회는 비동기로 guard 해제를 기다리며 부분 저장을 손상으로 오인하지 않는다.
 실제 손상과 abandoned guard의 거부는 유지한다. session/poller nonce를
 응답 뒤·cleanup 때에도 다시 확인하여 이전 응답이 새 소유자를 덮어쓰지 못한다. 각 session의
-poller는 하나이며 ESRCH만 죽음 증거로 쓴다. work/idle은 session을 보존하고 poller만 해제한다.
+poller는 하나이며 자동 판단은 ESRCH만 죽음 증거로 쓴다. 상주 실행기의 `--release`·`held` 판단만 아래
+상주 실행기 절의 등록 시각 비교를 더한다. work/idle은 session을 보존하고 poller만 해제한다.
 stop은 root/session만으로 자기 상태를 해제하며 config/token/server 부재에도 실행할 수 있다.
 손상 상태·abandoned guard는 force도 우회하지 않는다. 12시간 만료도 owner 확인 후 force가 필요하다.
 로컬 잠금은 다른 clone/기기·수동 세션을 잠그거나 이미 실행된 agent/in-flight 요청을 취소하지 않는다.
@@ -408,6 +409,18 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
     guard 안에서 같은 세션과 남은 프로세스 없음을 다시 확인한 뒤 잠금을 지우고 서버에 stop(owner)을 보내 lease를 바로 푼다.
     스킬은 확인 결과를 보여 주고 한 번 묻고, 명시적 동의가 있을 때만 이 명령을 실행한다. 이 owner 확인이 Codex 계약의
     terminal·child 확인을 대신하는 유일한 해제 경로다(2026-10-27 혼합 호스트 인수 F2의 수정).
+  - 프로세스의 같은 실행 확인: Windows는 죽은 프로세스의 PID를 몇 초 안에 새 프로세스에 준다(windows-2022에서
+    짧게 끝난 프로세스의 70~90%가 20초 안에 죽은 PID를 받았다). 그래서 poller와 기록된 child 항목에 등록 시각
+    `at`(ISO, 프로세스가 생긴 뒤 적는다)을 둔다. 고정 항목과 `binding`에는 두지 않고 `schemaVersion`도 올리지 않는다.
+    없거나 형식이 틀린 `at`은 없는 것으로 보며 손상으로 보지 않는다. `--release`, start·`--stop`의 `held`·`locked`
+    구분, `--status`의 `held`와 `running`은 PID가 ESRCH이거나 확인하는 프로세스 자신의 PID면 끝났다고 본다. Windows에서 `at`이
+    있는데 PID가 살아 있다고 나오면 그런 PID 모두를 PowerShell `Get-Process` 한 번으로 물어 지금 그 PID를 쓰는
+    프로세스의 생성 시각을 얻는다. 생성 시각이 `at`보다 2초 넘게 늦으면 PID를 물려받은 다른 프로세스이므로 끝났다고
+    본다. 질의 실패·5초 시간 한도 초과·답 없음과 `at`이 없는 항목은 살아 있음으로 남는다. 질의는 guard 밖에서 하고,
+    guard 안에서는 `kill(pid, 0)`만 다시 확인하며 guard 밖에서 판정하지 않은 항목은 PID만으로 판단한다. 다른 OS는
+    질의하지 않는다. 자동 회수, 상주 실행기 시작 때의 poller 확인, watch의 `poller-active`, foreground release는
+    아직 PID만 본다. 그래서 PID를 물려받은 죽은 Claude runner의 잠금은 자동으로 지워지지 않고 `held`로 남아 owner가
+    `--release`로 푼다.
 - 로컬 파일(공통 Git 디렉터리의 `harness/`):
   - `background.json`: 상태(`--status`가 읽음)
   - `background-settings.json`: 허용 목록
@@ -745,6 +758,8 @@ helper는 full SHA·파일 경로·LF 정규화 내용 hash·agent/key·기존 r
 
 로컬 실행은 canonical common Git의 `harness/watch.json`, `watch.lock.json`, `watch.guard`를 공유한다.
 기존 binding 다섯 key는 그대로이고 새 metadata는 top-level `client`, `mode`, `lifecycle`, `children`이다.
+`poller`와 `children` 항목은 `{pid, nonce}`에 선택 key `at`(등록 시각)을 더할 수 있다. 옛 판은 이 key를 무시하고
+PID만으로 판단하므로 잃어도 안전한 정보다.
 누락 metadata는 Claude/watch/active다. foreground start는 활성 state를 덮어쓰지 않는다.
 `mode`는 watch·foreground·resident(plugin 0.5.14, 상주 실행기)다. 옛 판은 resident를 손상 상태로 보고 거부한다 —
 같은 저장소에서 섞여 돌지 않게 하려는 의도다. resident는 자기를 poller로, job 런처를 children으로 등록한다.

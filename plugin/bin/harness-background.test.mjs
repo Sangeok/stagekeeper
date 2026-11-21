@@ -666,6 +666,53 @@ it("refuses to release a runner that is still running", async t => {
   assert.equal(JSON.parse(readFileSync(f.lockPath, "utf8")).id, started.event.session);
 });
 
+it("lets the owner release a crashed runner whose recorded numbers now belong to processes started after it", async t => {
+  const f = await fixture(t), files = stateFiles(f.directory);
+  const binding = { root: f.root, server: f.url, project: "owner-repo", configHash: "a".repeat(64), tokenHash: "b".repeat(64) };
+  const recordedAt = new Date(Date.now() - 600_000).toISOString();
+  const helpers = [];
+  t.after(() => { for (const helper of helpers) helper.kill(); });
+  for (let index = 0; index < 2; index++) {
+    const helper = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", windowsHide: true });
+    await new Promise((resolve, reject) => { helper.once("spawn", resolve); helper.once("error", reject); });
+    helpers.push(helper);
+  }
+  const starts = process.platform === "win32" ? {} : { STAGEKEEPER_TEST_PROCESS_STARTS: JSON.stringify(Object.fromEntries(helpers.map(helper => [helper.pid, new Date().toISOString()]))) };
+  if (process.platform === "win32") spawnSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"), ["-NoProfile", "-NonInteractive", "-Command", "Get-Process -Id $PID | Out-Null"], { stdio: "ignore", windowsHide: true, timeout: 60_000 });
+  const install = at => {
+    const lock = residentLock({ session: randomUUID(), binding, client: "claude", host: "test", at: new Date(Date.now() - 3_600_000).toISOString() });
+    lock.poller = { pid: helpers[0].pid, nonce: randomUUID(), ...at };
+    lock.children.push({ pid: helpers[1].pid, nonce: randomUUID(), ...at });
+    mkdirSync(f.directory, { recursive: true });
+    atomicWrite(files.policy, { schemaVersion: 1, session: lock.id, commit: true, propose: false });
+    atomicWrite(files.lock, lock);
+    return lock;
+  };
+
+  const undated = install({});
+  assert.equal((await f.run(["--release"], starts)).event.code, "still-running");
+  const before = (await f.run(["--status"], starts)).event;
+  assert.deepEqual([before.held, before.running], [false, true]);
+  assert.deepEqual(JSON.parse(readFileSync(f.lockPath, "utf8")), undated);
+
+  const crashed = install({ at: recordedAt });
+  const held = REASONS.held.replace("{startedAt}", crashed.startedAt);
+  for (const args of [START, ["--stop"]]) {
+    const refused = await f.run(args, starts);
+    assert.deepEqual([refused.code, refused.event.code, refused.event.reason], [1, "held", held]);
+  }
+  const after = (await f.run(["--status"], starts)).event;
+  assert.deepEqual([after.held, after.running], [true, false]);
+  assert.deepEqual(JSON.parse(readFileSync(f.lockPath, "utf8")), crashed);
+  const check = await f.run(["--release"], starts);
+  assert.deepEqual([check.code, check.event.event, check.event.session], [0, "release-check", crashed.id]);
+  const released = await f.run(["--release", "--session", crashed.id], starts);
+  assert.deepEqual([released.code, released.event.event], [0, "released"]);
+  assert.equal(existsSync(f.lockPath), false);
+  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.session === crashed.id && call.reason === "owner"));
+  assert.ok(helpers.every(helper => alive(helper.pid)));
+});
+
 it("names Codex commands for a crashed Codex runner and treats a fresh lock as still starting", async t => {
   const f = await fixture(t), files = stateFiles(f.directory);
   const binding = { root: f.root, server: f.url, project: "owner-repo", configHash: "a".repeat(64), tokenHash: "b".repeat(64) };
@@ -681,7 +728,7 @@ it("names Codex commands for a crashed Codex runner and treats a fresh lock as s
   assert.equal(existsSync(f.lockPath), true);
 
   const crashed = residentLock({ session: randomUUID(), binding, client: "codex", host: "test", at: new Date(Date.now() - 3_600_000).toISOString() });
-  crashed.poller = { pid: spawnSync(process.execPath, ["-e", ""], { windowsHide: true }).pid, nonce: randomUUID() };
+  crashed.poller = { pid: 2147483644, nonce: randomUUID() };
   install(crashed);
   const held = REASONS.held.replace("{startedAt}", crashed.startedAt);
   assert.deepEqual((await f.run(["--stop"])).event.reason, codex(held));

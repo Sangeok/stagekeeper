@@ -320,7 +320,7 @@ async function pollWatch(files, input, options) {
       if ((state.lock.mode ?? "watch") !== "watch" || (state.lock.client ?? "claude") !== "claude") fail("binding-changed");
       if (state.lock.poller && isAlive(state.lock.poller.pid)) fail("poller-active");
       lease = state.lock.runnerLease === true;
-      state.lock.poller = { pid: process.pid, nonce };
+      state.lock.poller = { pid: process.pid, nonce, at: now() };
       state.lock.seenAt = now();
       atomicWrite(files.lock, state.lock);
       registered = true;
