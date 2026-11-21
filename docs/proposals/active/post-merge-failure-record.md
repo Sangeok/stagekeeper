@@ -313,6 +313,12 @@ npm run find:green-dev
   | `windows-role-runtime` / `native-runtime` | Validate the whole product test suite on Windows | 2 |
   | `windows-role-runtime` / `native-runtime` | Validate actual Windows role commands and bundled npm | 1 |
   | `macos-runtime-contracts` / `runtime contracts (macos-15)` | 시작하지 못함 | 1 |
+
+  구현한 스크립트를 같은 기간에 읽기 전용으로 돌리니 묶음이 하나 더 나왔다.
+  `check` / `check (task-worktrees, macos-15)`가 시작하지 못한 실행(`44312783918`)이다.
+  위의 macOS 러너 미배정과 같은 시각에 `check` 워크플로에서도 러너를 받지 못했다.
+  조사 문서의 14건은 `windows-role-runtime`과 `macos-runtime-contracts`만 센 것이고,
+  `check`까지 세면 실패한 실행은 15건, 묶음은 6개다.
 - `verify:ci-coverage`가 새 잡을 표에서 찾는다.
 - `main`에 올린 뒤: 실패한 실행이 한 번 다시 실행되고, 처음 실패와 다시 실행한
   결과가 같은 이슈에 적히고, 같은 실패가 또 나면 그 이슈에 쌓인다.
@@ -340,7 +346,7 @@ npm run find:green-dev
 | `npm run check` | Not run yet | |
 | `npm run test:architecture` | Not run yet | |
 | `npm test` | Not run yet | |
-| `node .github/actions/post-merge-failure-record/record.mjs --dry-run ...` | Not run yet | 실패 14건이 이슈 5개로 묶여야 한다 |
+| `node .github/actions/post-merge-failure-record/record.mjs --repository Sangeok/stagekeeper --since 2026-11-10T00:00:00Z --until 2026-11-19T23:59:59Z --dry-run` | 실패한 실행 15건, 열 이슈 6개, 다시 실행 요청 15건 | 2026-11-21. 쓰지 않고 할 일만 출력했다. 묶음은 Verification Plan의 표와 같고 `check`의 러너 미배정 1건이 더 있다 |
 | 대상 러너에서 부하를 건 전후 비교, `harness-watch` (`macos-15-intel`) | `dev` 버전 105회 중 12회 실패. 고친 버전은 세 개 동시 105회 중 0회, 네 개 동시 140회 중 0회 | 실행 `44744324667`. 첫 수정(폴링 한도)만 넣은 실행 `44700056975`에서는 105회 중 1회가 남았고, 요청 한도와 시험 순서를 고친 뒤 0회가 됐다 |
 | 같은 비교, `windows-role-readlink` (`windows-2022`) | 고치기 전 105회 중 0회, 고친 후 105회 중 0회 | 실행 `44700056975`. 재현되지 않아 효과를 확인하지 못했다. 정리 단계의 재시도는 제품 코드의 같은 정리가 쓰는 값이다 |
 | 잠금을 네 프로세스가 60초 동안 잡았다 놓는 실험 (`windows-2022`) | 고치기 전 세 번 실행에서 `guard-create`의 `EPERM`이 40, 21, 26회. 고친 후 세 번 모두 0회 | 실행 `44741446740`. 제품 수정은 별도 PR(#404)이다. `macos-15-intel`은 전후 모두 0회 |
