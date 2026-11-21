@@ -1,6 +1,6 @@
-import { PrFailure, refuse, branchHead, worktreeState, inspectFiles, outsideTarget, ancestor, monotonic } from "./git-workspace.mjs";
-import { listTasks, loadTask } from "./task-state.mjs";
-import { pull, mergeProof, preservation, findMergedPull } from "./github-merge.mjs";
+import { PrFailure, refuse, branchHead, worktreeState, inspectFiles, outsideTarget, remoteSnapshot, ancestor, monotonic } from "./git-workspace.mjs";
+import { listTasks, loadTask, guardStatus } from "./task-state.mjs";
+import { pull, mergeProof, noOpenDependencies, findMergedPull } from "./github-merge.mjs";
 
 const START_BUDGET_MS = 20000;
 const removal = { purpose: "removal" };
@@ -28,7 +28,9 @@ async function qualify(ctx, record, requireClearUsage) {
   if (!proof) refuse("merge-observation-unavailable");
   if (record.merge && record.merge.merge !== proof.merge) refuse("merge-not-preserved");
   if (proof.merge === record.baseSha || !await ancestor(ctx, record.baseSha, proof.merge)) refuse("merge-predates-task");
-  await preservation(ctx, { ...bound, merge: proof });
+  const remote = await remoteSnapshot(ctx, record.branch, { fetch: false });
+  if (remote.branch && remote.branch !== head) refuse("remote-branch-reused");
+  await noOpenDependencies(ctx, record);
   return { pr: number, head };
 }
 
@@ -36,11 +38,12 @@ export async function sweepMergedTasks(ctx, active, { requireClearUsage, settle 
   const clock = ctx.ports.clock ?? monotonic, end = clock() + START_BUDGET_MS;
   const tasks = (await listTasks(ctx)).filter(t => t.record.installationId === active.installationId && !excluded(t.record)).sort(provenFirst);
   const results = [];
-  let notExamined = 0;
+  let notExamined = 0, skipped = null;
   for (const observed of tasks) {
     if (ctx.signal?.aborted) refuse("cancelled");
     if (ctx.unsettled) refuse("process-unsettled", 1);
-    if (clock() >= end) { notExamined++; continue; }
+    if (!skipped && guardStatus(ctx, "common").state !== "absent") skipped = "common-guard-held";
+    if (skipped || clock() >= end) { notExamined++; continue; }
     const { taskId, branch, path } = observed.record;
     let final = observed, pr = observed.record.pr?.number ?? null, reasons;
     try {
@@ -57,5 +60,5 @@ export async function sweepMergedTasks(ctx, active, { requireClearUsage, settle 
       branch: final.record.branchEffect.state, reasons });
   }
   const removed = results.filter(row => row.phase === "complete").length;
-  return { examined: results.length, removed, held: results.length - removed, notExamined, results };
+  return { examined: results.length, removed, held: results.length - removed, notExamined, skipped, results };
 }
