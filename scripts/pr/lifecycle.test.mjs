@@ -4,6 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fixture } from "./testing/closeout-fixture.mjs";
 
+const clear = async () => ({ status: "clear", capability: { status: "qualified" }, observationPerformed: true,
+  observation: { coverageComplete: true }, observer: { state: "settled" } });
+const remoteRefs = f => f.git(["for-each-ref", "--format=%(refname) %(objectname)"], f.origin);
+const remoteBranch = (f, task, ...change) => f.git(["update-ref", ...change.length ? ["refs/heads/" + task.branchName, ...change] : ["-d", "refs/heads/" + task.branchName]], f.origin);
+const localBranch = (f, task) => f.git(["for-each-ref", "--format=%(objectname)", "refs/heads/" + task.branchName]);
+
 test("unqualified completion merges once, preserves both worktrees and supports receipt-only manual removal", async t => {
   const f = fixture(t); await f.bootstrap();
   const a = await f.create("a"), b = await f.create("b");
@@ -63,13 +69,63 @@ test("dirty, private ignored data, hidden index flags and external links preserv
   assert.equal(fs.readFileSync(path.join(external, "sentinel"), "utf8"), "untouched");
 });
 
-test("retire requires dev ancestry and closed or absent PR, while no deletion follows unsupported usage", async t => {
+test("retire requires a preserved head and closed or absent PR, while no deletion follows unsupported usage", async t => {
   const f = fixture(t); await f.bootstrap(); const a = await f.create();
   const retired = await f.run(f.effect(a, f.base, "retire")); assert.equal(retired.phase, "cleanup-pending"); assert.equal(retired.merge, null);
   assert.equal(fs.existsSync(a.path), true);
   const b = await f.create("unique"), head = f.commit(b);
-  assert.deepEqual((await f.run(f.effect(b, head, "retire"))).reasons, ["head-not-in-dev"]);
+  remoteBranch(f, b);
+  assert.deepEqual((await f.run(f.effect(b, head, "retire"))).reasons, ["head-not-preserved"]);
   f.pr(b, head); f.state.pr.state = "closed"; f.git(["update-ref", "refs/heads/dev", head], f.origin);
   const closed = await f.run(f.effect(b, head, "retire", { pr: 1 }));
   assert.equal(closed.phase, "cleanup-pending"); assert.equal(f.state.puts, 0);
+});
+
+test("retire removes an unmerged task whose head is on its remote branch, with or without a closed PR, and writes nothing to GitHub", async t => {
+  const f = fixture(t); await f.bootstrap(); f.ports.inspectUsage = clear;
+  const abandoned = await f.create("abandoned"), closed = await f.create("closed");
+  const abandonedHead = f.commit(abandoned), closedHead = f.commit(closed, "other\n"), before = remoteRefs(f);
+  const withoutPr = await f.run(f.effect(abandoned, abandonedHead, "retire"));
+  assert.equal(withoutPr.phase, "retired", JSON.stringify(withoutPr)); assert.equal(withoutPr.exitCode, 0); assert.equal(withoutPr.merge, null);
+  f.absent(abandoned.path); assert.equal(localBranch(f, abandoned), "");
+  f.pr(closed, closedHead); f.state.pr.state = "closed";
+  const withClosedPr = await f.run(f.effect(closed, closedHead, "retire", { pr: 1 }));
+  assert.equal(withClosedPr.phase, "retired", JSON.stringify(withClosedPr)); assert.equal(withClosedPr.pr.number, 1);
+  f.absent(closed.path); assert.equal(localBranch(f, closed), "");
+  assert.equal(f.state.puts, 0); assert.equal(remoteRefs(f), before);
+  assert.equal(f.git(["rev-parse", "refs/heads/dev"], f.origin), f.base);
+});
+
+test("retire keeps an unmerged task whose remote branch is missing or moved, or that still has an open PR", async t => {
+  const f = fixture(t); await f.bootstrap(); f.ports.inspectUsage = clear;
+  const task = await f.create(), head = f.commit(task);
+  const kept = async (reason, extra) => {
+    const result = await f.run(f.effect(task, head, "retire", extra));
+    assert.deepEqual(result.reasons, [reason], JSON.stringify(result)); assert.equal(result.phase, "working"); assert.equal(result.purpose, null);
+    assert.equal(fs.existsSync(task.path), true); assert.equal(localBranch(f, task), head);
+  };
+  remoteBranch(f, task, f.base); await kept("remote-branch-reused");
+  remoteBranch(f, task); await kept("head-not-preserved");
+  remoteBranch(f, task, head);
+  f.state.dependency = true; await kept("open-dependent-pr"); f.state.dependency = false;
+  f.pr(task, head); await kept("retire-pr-not-closed", { pr: 1 });
+  assert.equal(f.state.puts, 0);
+});
+
+test("a remote branch deleted after the worktree is gone keeps the local branch until the head is on the remote again", async t => {
+  const f = fixture(t); await f.bootstrap();
+  const task = await f.create(), head = f.commit(task);
+  const pending = await f.run(f.effect(task, head, "retire"));
+  assert.equal(pending.phase, "cleanup-pending", JSON.stringify(pending)); assert.equal(pending.purpose, "retire");
+  f.git(["worktree", "remove", "--", task.path]);
+  const ack = await f.run(f.effect(pending, head, "acknowledge-removal", { externalRemovalConfirmed: true }));
+  assert.equal(ack.exitCode, 0, JSON.stringify(ack));
+  remoteBranch(f, task);
+  const unpreserved = await f.run(f.effect(ack, head, "cleanup"));
+  assert.deepEqual(unpreserved.reasons, ["head-not-preserved"]); assert.equal(unpreserved.phase, "cleanup-pending");
+  assert.equal(localBranch(f, task), head);
+  remoteBranch(f, task, head);
+  const done = await f.run(f.effect(unpreserved, head, "cleanup"));
+  assert.equal(done.phase, "retired", JSON.stringify(done)); assert.equal(localBranch(f, task), "");
+  assert.equal(f.git(["rev-parse", "refs/heads/" + task.branchName], f.origin), head);
 });

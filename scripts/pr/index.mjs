@@ -1,10 +1,10 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLinks, publishJson, canonical, git, gitText, context, branchHead, registry, worktreeState, directoryIdentity, inspectFiles, outsideTarget, checkNewPath, remoteSnapshot, ancestor, validateBranch } from "./git-workspace.mjs";
+import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLinks, publishJson, canonical, git, gitText, context, branchHead, registry, worktreeState, directoryIdentity, inspectFiles, outsideTarget, checkNewPath, remoteSnapshot, validateBranch } from "./git-workspace.mjs";
 import { MIGRATION_REF, activation, requireActivation, loadTask, listTasks, readStateObject, validTask, refOid, taskRef, newTask, createTaskRecord, saveTask, withGuard, assertGuard, guardStatus, recoverGuard, markerFor, authorize, requestChange } from "./task-state.mjs";
 import { migrate, validJournal } from "./legacy-migration.mjs";
-import { pull, preflight, requestMerge, observeMerge, mergeProof, preservation, noOpenDependencies } from "./github-merge.mjs";
+import { pull, preflight, requestMerge, observeMerge, mergeProof, preservation, headPreserved, noOpenDependencies } from "./github-merge.mjs";
 import { inspectWorktreeUsage } from "./process-usage/process-usage.mjs";
 import { sweepMergedTasks } from "./merged-sweep.mjs";
 
@@ -311,7 +311,8 @@ async function taskCommand(ctx, stored, options) {
       }
       await noOpenDependencies(ctx, stored.record);
       const remote = await remoteSnapshot(ctx, stored.record.branch);
-      if (!await ancestor(ctx, options.expectedHead, remote.dev)) refuse("head-not-in-dev");
+      if (remote.branch && remote.branch !== options.expectedHead) refuse("remote-branch-reused");
+      if (!await headPreserved(ctx, options.expectedHead, remote)) refuse("head-not-preserved");
       await seal(ctx, stored, options, binding);
       await change(ctx, stored, { phase: "cleanup-pending", purpose: "retire", requests: requestChange(stored, options, "pending"), reasons: [] });
     }

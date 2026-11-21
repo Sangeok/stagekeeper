@@ -511,8 +511,14 @@ npm run pr -- acknowledge-removal --root <control> --task <uuid> --owner <owner>
 npm run pr -- retire --root <control> --task <uuid> --owner <owner> --expected-state <oid> --expected-head <sha> --expected-instance <uuid> --request-id <uuid> --usage-ended
 ~~~
 
-retire는 PR 없음 또는 `--pr <closed-unmerged-number>`이며 HEAD가 fresh dev의 조상일 때만
-가능하다. 같은 사용·파일·branch 보호를 적용하고 open/dependent PR은 차단한다.
+retire는 PR 없음 또는 `--pr <closed-unmerged-number>`이며 HEAD가 보존돼 있을 때만
+가능하다. 보존은 HEAD가 fresh dev의 조상이거나, 그 호출에서 `git ls-remote`로 읽은
+`origin`의 같은 이름 branch가 같은 commit인 경우다. 둘 다 아니면 `head-not-preserved`,
+원격 branch가 다른 commit이면 `remote-branch-reused`로 거부한다. 원격 추적 ref,
+다른 이름의 branch, `refs/pull/<n>/head`는 증거가 아니다. 작업 트리 제거 전과 branch
+삭제 전에 다시 확인하므로, 그 사이 원격 branch가 사라지면 로컬 branch가 남는다.
+retire는 push하지 않고 원격 branch를 지우지 않으며, create와 sweep은 retire를 실행하지
+않는다. 같은 사용·파일·branch 보호를 적용하고 open/dependent PR은 차단한다.
 merged 작업을 retired로 재분류하지 않는다. complete/retired의 반복 요청도 실제 부재를
 확인한다. 과거 receipt로 재등장한 path/ref를 삭제하지 않는다.
 
