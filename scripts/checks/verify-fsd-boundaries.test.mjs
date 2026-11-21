@@ -177,6 +177,38 @@ describe("verifyProject", () => {
     assert.ok(codes(root).includes("next/no-dual-app-roots"));
   });
 
+  for (const path of [
+    "src/proxy.test.ts",
+    "src/app/page.test.tsx",
+    "src/app/sitemap.spec.mjs",
+    "src/tests/proxy-fixture.ts",
+    "src/app/__tests__/page-helper.ts",
+    "src/app/testing/render-page.ts",
+  ]) {
+    it(`rejects ${path} directly under a framework entrypoint directory`, () => {
+      const root = project();
+      write(root, path);
+
+      assert.deepEqual(
+        verifyProject(root).filter((problem) => problem.code === "test/no-entrypoint-level-test").map((problem) => problem.file),
+        [path.split("/").slice(0, path.startsWith("src/app/") ? 3 : 2).join("/")],
+      );
+    });
+  }
+
+  it("accepts tests beside their owner and below a route directory", () => {
+    const root = project();
+    write(root, "src/proxy.ts");
+    write(root, "src/app/page.tsx");
+    write(root, "src/app/docs/outline.test.ts");
+    write(root, "src/server/projects/availability-policy.test.ts");
+    write(root, "src/fsd/entities/board-item/index.ts");
+    write(root, "src/fsd/entities/board-item/model/doc-link.test.ts");
+    write(root, "src/fsd/entities/board-item/model/testing/doc-link-fixture.ts");
+
+    assert.deepEqual(verifyProject(root), []);
+  });
+
   it("rejects technical top-level source folders", () => {
     const root = project();
     write(root, "src/components/project-card.tsx");

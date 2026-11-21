@@ -21,6 +21,9 @@ const SLICE_SEGMENTS = new Set(["api", "config", "lib", "model", "ui"]);
 const SHARED_SEGMENTS = new Set(["api", "assets", "config", "i18n", "lib", "routes", "ui"]);
 const FORBIDDEN_TOP_LEVEL_FOLDERS = ["components", "hooks", "lib", "types", "utils"];
 const KEBAB_CASE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const TEST_FREE_DIRECTORIES = [["src"], ["src", "app"]];
+const TEST_ONLY_DIRECTORY_NAMES = new Set(["tests", "__tests__", "testing"]);
+const TEST_FILE_NAME = /\.(?:test|spec)\.[^.]+$/;
 
 function toPosix(path) {
   return path.replaceAll("\\", "/");
@@ -402,6 +405,27 @@ function validateProjectLayout(projectRoot) {
       "next/no-dual-app-roots",
       "루트 app/과 src/app/을 함께 둘 수 없습니다. Next.js는 src/app/을 무시합니다.",
     ));
+  }
+
+  for (const segments of TEST_FREE_DIRECTORIES) {
+    const directory = resolve(projectRoot, ...segments);
+    if (!existsSync(directory)) continue;
+
+    for (const entry of readdirSync(directory).sort()) {
+      const path = join(directory, entry);
+      const isTestOnly = statSync(path).isDirectory()
+        ? TEST_ONLY_DIRECTORY_NAMES.has(entry)
+        : TEST_FILE_NAME.test(entry);
+      if (!isTestOnly) continue;
+
+      problems.push(issue(
+        projectRoot,
+        path,
+        1,
+        "test/no-entrypoint-level-test",
+        `${segments.join("/")}/ 바로 아래에는 테스트 파일과 테스트 전용 디렉터리를 둘 수 없습니다. 소유 코드 옆이나 루트 tests/의 책임별 디렉터리에 두세요.`,
+      ));
+    }
   }
 
   for (const folder of FORBIDDEN_TOP_LEVEL_FOLDERS) {

@@ -91,7 +91,7 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
 | 확인 사항 | 현재 자동화 | 수동 확인 |
 | --- | --- | --- |
 | FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`, `packages/shared/`, `packages/app-core/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
-| `src/`·`src/app/` 바로 아래 테스트 배치 금지 | 전용 자동 검사 없음 | 두 위치에 테스트 파일·테스트 전용 보조 코드·테스트 전용 디렉터리가 없는지 확인한다. 대상 옆 배치 원칙보다 이 금지 규칙을 우선한다 |
+| `src/`·`src/app/` 바로 아래 테스트 배치 금지 | `verify:fsd`가 두 위치 바로 아래의 `.test.`·`.spec.` 파일과 `tests`·`__tests__`·`testing` 디렉터리를 거부한다 | 다른 이름을 쓴 테스트 전용 보조 코드와 디렉터리가 두 위치에 없는지 확인한다. 대상 옆 배치 원칙보다 이 금지 규칙을 우선한다 |
 | 대상 옆 배치와 테스트 소유권 | 전용 자동 검사 없음 | 대상과 실행 환경에 맞는 위치인지, 하위 폴더 분리가 필요한지 확인한다 |
 | 운영 코드 → 테스트·fixture·helper 의존 금지 | `verify:shared`가 first-party 생산 코드의 test/fixture 참조를 거부한다 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
 | 서버 모듈 내부 참조 | `verify:server`가 정적 참조와 실제 VM source 경로의 파일·모듈 등록 및 미사용 행을 검사한다 | mock 키·계산된 loader 경로는 binding 시험과 실제 리허설로 확인한다 |
