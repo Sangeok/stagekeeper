@@ -75,14 +75,37 @@ else {
 }
 `;
 
+const EVIDENCE_DIRECTORY = process.env.STAGEKEEPER_TEST_EVIDENCE_DIR;
+const evidenceWaits = [], evidenceKills = [];
+let evidenceTest = null;
+if (EVIDENCE_DIRECTORY) {
+  const kill = process.kill.bind(process);
+  process.kill = (pid, signal) => {
+    if (signal === 0) return kill(pid, signal);
+    const entry = { at: new Date().toISOString(), pid, signal: signal ?? "SIGTERM", test: evidenceTest?.name ?? null, phase: evidenceTest?.phase ?? null };
+    evidenceKills.push(entry);
+    try { const result = kill(pid, signal); entry.result = "sent"; return result; }
+    catch (error) { entry.result = error.code ?? String(error); throw error; }
+  };
+}
+
 async function waitFor(predicate, limit = 30000, what = "condition") {
-  const expires = performance.now() + limit;
-  for (;;) {
-    const value = await predicate();
-    if (value) return value;
-    if (performance.now() > expires) assert.fail(`Timed out waiting for ${what}.`);
-    await delay(100);
-  }
+  const wait = { what, limit, startedAt: new Date().toISOString(), polls: 0, outcome: null, ms: null }, began = performance.now();
+  evidenceWaits.push(wait);
+  try {
+    const expires = performance.now() + limit;
+    for (;;) {
+      wait.polls++;
+      const value = await predicate();
+      if (value) { wait.outcome = "met"; return value; }
+      if (performance.now() > expires) { wait.outcome = "timeout"; assert.fail(`Timed out waiting for ${what}.`); }
+      await delay(100);
+    }
+  } catch (error) {
+    wait.outcome ??= "threw";
+    wait.error = String(error?.message ?? error).slice(0, 300);
+    throw error;
+  } finally { wait.ms = Math.round(performance.now() - began); }
 }
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code !== "ESRCH"; } };
 const lines = file => (existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line)) : []);
@@ -93,12 +116,93 @@ const stopEvidence = (f, session) => {
     log: existsSync(log) ? readFileSync(log, "utf8").split(/\r?\n/).filter(Boolean).slice(-12) : [] });
 };
 
+const evidenceSince = began => Math.round(performance.now() - began);
+const evidenceTail = (file, keep = 80) => {
+  if (!existsSync(file)) return null;
+  const all = readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean);
+  return { lines: all.length, tail: all.length > keep + 40 ? all.slice(-keep) : all };
+};
+const evidenceFile = file => {
+  try {
+    if (!existsSync(file)) return { exists: false };
+    const text = readFileSync(file, "utf8");
+    try { return { exists: true, json: JSON.parse(text) }; } catch { return { exists: true, raw: text.slice(0, 2000) }; }
+  } catch (error) { return { error: String(error) }; }
+};
+const evidenceLiveness = pid => {
+  try { process.kill(pid, 0); return "alive"; } catch (error) { return error.code ?? String(error); }
+};
+const evidenceProcessTable = pids => new Promise(resolve => {
+  if (!pids.length) { resolve(null); return; }
+  try {
+    const [command, args] = process.platform === "win32"
+      ? [path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"), ["-NoProfile", "-NonInteractive", "-Command",
+        `Get-Process -Id ${pids.join(",")} -ErrorAction SilentlyContinue | ForEach-Object { $s = try { $_.StartTime.ToString('o') } catch { 'n/a' }; "process $($_.Id) $($_.ProcessName) $s" }; ` +
+        `Get-CimInstance Win32_Process -Filter "${pids.map(pid => `ProcessId=${pid}`).join(" OR ")}" -ErrorAction SilentlyContinue | ForEach-Object { "cim $($_.ProcessId) parent=$($_.ParentProcessId) $($_.CommandLine)" }`]]
+      : ["ps", ["-o", "pid=,ppid=,lstart=,command=", "-p", pids.join(",")]];
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, timeout: 5000 });
+    let output = "";
+    child.stdout.on("data", chunk => { output += chunk; });
+    child.on("error", error => resolve({ error: String(error), output: output.trim().split(/\r?\n/) }));
+    child.on("close", (code, signal) => resolve({ code, signal, output: output.trim().split(/\r?\n/).filter(Boolean).map(line => line.slice(0, 400)) }));
+  } catch (error) { resolve({ error: String(error) }); }
+});
+
+async function captureEvidence(t, evidence, { directory, record, notices, status, runnerCalls }) {
+  const captured = { at: new Date().toISOString(), msSinceStart: evidenceSince(evidence.began) };
+  try {
+    captured.passedAtCapture = typeof t.passed === "boolean" ? t.passed : null;
+    captured.error = t.error ? String(t.error?.message ?? t.error).slice(0, 1000) : null;
+    captured.log = evidenceTail(path.join(directory, "background.log"));
+    const files = stateFiles(directory);
+    captured.state = { "watch.lock.json": evidenceFile(files.lock), "watch.json": evidenceFile(files.policy), "watch.stop.json": evidenceFile(files.stop),
+      "background.json": evidenceFile(path.join(directory, "background.json")), "watch.guard": existsSync(files.guard),
+      "watch.guard/owner.json": existsSync(files.guard) ? evidenceFile(path.join(files.guard, "owner.json")) : null };
+    const lock = captured.state["watch.lock.json"].json;
+    const pids = [];
+    const add = (source, pid) => { if (Number.isInteger(pid) && pid > 0) pids.push({ source, pid }); };
+    add("lock.poller", lock?.poller?.pid);
+    for (const child of lock?.children ?? []) add(`lock.child${child.nonce === LEGACY_RECLAIM_GUARD.nonce ? ".legacyGuard" : ""}`, child?.pid);
+    add("background.json", status()?.pid);
+    for (const entry of record()) add(`client(${entry.args?.[1] === "Reply with OK." ? "probe" : "run"})`, entry.pid);
+    for (const command of evidence.commands) add(`command#${command.index}`, command.pid);
+    captured.testPid = process.pid;
+    captured.processes = pids.map(item => ({ ...item, liveness: evidenceLiveness(item.pid) }));
+    const probed = [...new Set(pids.filter(item => !item.source.startsWith("command#") || captured.processes.find(entry => entry.pid === item.pid)?.liveness === "alive").map(item => item.pid))];
+    if (captured.passedAtCapture !== true) captured.processTable = await evidenceProcessTable(probed);
+    captured.runnerCalls = runnerCalls.map(call => ({ op: call.op, state: call.state, waitReason: call.waitReason, lastResult: call.lastResult, reason: call.reason, code: call.code,
+      session: call.session ? String(call.session).slice(0, 8) : undefined }));
+    captured.notices = notices().map(notice => ({ kind: notice.kind, body: String(notice.body ?? "").slice(0, 200) }));
+  } catch (error) { captured.captureError = String(error?.stack ?? error).slice(0, 1000); }
+  return captured;
+}
+
+function writeEvidence(t, evidence) {
+  if (!EVIDENCE_DIRECTORY) return;
+  try {
+    mkdirSync(EVIDENCE_DIRECTORY, { recursive: true });
+    evidence.file ??= path.join(EVIDENCE_DIRECTORY, `${t.name.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 80)}-${process.pid}-${randomUUID().slice(0, 8)}.json`);
+    evidence.waits = evidenceWaits.slice(evidence.waitsFrom).slice(-12);
+    evidence.kills = evidenceKills.slice(evidence.killsFrom);
+    evidence.ended = new Date().toISOString();
+    writeFileSync(evidence.file, JSON.stringify(evidence));
+  } catch {   }
+}
+
 async function fixture(t, { plan = [{ kind: "success" }], env: extra = {}, controlledCrash = false } = {}) {
+  const evidence = { name: t.name, testPid: process.pid, started: new Date().toISOString(), began: performance.now(), commands: [], git: [], requests: [],
+    waitsFrom: evidenceWaits.length, killsFrom: evidenceKills.length };
+  evidenceTest = { name: t.name, phase: "test" };
   const root = mkdtempSync(path.join(realpathSync.native(tmpdir()), "harness-background-test-"));
+  evidence.root = root;
   const runnerCalls = [];
   let overview = READY;
   let runner = (body, res) => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ ok: true, paused: false })); };
   const server = createServer(async (req, res) => {
+    const request = { ms: evidenceSince(evidence.began), method: req.method, url: req.url.split("?")[0], op: null, status: null };
+    if (evidence.requests.length < 2000) evidence.requests.push(request);
+    res.on("finish", () => { request.status = res.statusCode; });
+    res.on("close", () => { request.status ??= "closed"; });
     if (req.method === "GET" && req.url.startsWith("/api/templates?")) {
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ templateRelease: { ...fixtureInstallation, id: fixtureInstallation.releaseId, schemaVersion: 1 } })); return;
@@ -107,6 +211,7 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {}, contr
     for await (const chunk of req) raw += chunk;
     if (req.url === "/test/advance") { overview = EMPTY; res.end("{}"); return; }
     const body = JSON.parse(raw);
+    request.op = body?.op ?? body?.params?.name ?? null;
     if (req.url === "/api/runner") { runnerCalls.push(body); await runner(body, res); return; }
     const value = body.params.name === "project_get" ? IDENTITY : overview;
     res.setHeader("Content-Type", "application/json");
@@ -114,7 +219,13 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {}, contr
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const url = `http://127.0.0.1:${server.address().port}`;
-  const git = (...args) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
+  const git = (...args) => {
+    const entry = { ms: evidenceSince(evidence.began), args, took: null, error: null }, began = performance.now();
+    evidence.git.push(entry);
+    try { return execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: "pipe" }).trim(); }
+    catch (error) { entry.error = String(error?.message ?? error).slice(0, 500); throw error; }
+    finally { entry.took = Math.round(performance.now() - began); }
+  };
   git("init", "-q", "-b", "main");
   git("config", "user.email", "test@example.invalid");
   git("config", "user.name", "test");
@@ -162,16 +273,36 @@ syncBuiltinESMExports();
   }
   const run = (args, more = {}) => new Promise(resolve => {
     const child = spawn(process.execPath, [BIN, "--root", root, ...args], { env: { ...env, ...more }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    const command = { index: evidence.commands.length + 1, phase: evidenceTest?.phase ?? null, args, extraEnv: Object.keys(more), pid: child.pid ?? null,
+      startedMs: evidenceSince(evidence.began), took: null, code: null, signal: null, exited: null, event: null, parseError: null, stdout: null, stderr: null };
+    const began = performance.now();
+    evidence.commands.push(command);
     let stdout = "", stderr = "";
     child.stdout.on("data", chunk => { stdout += chunk; });
     child.stderr.on("data", chunk => { stderr += chunk; });
-    child.on("close", code => {
+    child.on("exit", (code, signal) => { command.exited = { ms: Math.round(performance.now() - began), code, signal }; });
+    child.on("error", error => { command.spawnError = String(error); });
+    child.on("close", (code, signal) => {
+      Object.assign(command, { took: Math.round(performance.now() - began), code, signal, stdout: stdout.slice(-4000), stderr: stderr.slice(-8000) });
       const text = stdout.trim().split(/\r?\n/);
-      resolve({ code, event: JSON.parse(text.pop()), text, stderr });
+      const last = text.pop();
+      let event;
+      try { event = JSON.parse(last); } catch (error) { command.parseError = String(error?.message ?? error); throw error; }
+      command.event = event;
+      resolve({ code, event, text, stderr });
     });
   });
   const lockPath = path.join(directory, "watch.lock.json");
   const status = () => (existsSync(path.join(directory, "background.json")) ? JSON.parse(readFileSync(path.join(directory, "background.json"), "utf8")) : null);
+  t.after(async () => {
+    if (EVIDENCE_DIRECTORY) {
+      try {
+        evidence.capture = await captureEvidence(t, evidence, { directory, record: () => lines(record), notices: () => lines(notices), status, runnerCalls });
+        writeEvidence(t, evidence);
+      } catch {   }
+      evidenceTest = { name: t.name, phase: "cleanup" };
+    }
+  });
   t.after(async () => {
     if (existsSync(lockPath)) {
       await run(["--stop"]).catch(() => {});
@@ -181,6 +312,15 @@ syncBuiltinESMExports();
     if (pid && alive(pid)) { try { process.kill(pid); } catch {   } }
     for (const entry of lines(record)) if (alive(entry.pid)) { try { process.kill(entry.pid); } catch {   } }
     await new Promise(resolve => server.close(resolve));
+    if (EVIDENCE_DIRECTORY) {
+      try {
+        const log = evidenceTail(path.join(directory, "background.log"), 200);
+        const added = (log?.lines ?? 0) - (evidence.capture?.log?.lines ?? 0);
+        evidence.afterCleanup = { msSinceStart: evidenceSince(evidence.began), lockExists: existsSync(lockPath),
+          newLogLines: added > 0 ? log.tail.slice(-Math.min(added, 20)) : [] };
+        writeEvidence(t, evidence);
+      } catch {   }
+    }
     for (const dir of [root, tools]) rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
   return { root, tools, url, git, run, runnerCalls, directory, lockPath, crashCheckpoint, status, record: () => lines(record), notices: () => lines(notices),

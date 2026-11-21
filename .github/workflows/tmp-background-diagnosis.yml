@@ -12,18 +12,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  start-time:
-    name: start time query windows-2022 ${{ matrix.shard }}
+  background:
+    name: evidence windows-2022 x${{ matrix.parallel }} ${{ matrix.shard }}
     runs-on: windows-2022
-    timeout-minutes: 15
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        parallel: [2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Measure the process creation time query
-        run: node .github/tmp/start-time-forms.mjs
+      - name: Prepare project dependencies with normal lifecycle scripts
+        shell: pwsh
+        run: npm ci --no-audit --no-fund
+      - name: Generate policy contract types
+        run: npm run db:generate
+      - name: Repeat harness-background and keep the evidence of each failure
+        shell: pwsh
+        env:
+          STAGEKEEPER_RELEASED_READERS: required
+        run: node .github/tmp/stress.mjs --file=plugin/bin/harness-background.test.mjs --rounds=10 --parallel=${{ matrix.parallel }} --label=evidence-x${{ matrix.parallel }}-${{ matrix.shard }}
