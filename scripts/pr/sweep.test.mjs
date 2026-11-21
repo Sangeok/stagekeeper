@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fixture } from "./testing/closeout-fixture.mjs";
+import { context } from "./git-workspace.mjs";
+import { withGuard } from "./task-state.mjs";
 
 const usage = (status, capability = "qualified") => async () => ({ status, capability: { status: capability }, observationPerformed: true,
   observation: { coverageComplete: true }, observer: { state: "settled" } });
@@ -142,4 +144,24 @@ test("the start budget stops new candidates and reports them without abandoning 
   const rest = await sweep(f);
   assert.equal(rest.sweep.notExamined, 0);
   f.absent(merged.path); assert.equal(fs.existsSync(other.path), true);
+});
+
+test("two sweeps started together remove a merged task exactly once", async t => {
+  const f = fixture(t); await f.bootstrap(); f.ports.inspectUsage = clear;
+  const task = await f.create("contended"); mergedByPerson(f, task);
+  const results = await Promise.all([f.run({ operation: "sweep" }), f.run({ operation: "sweep" })]);
+  assert.deepEqual(results.map(result => result.exitCode), [0, 0], JSON.stringify(results));
+  assert.equal(results.reduce((count, result) => count + result.sweep.removed, 0), 1, JSON.stringify(results));
+  f.absent(task.path); assert.equal(localBranch(f, task), "");
+  assert.equal((await f.run({ operation: "status", task: task.task })).phase, "complete");
+});
+
+test("a held common guard skips the whole sweep before any GitHub request", async t => {
+  const f = fixture(t); await f.bootstrap(); f.ports.inspectUsage = clear;
+  const task = await f.create("guarded"), head = mergedByPerson(f, task), recorded = ledger(f, task), requests = f.state.gets.length;
+  const skipped = await withGuard(await context(f.root), "common", undefined, () => sweep(f));
+  assert.deepEqual([skipped.sweep.skipped, skipped.sweep.examined, skipped.sweep.notExamined], ["common-guard-held", 0, 1]);
+  assert.equal(f.state.gets.length, requests); assert.equal(ledger(f, task), recorded); assert.equal(localBranch(f, task), head);
+  const released = await sweep(f);
+  assert.equal(released.sweep.skipped, null); assert.equal(row(released, task).phase, "complete"); f.absent(task.path);
 });

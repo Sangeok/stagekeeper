@@ -59,9 +59,14 @@ async function get(ctx, suffix, options) {
   if (result.status !== 200 || !object(result.data) && !Array.isArray(result.data)) refuse("github-observation-unavailable");
   return result.data;
 }
-export async function pull(ctx, record, number, options) {
+async function repositoryIdentity(ctx, options) {
+  if (ctx.repositoryIdentity) return ctx.repositoryIdentity;
   const repository = await get(ctx, "", options);
   if (!integer(repository.id) || repository.full_name?.toLowerCase() !== ctx.repository.toLowerCase() || repository.archived !== false || repository.disabled !== false) refuse("repository-unverified");
+  return ctx.repositoryIdentity = repository;
+}
+export async function pull(ctx, record, number, options) {
+  const repository = await repositoryIdentity(ctx, options);
   const value = await get(ctx, "/pulls/" + number, options);
   const head = record.release?.head ?? record.expectedHead;
   if (!integer(number) || value.number !== number || typeof value.merged !== "boolean"

@@ -496,7 +496,8 @@ HEAD·파일 지문·사용·보존을 다시 검사한다. 작업 트리가 이
 새 후보에 착수할 수 있는 시간은 호출당 20초다. 착수한 후보는 명령별 제한 안에서 끝까지
 처리하고, 보지 못한 작업 수는 `sweep.notExamined`에 낸다. 후보의 보류와 실패는 새 작업
 생성을 막지 않으며 `create`의 exit code는 생성 결과를 따른다. 취소와 미종료 child는
-호출 전체를 멈춘다. Windows와 미검증 환경은 `unqualified-profile`로 보존한다.
+호출 전체를 멈춘다. common guard가 걸려 있으면 남은 검사를 조회 없이 건너뛰고
+`sweep.skipped`에 `common-guard-held`를 낸다. Windows와 미검증 환경은 `unqualified-profile`로 보존한다.
 
 ### 수동 제거 인수와 retire
 
