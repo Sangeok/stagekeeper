@@ -51,6 +51,8 @@ jobs:
         run: npm exec --call "node --test scripts/pr/migration.test.mjs"
       - name: File and branch preservation
         run: npm exec --call "node --test scripts/pr/preservation.test.mjs"
+      - name: Merged task sweep
+        run: npm exec --call "node --test scripts/pr/sweep.test.mjs"
       - name: Retired writers and CLI boundary
         run: npm exec --call "node --test scripts/pr/cli-integration.test.mjs"
 

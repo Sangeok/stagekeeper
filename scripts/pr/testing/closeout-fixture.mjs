@@ -52,9 +52,16 @@ export function fixture(t, { native = false } = {}) {
         if (state.mode === "lost") throw new Error("response lost");
         return { status: 200, data: { merged: true, sha: state.pr.merge_commit_sha } };
       }
+      assert.equal(method, "GET");
       state.gets.push(endpoint);
       const suffix = endpoint.replace("repos/fixture/stagekeeper", "");
       if (suffix === "") return { status: 200, data: structuredClone(repository) };
+      if (suffix.startsWith("/pulls?state=all")) {
+        const wanted = new URLSearchParams(suffix.slice(suffix.indexOf("?") + 1)).get("head");
+        const listed = state.pr && wanted === "fixture:" + state.pr.head.ref ? [state.pr] : [];
+        return { status: 200, data: listed.map(p => ({ number: p.number, state: p.state, merged_at: p.merged ? "2026-01-01T00:00:00Z" : null,
+          head: { ref: p.head.ref, sha: p.head.sha }, base: { ref: p.base.ref } })) };
+      }
       if (suffix.startsWith("/pulls?")) return { status: 200, data: state.dependency ? [{ number: 999 }] : [] };
       if (suffix === "/pulls/1") return { status: 200, data: structuredClone(state.pr) };
       if (suffix === "/git/ref/heads/dev") return { status: 200, data: { ref: "refs/heads/dev", object: { type: "commit", sha: git(["rev-parse", "dev"], origin) } } };

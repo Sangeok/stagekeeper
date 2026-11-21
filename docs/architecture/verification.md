@@ -314,7 +314,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | 검사 | 분류 | Windows | macOS | Linux | 미충족 | 이유 또는 확인 문자열 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
-| 작업 worktree·브랜치 정리 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/pr/lifecycle.test.mjs`, `scripts/pr/merge.test.mjs`, `scripts/pr/cleanup.test.mjs`, `scripts/pr/recovery.test.mjs`, `scripts/pr/migration.test.mjs`, `scripts/pr/preservation.test.mjs`, `scripts/pr/cli-integration.test.mjs`를 파일별 필수 step으로 실행. 실제 Git/파일/OS, GitHub 대역. Windows는 미지원 보존·수동 인수, qualified 자동 제거 positive는 별도 로컬 gate |
+| 작업 worktree·브랜치 정리 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/pr/lifecycle.test.mjs`, `scripts/pr/merge.test.mjs`, `scripts/pr/cleanup.test.mjs`, `scripts/pr/recovery.test.mjs`, `scripts/pr/migration.test.mjs`, `scripts/pr/preservation.test.mjs`, `scripts/pr/sweep.test.mjs`, `scripts/pr/cli-integration.test.mjs`를 파일별 필수 step으로 실행. 실제 Git/파일/OS, GitHub 대역. Windows는 미지원 보존·수동 인수, qualified 자동 제거 positive는 별도 로컬 gate |
 | worktree 사용 관측 후보 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | 양 OS에서 `scripts/pr/process-usage/`의 `process-usage.test.mjs` runtime/`process-usage-probe.test.mjs` 경계 필수. macOS는 `process-usage-qualification.test.mjs`의 `STAGEKEEPER_USAGE_QUALIFICATION: "macos"` native 평가, Windows는 `windows-directory-usage.test.mjs`의 실제 누락 반례를 필수 실행한다. Windows 자동 삭제 미지원 결정으로 기존 정상 cwd 자격 평가는 명시적 `all` 모드로 분리하며 과거 FAIL은 유지한다. Linux는 공통 계약만 검증 |
 | 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
 | 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음. 출시 이력을 읽는 시험이 건너뛰지 않도록 `fetch-depth: 0`과 `STAGEKEEPER_RELEASED_READERS: required`도 있어야 한다 |
@@ -461,6 +461,42 @@ Node(예: v22.13.1)에서는 status와 inspect만 동작한다. 나머지 명령
 증명, open/dependent PR, remote ref 재사용, 다른 worktree, 추가 commit·symbolic ref를
 다시 검사하고 task state와 literal branch의 expected-SHA 삭제를 no-deref Git transaction으로
 묶는다. main/dev나 원격 ref는 삭제 입력으로 만들지 않는다.
+
+### 사람이 병합한 작업의 정리
+
+PR을 사람이 GitHub에서 병합하면 그 작업에 `complete`를 실행할 주체가 없을 수 있다.
+새 작업을 등록하는 `create`는 작업을 만들기 전에 등록된 작업을 검사하고, 다음 명령은
+새 작업 없이 같은 검사만 실행한다. 중단된 생성을 잇는 `create --task`와 status, inspect는
+검사하지 않는다.
+
+~~~text
+npm run pr -- sweep --root <control>
+~~~
+
+검사 대상은 현재 설치의 working, sealed, merge-requested, merged와 병합 목적의
+cleanup-pending 작업이다. 다음을 같은 호출에서 모두 확인한 작업만 기존 봉인 → 병합 기록 →
+cleanup 경로로 넘긴다.
+
+- 작업 트리가 기록된 경로·인스턴스로 있고 원장의 작업 트리 상태가 present다.
+- 로컬 branch와 작업 트리의 HEAD가 같고, 작업을 시작한 base와 다르다.
+- 제거용 파일 검사를 통과한다.
+- PR이 MERGED다. 번호가 원장에 없으면 `state=all`, `base=dev`, `head=<소유자>:<branch>`
+  목록에서 HEAD가 같은 병합 PR이 정확히 하나여야 한다.
+- 사용 관측이 qualified·clear·performed·complete coverage·settled다.
+- 병합 커밋이 fresh dev에 포함되고, 작업의 base가 그 병합 커밋의 엄격한 조상이다.
+- remote branch가 다른 HEAD로 재사용되지 않았고 의존하는 열린 PR이 없다.
+
+검사는 GET만 보내며 병합을 요청하지 않는다. owner와 사용 종료 선언을 받지 않는다.
+하나라도 실패한 작업은 원장을 쓰지 않고 그대로 두며, `sweep.results`에 task·branch·path·
+PR·사유를 낸다. 넘겨진 작업은 task guard 아래에서 상태 OID가 검사 때와 같은지 확인한 뒤
+HEAD·파일 지문·사용·보존을 다시 검사한다. 작업 트리가 이미 없거나 원장에 제거 효과가
+기록된 작업은 `worktree-effect-recorded` 또는 `worktree-absent`로 남기고 inspect와 cleanup에
+맡긴다. 작업 트리 제거 뒤 같은 이름·같은 SHA로 다시 생긴 branch를 구분할 수 없기 때문이다.
+
+새 후보에 착수할 수 있는 시간은 호출당 20초다. 착수한 후보는 명령별 제한 안에서 끝까지
+처리하고, 보지 못한 작업 수는 `sweep.notExamined`에 낸다. 후보의 보류와 실패는 새 작업
+생성을 막지 않으며 `create`의 exit code는 생성 결과를 따른다. 취소와 미종료 child는
+호출 전체를 멈춘다. Windows와 미검증 환경은 `unqualified-profile`로 보존한다.
 
 ### 수동 제거 인수와 retire
 
@@ -663,7 +699,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
-| `pr/index.mjs` | `npm run pr -- <status/inspect/create/complete/cleanup/recover/resume/retire/acknowledge-removal/migrate/recover-guard>` | 작업 생성·인계·완료·복구 | 활성화된 task 하나의 병합·조건부 정리. 실제 사용자 이관은 명시적 ADOPT, 무지원 환경은 보존. 위 계약과 JSON/exit code를 따른다 |
+| `pr/index.mjs` | `npm run pr -- <status/inspect/create/sweep/complete/cleanup/recover/resume/retire/acknowledge-removal/migrate/recover-guard>` | 작업 생성·인계·완료·복구 | 활성화된 task 하나의 병합·조건부 정리와, 새 작업 생성·sweep 때 병합이 확인된 등록 작업의 조건부 정리. 실제 사용자 이관은 명시적 ADOPT, 무지원 환경은 보존. 위 계약과 JSON/exit code를 따른다 |
 | `maintain-github-connections.ts`, `maintain-github-connections.test.ts` | `npm run github:maintenance -- --apply [--rotate]`; 테스트는 `test:scripts` | 운영자는 하루 한 번 이상 실행하며 rotation은 명시적으로 요청; 테스트는 CI마다 | 만료된 GitHub 시도·초안·delivery를 삭제하고 만료 credential을 중지한다. 회전은 current key로 재봉인하며 revision/tokenVersion과 기존 envelope의 CAS로 새 grant를 덮어쓰지 않는다. 실제 운영 실행·키 공급은 배포 승인 범위다. 테스트는 DB 없이 의존성을 대체해 잘못된 인자·`DATABASE_URL` 누락의 무실행 거부, 성공 요약과 `--rotate` 전달, 작업·연결 해제 실패의 오류 비노출과 종료 코드를 확인한다 |
 | `windows/build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `windows/windows-role-runtime-cache.mjs`, `windows/windows-role-runtime-cache.test.mjs` | `node scripts/windows/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |

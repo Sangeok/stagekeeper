@@ -82,7 +82,10 @@ commits that were already green on `dev`.
   every cleanup rule. Do not disable or bypass their deletion protection, and never
   include either branch in a deletion command, batch, or wildcard.
 - At task start and completion, inspect `npm run pr -- status` from a retained
-  control checkout. Cleanup is scoped to one registered task; there is no sweep.
+  control checkout. `complete`, `cleanup` and `retire` act on one registered task.
+  `create` for a new task and `npm run pr -- sweep` also examine every registered
+  task, as described below. Nothing is removed by age, and unregistered worktrees
+  are never examined.
   If activation is absent, use status/inspect/migrate preview only. Actual repository
   migration requires the ADOPT handoff; do not silently activate or invoke retired tools.
 - At the start of each independent task, also list the open pull requests
@@ -249,6 +252,17 @@ commits that were already green on `dev`.
   observation. Windows and unqualified/unknown/busy results retain both the worktree
   and branch as `cleanup-pending`. A merged PR can therefore remain locally pending.
   The registered runtime profile is not expanded by a caller flag or test result.
+- A person may merge a task's pull request on GitHub without running `complete`.
+  The next `create` for a new task, or `npm run pr -- sweep`, removes such a task's
+  worktree and local branch only when all of this is confirmed in that call: the
+  pull request is merged into `dev` after the task started, the local branch and
+  worktree are at the merged head, the removal file check passes, the usage
+  observation is qualified and clear, and the remote branch was not reused. It sends
+  no merge request and takes no owner or usage declaration. A task that fails a
+  check keeps its ledger unchanged and is listed with its path and reason in
+  `sweep.results`; report the removed and the held tasks after `create`. A task
+  whose worktree is already gone is left to `inspect` and `cleanup`. A held task
+  does not stop the new task from being created.
 - `cleanup` takes task/owner/expected-state/head/instance/request-id and continues only
   existing merged or retire authority. `recover` records observed effects without
   another merge or deletion. A transport-unknown merge request is never retried from
