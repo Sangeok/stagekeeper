@@ -160,6 +160,9 @@ export async function noOpenDependencies(ctx, record) {
     if (!Array.isArray(pulls) || pulls.length) refuse("open-dependent-pr");
   }
 }
+export async function headPreserved(ctx, head, remote) {
+  return remote.branch === head || await ancestor(ctx, head, remote.dev);
+}
 export async function preservation(ctx, record, { fetch = true } = {}) {
   if (!record.release || !record.purpose) refuse("preservation-missing");
   const remote = await remoteSnapshot(ctx, record.branch, { fetch });
@@ -167,7 +170,7 @@ export async function preservation(ctx, record, { fetch = true } = {}) {
   if (record.purpose === "merged") {
     const proof = await mergeProof(ctx, record, { fetch });
     if (!proof || proof.merge !== record.merge?.merge) refuse("merge-not-preserved");
-  } else if (!await ancestor(ctx, record.release.head, remote.dev)) refuse("head-not-in-dev");
+  } else if (!await headPreserved(ctx, record.release.head, remote)) refuse("head-not-preserved");
   await noOpenDependencies(ctx, record);
   return remote;
 }

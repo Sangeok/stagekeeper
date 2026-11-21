@@ -274,9 +274,20 @@ commits that were already green on `dev`.
   report from a generic instruction to proceed, and never turn unknown usage into clear.
   A manual removal unlinks the two build links first and never deletes recursively
   through a link or junction.
-- `retire` is explicit closeout for no PR or a closed unmerged PR whose head is already
-  an ancestor of fresh dev. Open/dependent PRs, reused remote refs and additional commits
-  preserve the branch. Already merged work remains on the merged path.
+- `retire` is explicit closeout for no PR or a closed unmerged PR. It proceeds only
+  when the task head is preserved: either it is an ancestor of fresh dev, or the
+  remote branch of the same name, read in that call, is at the same commit. Otherwise
+  it refuses with `head-not-preserved`. Open/dependent PRs, reused remote refs and
+  additional commits preserve the branch. Already merged work remains on the merged
+  path. `retire` does not push and never deletes the remote branch; `create` and
+  `sweep` never retire a task.
+- When a task ends without a merge (the user stops it, its pull request is closed
+  unmerged, or other work replaces it), ask the user whether to close it with
+  `retire`, and say so when its commits must first be pushed to the remote branch.
+  Push and run `retire` only after the user approves it for that task; a generic
+  instruction to proceed is not that approval. Without approval, retain the worktree
+  and branch and report the path and reason. Ask the same about an unmerged task that
+  `create` or `sweep` reports as held.
 - `recover-guard --guard common|task|migration` is read-only unless a known dead owner,
   its exact nonce and `--confirmed-quiescent` are supplied. Task scope also requires
   `--task`. Live, unknown and foreign-host guards are preserved. The legacy migration
