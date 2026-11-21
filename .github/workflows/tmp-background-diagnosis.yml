@@ -26,4 +26,4 @@ jobs:
         with:
           node-version: 22
       - name: Measure the process creation time query
-        run: node .github/tmp/start-time.mjs
+        run: node .github/tmp/start-time-forms.mjs
