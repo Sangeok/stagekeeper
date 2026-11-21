@@ -12,6 +12,7 @@
     "verify:plugin-version": "node scripts/checks/verify-plugin-version.mjs",
     "docs:check": "node scripts/checks/verify-docs.mjs",
     "verify:ci-coverage": "node scripts/checks/verify-ci-coverage.mjs",
+    "find:green-dev": "node scripts/checks/find-green-dev-commit.mjs",
     "pr": "node scripts/pr/index.mjs",
     "github:maintenance": "node --conditions=react-server --import tsx scripts/maintain-github-connections.ts",
     "test:architecture": "node --test \"scripts/**/*.test.mjs\" \".github/actions/gate-record/record.test.mjs\" \".github/actions/post-merge-failure-record/record.test.mjs\"",
