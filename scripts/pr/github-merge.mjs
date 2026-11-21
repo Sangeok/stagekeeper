@@ -73,6 +73,21 @@ export async function pull(ctx, record, number, options) {
   if (state === "MERGED" && !OID.test(value.merge_commit_sha ?? "")) refuse("merge-proof-invalid");
   return { state, draft: value.draft, merge: value.merge_commit_sha, binding: { repositoryId: repository.id, number, head, branch: record.branch, base: "dev" } };
 }
+export async function findMergedPull(ctx, record, head) {
+  const filter = "head=" + encodeURIComponent(ctx.repository.split("/")[0] + ":" + record.branch);
+  const merged = new Set();
+  for (let page = 1; ; page++) {
+    const pulls = await get(ctx, "/pulls?state=all&base=dev&per_page=100&page=" + page + "&" + filter);
+    if (!Array.isArray(pulls) || pulls.length > 100 || pulls.some(p => !object(p) || !integer(p.number) || !OID.test(p.head?.sha ?? ""))) refuse("pr-list-invalid");
+    for (const p of pulls) {
+      if (p.head.sha === head && p.head.ref === record.branch && p.base?.ref === "dev" && typeof p.merged_at === "string") merged.add(p.number);
+    }
+    if (pulls.length < 100) break;
+    if (page === 10) refuse("pr-list-incomplete");
+  }
+  if (merged.size > 1) refuse("pr-ambiguous");
+  return merged.size ? [...merged][0] : null;
+}
 export async function preflight(ctx, record, number) {
   const pr = await pull(ctx, record, number);
   if (pr.state !== "OPEN" || pr.draft !== false) refuse(pr.state === "CLOSED" ? "closed-unmerged" : "pr-not-ready");

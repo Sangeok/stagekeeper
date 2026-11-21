@@ -1,16 +1,18 @@
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLinks, publishJson, canonical, git, gitText, context, branchHead, registry, worktreeState, directoryIdentity, inspectFiles, outsideTarget, checkNewPath, remoteSnapshot, ancestor, validateBranch } from "./git-workspace.mjs";
 import { MIGRATION_REF, activation, requireActivation, loadTask, listTasks, readStateObject, validTask, refOid, taskRef, newTask, createTaskRecord, saveTask, withGuard, assertGuard, guardStatus, recoverGuard, markerFor, authorize, requestChange } from "./task-state.mjs";
 import { migrate, validJournal } from "./legacy-migration.mjs";
 import { pull, preflight, requestMerge, observeMerge, mergeProof, preservation, noOpenDependencies } from "./github-merge.mjs";
 import { inspectWorktreeUsage } from "./process-usage/process-usage.mjs";
+import { sweepMergedTasks } from "./merged-sweep.mjs";
 
 const common = ["operation", "root", "signal"];
 const task = ["task", "owner", "expectedState"];
 const effect = ["expectedHead", "expectedInstance", "requestId"];
 const contract = {
-  status: ["task"], inspect: ["task", "pr", "remote"],
+  status: ["task"], inspect: ["task", "pr", "remote"], sweep: [],
   create: ["owner", "branch", "path", "task", "expectedState", "confirmCreatedByTask"],
   complete: [...task, ...effect, "pr", "usageEnded"], cleanup: [...task, ...effect],
   retire: [...task, ...effect, "pr", "usageEnded"], recover: task, resume: task,
@@ -122,6 +124,7 @@ async function observeUsage(ctx, record) {
 const handoff = { purpose: "handoff" }, removal = { purpose: "removal" };
 function requireDeviceIdentity(ctx) { for (const directory of [ctx.root, ctx.common]) directoryIdentity(directory); }
 const clearUsage = o => o.status === "clear" && o.capability === "qualified" && o.performed && o.coverageComplete && o.settled;
+const usageReason = o => o.status === "busy" ? "worktree-in-use" : o.capability === "unqualified" ? "unqualified-profile" : "usage-unverified";
 async function seal(ctx, stored, options, pr = null) {
   if (stored.record.phase !== "working") return;
   outsideTarget(ctx, stored.record);
@@ -194,8 +197,7 @@ async function cleanup(ctx, stored, options) {
     if (files.fingerprint !== r.release.fingerprint) refuse("files-changed");
     const observation = await observeUsage(ctx, r);
     if (!clearUsage(observation)) {
-      const reason = observation.status === "busy" ? "worktree-in-use" : observation.capability === "unqualified" ? "unqualified-profile" : "usage-unverified";
-      await change(ctx, stored, { phase: "cleanup-pending", observation, reasons: [reason],
+      await change(ctx, stored, { phase: "cleanup-pending", observation, reasons: [usageReason(observation)],
         requests: requestChange(stored, options, "pending") }); return;
     }
     await withGuard(ctx, "common", undefined, async () => {
@@ -326,6 +328,35 @@ async function taskCommand(ctx, stored, options) {
   }
   refuse("invalid-input");
 }
+async function recordingFailure(ctx, stored, run) {
+  try { await run(); }
+  catch (error) {
+    if (stored.record.purpose && !["complete", "retired"].includes(stored.record.phase) && !ctx.unsettled && !ctx.signal?.aborted) {
+      try { await change(ctx, stored, { phase: "cleanup-pending", reasons: [error instanceof PrFailure ? error.code : "execution-failed"] }); } catch {}
+    }
+    throw error;
+  }
+}
+function sweep(ctx, active) {
+  return sweepMergedTasks(ctx, active, {
+    async requireClearUsage(record) {
+      const observation = await observeUsage(ctx, record);
+      if (!clearUsage(observation)) refuse(usageReason(observation));
+    },
+    async settle(observed, checked) {
+      let stored;
+      await withGuard(ctx, "task", observed.record.taskId, async () => {
+        stored = await loadTask(ctx, observed.record.taskId);
+        if (stored.oid !== observed.oid) refuse("state-changed");
+        await installationTask(ctx, stored, active);
+        const options = { operation: "complete", task: stored.record.taskId, owner: stored.record.owner, expectedState: stored.oid, expectedHead: checked.head,
+          expectedInstance: stored.record.instanceId, requestId: randomUUID(), pr: checked.pr };
+        await recordingFailure(ctx, stored, () => complete(ctx, stored, options));
+      });
+      return stored;
+    },
+  });
+}
 function report(operation, stored, extra = {}) {
   const r = stored?.record;
   return { schemaVersion: 1, operation, task: r?.taskId ?? null, state: stored?.oid ?? null, phase: r?.phase ?? null,
@@ -343,7 +374,7 @@ async function migrationStatus(ctx) {
     fence: path.join(ctx.common, "stagekeeper-task-worktrees", "command.guard") };
 }
 export async function runPrCommand(input, ports = {}) {
-  let options, ctx, stored;
+  let options, ctx, stored, swept;
   try {
     options = validateOptions({ ...input }); ctx = await context(options.root, options.signal, ports);
     const readonly = ["status", "inspect"].includes(options.operation) || options.operation === "migrate" && options.action === "preview"
@@ -396,27 +427,23 @@ export async function runPrCommand(input, ports = {}) {
     }
     if (options.operation === "recover-guard") return report(options.operation, null, { guard: await recoverGuard(ctx, options.guard, options.task, options.expectedNonce, options.confirmedQuiescent), exitCode: 0 });
     const active = await requireActivation(ctx);
+    if (options.operation === "sweep" || options.operation === "create" && !options.task) swept = await sweep(ctx, active);
+    if (options.operation === "sweep") return report(options.operation, null, { exitCode: 0, observationPerformed: ctx.usageObservation?.performed ?? false, sweep: swept });
     if (options.operation === "create") stored = await create(ctx, options, active, revision);
     else await withGuard(ctx, "task", options.task, async () => {
       stored = await loadTask(ctx, options.task); authorize(stored, options); await installationTask(ctx, stored, active);
-      try { await taskCommand(ctx, stored, options); }
-      catch (error) {
-        if (stored.record.purpose && !["complete", "retired"].includes(stored.record.phase) && !ctx.unsettled && !ctx.signal?.aborted) {
-          try { await change(ctx, stored, { phase: "cleanup-pending", reasons: [error instanceof PrFailure ? error.code : "execution-failed"] }); } catch {}
-        }
-        throw error;
-      }
+      await recordingFailure(ctx, stored, () => taskCommand(ctx, stored, options));
     });
     const needsTerminal = ["complete", "cleanup", "retire"].includes(options.operation);
     return report(options.operation, stored, { exitCode: needsTerminal && !["complete", "retired"].includes(stored.record.phase) ? 2 : 0,
-      observationPerformed: ctx.usageObservation?.performed ?? false });
+      observationPerformed: ctx.usageObservation?.performed ?? false, ...(swept ? { sweep: swept } : {}) });
   } catch (error) {
     const code = error instanceof PrFailure ? error.code : "execution-failed";
     if (ctx && !ctx.unsettled && !ctx.signal?.aborted && options?.task) { try { stored = await loadTask(ctx, options.task); } catch {} }
     let migration = null;
     if (ctx && !ctx.unsettled && !ctx.signal?.aborted && options?.operation === "migrate") { try { migration = await migrationStatus(ctx); } catch {} }
     return report(options?.operation ?? input?.operation ?? null, stored, { exitCode: error instanceof PrFailure ? error.exitCode : 1, reasons: [code],
-      observationPerformed: ctx?.usageObservation?.performed ?? false,
+      observationPerformed: ctx?.usageObservation?.performed ?? false, ...(swept ? { sweep: swept } : {}),
       ...(migration ? { migration, state: migration.state, phase: migration.phase } : {}) });
   }
 }

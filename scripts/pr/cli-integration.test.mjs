@@ -18,8 +18,8 @@ test("only the pr entry and new per-OS regression gates remain in current execut
   const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "check.yml"), "utf8");
   const matrix = workflow.slice(workflow.indexOf("  task-worktrees:"), workflow.indexOf("\n  check:"));
   assert.match(matrix, /os: \[windows-2022, macos-15\]/); assert.match(matrix, /fetch-depth: 0/);
-  for (const name of ["lifecycle", "merge", "cleanup", "recovery", "migration", "preservation", "cli-integration"]) assert.ok(matrix.includes("node --test scripts/pr/" + name + ".test.mjs"));
-  for (const file of ["index.mjs", "task-state.mjs", "git-workspace.mjs", "filesystem-inventory.mjs", "github-merge.mjs", "legacy-migration.mjs"]) {
+  for (const name of ["lifecycle", "merge", "cleanup", "recovery", "migration", "preservation", "sweep", "cli-integration"]) assert.ok(matrix.includes("node --test scripts/pr/" + name + ".test.mjs"));
+  for (const file of ["index.mjs", "task-state.mjs", "git-workspace.mjs", "filesystem-inventory.mjs", "github-merge.mjs", "legacy-migration.mjs", "merged-sweep.mjs"]) {
     const source = fs.readFileSync(path.join(root, "scripts", "pr", file), "utf8");
     assert.doesNotMatch(source, /manage-task-worktrees\.mjs|cleanup-task-branches\.mjs|from\s+["'][^"']*testing\//);
   }
@@ -50,4 +50,7 @@ test("real CLI emits one JSON document, rejects dirty management source and perf
   const created = run(["create", "--owner", "fixture", "--branch", "harness/cli", "--path", path.join(f.directory, "cli-task")]);
   assert.equal(created.phase, "working", json(created)); assert.equal(fs.existsSync(created.path), true);
   assert.equal(run(["status", "--task", created.task]).state, created.state);
+  const swept = run(["sweep"]);
+  assert.deepEqual(swept.sweep.results.map(row => [row.task, row.reasons]), [[created.task, ["no-task-commits"]]]);
+  assert.equal(fs.existsSync(created.path), true);
 });
