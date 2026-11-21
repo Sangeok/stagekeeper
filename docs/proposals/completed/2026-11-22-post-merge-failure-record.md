@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-20"
 approved-by: "user"
 approved-at: "2026-11-20"
 approval-scope: "이 문서의 Proposal 1~4와 Execution Plan 전체. 시험 세 곳 수정, 실패 기록 워크플로와 액션, AGENTS.md의 분류 규칙과 승격 전 확인, find:green-dev 명령, verification.md와 package.json 갱신. 실패 자동 수정은 포함하지 않는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-22"
+verification-summary: "PR #403, #404, #407, #409의 check 통과. 느린 러너의 전후 비교로 시험 수정 확인. main 승격 뒤 첫 실행이 실패 1건을 이슈 #418에 기록하고 다시 실행 결과까지 적었다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -60,7 +60,9 @@ PR이 `dev`에 병합된 뒤에 도는 검사가 실패하면 지금은 커밋 �
   `windows-role-runtime` 6건, `macos-runtime-contracts` 12건이다. 그중 사람이 다시
   실행한 것은 3건이고 모두 통과했다.
 - 2026-11-10부터 11-19까지의 실패 14건은 로그를 읽어 분류했다. 병합된 변경이
-  원인인 것은 없었다.
+  원인인 것은 없었다. 아래 표의 "지금 상태"는 작성 시점(2026-11-20)의 것이고,
+  이후의 결과는 Completion or Closure Notes에 있다. 같은 기간의 실패는 `check`의
+  러너 미배정 1건을 더해 15건이다.
 
   | 원인 | 건수 | 지금 상태 |
   | --- | --- | --- |
@@ -73,8 +75,8 @@ PR이 `dev`에 병합된 뒤에 도는 검사가 실패하면 지금은 커밋 �
 - 실제 모델을 부르는 게이트(`client-init-smoke`, `agent-eval`, `pipeline-smoke`)는
   이미 `record` 잡과 `.github/actions/gate-record`로 실패를 `[gate]` 이슈에 남긴다.
   병합 후 검사에는 같은 장치가 없다.
-- 실패한 시험 세 곳의 원인은 아직 모른다. 느린 러너에서만 실패한다는 것까지만
-  확인했다. 같은 커밋에서 `macos-15` 잡은 통과하고 `macos-15-intel` 잡만 실패했다.
+- 작성 시점에는 실패한 시험 세 곳의 원인을 몰랐다. 느린 러너에서만 실패한다는
+  것까지만 확인했다. 찾은 원인은 Proposal 1에 적었다. 같은 커밋에서 `macos-15` 잡은 통과하고 `macos-15-intel` 잡만 실패했다.
 
 ## Scope
 
@@ -328,9 +330,9 @@ npm run find:green-dev
 확인하지 못한 것과 확인할 시점:
 
 - `workflow_run`이 다시 실행된 워크플로의 완료에도 반응하는지. 반응하지 않아도
-  1시간마다 도는 실행이 결과를 적는다. `main`에 올린 뒤 첫 실패에서 확인한다.
-- 저장소의 기본 토큰으로 요청한 다시 실행이 받아들여지는지. `actions: write`로
-  된다고 알고 있으나 이 저장소에서 해 본 적이 없다. `main`에 올린 뒤 확인한다.
+  1시간마다 도는 실행이 결과를 적는다. `main`에 올린 뒤 확인했다. 반응한다.
+- 저장소의 기본 토큰으로 요청한 다시 실행이 받아들여지는지. `main`에 올린 뒤
+  확인했다. 받아들여진다.
 - 기본 브랜치에 없는 워크플로를 `workflow_dispatch`로 실행할 수 있는지. 안 될
   가능성이 높아서, 병합 전 확인은 로컬의 읽기 전용 실행으로 한다.
 - 한 단계 안에서 서로 다른 시험이 실패하면 같은 이슈에 섞인다. 구현할 때 실패한
@@ -343,16 +345,16 @@ npm run find:green-dev
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| `npm run check` | Not run yet | |
-| `npm run test:architecture` | Not run yet | |
-| `npm test` | Not run yet | |
+| `npm run check` | 통과 | PR #403, #404, #407, #409의 `check` 워크플로 |
+| `npm run test:architecture` | 통과 | 같은 워크플로의 잡 |
+| `npm test` | 통과 | 같은 워크플로의 잡 |
 | `node .github/actions/post-merge-failure-record/record.mjs --repository Sangeok/stagekeeper --since 2026-11-10T00:00:00Z --until 2026-11-19T23:59:59Z --dry-run` | 실패한 실행 15건, 열 이슈 6개, 다시 실행 요청 15건 | 2026-11-21. 쓰지 않고 할 일만 출력했다. 묶음은 Verification Plan의 표와 같고 `check`의 러너 미배정 1건이 더 있다 |
 | 대상 러너에서 부하를 건 전후 비교, `harness-watch` (`macos-15-intel`) | `dev` 버전 105회 중 12회 실패. 고친 버전은 세 개 동시 105회 중 0회, 네 개 동시 140회 중 0회 | 실행 `44744324667`. 첫 수정(폴링 한도)만 넣은 실행 `44700056975`에서는 105회 중 1회가 남았고, 요청 한도와 시험 순서를 고친 뒤 0회가 됐다 |
 | 같은 비교, `windows-role-readlink` (`windows-2022`) | 고치기 전 105회 중 0회, 고친 후 105회 중 0회 | 실행 `44700056975`. 재현되지 않아 효과를 확인하지 못했다. 정리 단계의 재시도는 제품 코드의 같은 정리가 쓰는 값이다 |
 | 잠금을 네 프로세스가 60초 동안 잡았다 놓는 실험 (`windows-2022`) | 고치기 전 세 번 실행에서 `guard-create`의 `EPERM`이 40, 21, 26회. 고친 후 세 번 모두 0회 | 실행 `44741446740`. 제품 수정은 별도 PR(#404)이다. `macos-15-intel`은 전후 모두 0회 |
 | 같은 비교, `harness-background` (`windows-2022`) | 잠금을 고치기 전 105회 중 35회, 고친 후 105회 중 35회 | 실행 `44741446740`. 잠금 오류로 인한 실패는 없어졌으나 나머지는 그대로다. 대부분 기다리던 일이 제한 시간 안에 일어나지 않은 경우이고 원인을 확인하지 못했다. 이슈로 남긴다 |
 | `npm run find:green-dev -- --limit 12` | `1437919`(PR #403의 병합 커밋)를 출력하고, 그 뒤의 두 커밋을 pending으로 표시했다 | 2026-11-21. 그 두 커밋의 병합 후 실행이 도는 중이었다 |
-| `main`에 올린 뒤의 실제 기록 | Not run yet | |
+| `main`에 올린 뒤의 실제 기록 | 첫 실행(`44922754841`)이 이슈 #418을 열고 실행 `44461325389`를 다시 실행했다. 다시 실행이 끝나자 둘째 실행(`44924312475`)이 통과 결과를 같은 이슈에 댓글로 적었다. 이슈는 중복되지 않았다 | 2026-11-22(한국 시간). `main` `822614d`. 저장소의 기본 토큰으로 요청한 다시 실행이 받아들여졌고, `workflow_run`이 다시 실행된 워크플로의 완료에도 반응했다. 1시간마다 도는 실행은 이 기록 시점에 아직 돌지 않았다 |
 
 ## Risks and Rollback
 
@@ -382,11 +384,30 @@ npm run find:green-dev
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-11-22
+- verification-summary: 구현 PR 넷의 `check`가 통과했다. 시험 수정은 대상 러너의
+  전후 비교로 확인했다(`harness-watch` 105회 중 12회 실패에서 0회). `main`에 올린
+  뒤 워크플로의 첫 두 실행이 실패 1건을 이슈 #418에 기록하고, 다시 실행하고, 그
+  결과를 같은 이슈에 적었다.
+- implementation PR/commit: #403(시험 수정), #404(Windows 잠금의 제품 수정, 승인
+  범위 밖에서 소유자 결정으로 진행), #407(실패 기록 워크플로와 액션), #409(규칙과
+  `find:green-dev`). `main` 승격 커밋은 `822614dde287b5bf9da7a26fb97d5c6086c58b60`이다.
+- changed files summary: `plugin/bin/harness-watch.test.mjs`,
+  `scripts/windows/windows-role-readlink.test.mjs`, `plugin/runtime/local-session.mjs`와
+  그 시험, `.github/workflows/post-merge-failure-record.yml`,
+  `.github/actions/post-merge-failure-record/`, `scripts/checks/find-green-dev-commit.mjs`와
+  그 시험, `package.json`, `AGENTS.md`, `docs/architecture/verification.md`,
+  플러그인 매니페스트 둘(0.6.18).
+- remaining follow-up:
+  - `harness-background.test.mjs`의 나머지 실패는 이 문서에서 고치지 못했다.
+    `docs/proposals/active/windows-process-identity.md`와 이슈 #412가 이어받는다.
+  - `windows-role-readlink`의 재시도는 부하 실험에서 실패가 재현되지 않아 효과를
+    숫자로 확인하지 못했다. 다시 실패하면 `[post-merge]` 이슈에 쌓인다.
+  - "확인하지 못한 것" 가운데 러너 미배정으로 `cancelled`가 된 잡의 다시 실행,
+    한 단계 안의 서로 다른 시험이 한 이슈에 섞이는 경우, 1시간마다 도는 실행은
+    해당 사례가 생길 때 확인한다.
+  - 실패 자동 수정의 시작 조건(이 워크플로가 `main`에서 실패를 의도대로 기록하는
+    것)이 채워졌다. 별도 제안서로 진행한다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -409,7 +430,7 @@ npm run find:green-dev
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. 아직 실행 전이다.
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. `harness-background`의 남은 실패는 기존 실패이고 이슈 #412로 넘겼다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다. 완료 전이다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다. 닫힌 문서가 아니다.

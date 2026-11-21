@@ -13,7 +13,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/post-merge-failure-record.md"
+  - "docs/proposals/completed/2026-11-22-post-merge-failure-record.md"
   - "docs/architecture/protocol.md"
   - "docs/investigations/active/ci-management-practices-investigation.md"
 ---
