@@ -413,7 +413,7 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
     짧게 끝난 프로세스의 70~90%가 20초 안에 죽은 PID를 받았다). 그래서 poller와 기록된 child 항목에 등록 시각
     `at`(ISO, 프로세스가 생긴 뒤 적는다)을 둔다. 고정 항목과 `binding`에는 두지 않고 `schemaVersion`도 올리지 않는다.
     없거나 형식이 틀린 `at`은 없는 것으로 보며 손상으로 보지 않는다. `--release`, start·`--stop`의 `held`·`locked`
-    구분, `--status`의 `held`는 PID가 ESRCH이거나 확인하는 프로세스 자신의 PID면 끝났다고 본다. Windows에서 `at`이
+    구분, `--status`의 `held`와 `running`은 PID가 ESRCH이거나 확인하는 프로세스 자신의 PID면 끝났다고 본다. Windows에서 `at`이
     있는데 PID가 살아 있다고 나오면 그런 PID 모두를 PowerShell `Get-Process` 한 번으로 물어 지금 그 PID를 쓰는
     프로세스의 생성 시각을 얻는다. 생성 시각이 `at`보다 2초 넘게 늦으면 PID를 물려받은 다른 프로세스이므로 끝났다고
     본다. 질의 실패·5초 시간 한도 초과·답 없음과 `at`이 없는 항목은 살아 있음으로 남는다. 질의는 guard 밖에서 하고,

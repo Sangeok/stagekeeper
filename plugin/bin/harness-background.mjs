@@ -511,9 +511,10 @@ async function status(files) {
   }
   const saved = readOptional(statusFile(directory));
   const autostart = readOptional(autostartFile(directory));
-  const running = state?.lock.mode === "resident" && state.lock.poller !== null && isAlive(state.lock.poller.pid);
+  const replaced = state ? replacedIn(state.lock) : new Set();
+  const running = state?.lock.mode === "resident" && state.lock.poller !== null && recordAlive(state.lock.poller, replaced);
   const limitedUntil = running && typeof saved?.limitedUntil === "string" && Date.parse(saved.limitedUntil) > Date.now() ? saved.limitedUntil : null;
-  return { event: "status", running, limitedUntil, held: state !== null && heldResident(state, replacedIn(state.lock)), newer: newer !== null,
+  return { event: "status", running, limitedUntil, held: state !== null && heldResident(state, replaced), newer: newer !== null,
     client: state?.lock.client ?? newer?.client ?? saved?.client ?? "claude", session: state?.lock.mode === "resident" ? state.lock.id : newer?.session ?? null,
     lifecycle: state?.lock.mode === "resident" ? state.lock.lifecycle : null,
     otherSession: state && state.lock.mode !== "resident" ? state.lock.mode ?? "watch" : null,

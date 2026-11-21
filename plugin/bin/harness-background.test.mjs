@@ -691,7 +691,8 @@ it("lets the owner release a crashed runner whose recorded numbers now belong to
 
   const undated = install({});
   assert.equal((await f.run(["--release"], starts)).event.code, "still-running");
-  assert.equal((await f.run(["--status"], starts)).event.held, false);
+  const before = (await f.run(["--status"], starts)).event;
+  assert.deepEqual([before.held, before.running], [false, true]);
   assert.deepEqual(JSON.parse(readFileSync(f.lockPath, "utf8")), undated);
 
   const crashed = install({ at: recordedAt });
@@ -700,7 +701,8 @@ it("lets the owner release a crashed runner whose recorded numbers now belong to
     const refused = await f.run(args, starts);
     assert.deepEqual([refused.code, refused.event.code, refused.event.reason], [1, "held", held]);
   }
-  assert.equal((await f.run(["--status"], starts)).event.held, true);
+  const after = (await f.run(["--status"], starts)).event;
+  assert.deepEqual([after.held, after.running], [true, false]);
   assert.deepEqual(JSON.parse(readFileSync(f.lockPath, "utf8")), crashed);
   const check = await f.run(["--release"], starts);
   assert.deepEqual([check.code, check.event.event, check.event.session], [0, "release-check", crashed.id]);
