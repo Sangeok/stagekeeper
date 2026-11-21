@@ -48,7 +48,7 @@ const errorCode = code => error => error.code === code;
     if (!acknowledged) return;
     assert.equal(path.dirname(base), temporaryRoot);
     assert.ok(path.basename(base).startsWith("stagekeeper-readlink-test-"));
-    await rm(base, { recursive: true });
+    await rm(base, { recursive: true, maxRetries: 10, retryDelay: 100 });
   });
   const result = await runNativeCommand({ root: directory, ...prepared,
     command: 'set "NODE_OPTIONS=--require %CD%\\compat.cjs" && node probe.cjs', cwd: "", timeoutMs: 10000 });

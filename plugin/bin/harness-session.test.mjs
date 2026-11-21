@@ -292,7 +292,7 @@ it("reads a newer lock only to show it and to request its stop", async () => {
   assert.equal(JSON.parse(readFileSync(f.files.lock, "utf8")).shape, "future");
 });
 
-const deadPid = () => spawnSync(process.execPath, ["-e", ""], { windowsHide: true }).pid;
+const deadPid = () => 2147483644;
 
 it("releases an abandoned Codex foreground session only after the owner stops it and its children are gone", async () => {
   const f = fixture(), started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });

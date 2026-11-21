@@ -1,0 +1,44 @@
+name: post-merge-failure-record
+
+on:
+  workflow_run:
+    workflows: [check, windows-role-runtime, macos-runtime-contracts]
+    types: [completed]
+    branches: [dev, main]
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Print what would be done and write nothing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: post-merge-failure-record
+  cancel-in-progress: false
+
+jobs:
+  record:
+    name: record
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: ./.github/actions/post-merge-failure-record
+        with:
+          dry-run: ${{ inputs.dry-run || false }}
