@@ -12,68 +12,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pid-reuse:
-    name: pid reuse ${{ matrix.runner }} ${{ matrix.shard }}
-    runs-on: ${{ matrix.runner }}
+  start-time:
+    name: start time query windows-2022 ${{ matrix.shard }}
+    runs-on: windows-2022
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        runner: [windows-2022]
         shard: [1, 2, 3]
-        include:
-          - runner: macos-15-intel
-            shard: 1
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Check whether a dead process number is later seen alive
-        env:
-          PID_REUSE_SECONDS: "90"
-          PID_REUSE_LANES: "4"
-        run: node .github/tmp/pid-reuse.mjs
-  background:
-    name: background windows-2022 x${{ matrix.parallel }} ${{ matrix.shard }}
-    runs-on: windows-2022
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { parallel: 1, rounds: 30, shard: 1 }
-          - { parallel: 1, rounds: 30, shard: 2 }
-          - { parallel: 1, rounds: 30, shard: 3 }
-          - { parallel: 1, rounds: 30, shard: 4 }
-          - { parallel: 1, rounds: 30, shard: 5 }
-          - { parallel: 1, rounds: 30, shard: 6 }
-          - { parallel: 1, rounds: 30, shard: 7 }
-          - { parallel: 1, rounds: 30, shard: 8 }
-          - { parallel: 1, rounds: 30, shard: 9 }
-          - { parallel: 1, rounds: 30, shard: 10 }
-          - { parallel: 2, rounds: 15, shard: 1 }
-          - { parallel: 2, rounds: 15, shard: 2 }
-          - { parallel: 2, rounds: 15, shard: 3 }
-          - { parallel: 2, rounds: 15, shard: 4 }
-          - { parallel: 3, rounds: 10, shard: 1 }
-          - { parallel: 3, rounds: 10, shard: 2 }
-          - { parallel: 3, rounds: 10, shard: 3 }
-          - { parallel: 3, rounds: 10, shard: 4 }
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-      - name: Prepare project dependencies with normal lifecycle scripts
-        shell: pwsh
-        run: npm ci --no-audit --no-fund
-      - name: Generate policy contract types
-        run: npm run db:generate
-      - name: Repeat harness-background
-        shell: pwsh
-        env:
-          STAGEKEEPER_RELEASED_READERS: required
-        run: node .github/tmp/stress.mjs --file=plugin/bin/harness-background.test.mjs --rounds=${{ matrix.rounds }} --parallel=${{ matrix.parallel }} --label=background-x${{ matrix.parallel }}-${{ matrix.shard }}
+      - name: Measure the process creation time query
+        run: node .github/tmp/start-time.mjs
