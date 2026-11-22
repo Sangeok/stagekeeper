@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-21"
 approved-by: "user"
 approved-at: "2026-11-21"
 approval-scope: "정리 검사와 sweep 연산의 구현·시험, AGENTS.md와 verification.md 규칙 수정, dev 대상 PR 생성. PR 병합과 기존 사용자 작업의 실제 정리는 제외."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-22"
+verification-summary: "PR #414, #417의 check 통과(Windows·macOS task-worktrees 포함). 병합 뒤 실제 저장소에서 sweep이 사람이 병합한 작업 1건을 PR 번호 없이 정리하고 병합되지 않은 작업 2건을 보류했다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -77,7 +77,7 @@ related:
 - 병합되지 않은 작업: 열린 PR, 병합 없이 닫힌 PR, PR이 없는 작업, `retire` 대상.
 - Windows 등 사용 관측이 인정되지 않는 환경으로의 자동 제거 확대.
 - 원장의 필드·상태 값 추가.
-- 명령 이름 변경. [이름 변경 제안](./rename-pr-command-to-task.md)이 따로 다룬다.
+- 명령 이름 변경. [이름 변경 제안](../active/rename-pr-command-to-task.md)이 따로 다룬다.
 
 ## Proposal
 
@@ -177,14 +177,14 @@ REQ-MTC-004의 확인이 모두 통과하기 전에는 원장을 쓰지 않는�
 - [x] 테스트와 스크립트 참조: `scripts/pr/`의 시험 7개 파일이 `check/task-worktrees`에서 파일별 step으로 실행된다.
 - [x] 런타임 side effect: `create`에 GitHub 조회와 삭제 효과가 추가된다. REQ-MTC-005·006이 범위를 정한다.
 - [x] 출시된 plugin·서버와 함께 쓰는 상태: 해당 없음. 로컬 Git ref의 개발 도구 원장이며 형식을 바꾸지 않는다.
-- [ ] 잠금 아래 재검사와 사전 확인 사이의 경합: 구현 후 VFY-MTC-04에서 확인한다.
+- [x] 잠금 아래 재검사와 사전 확인 사이의 경합: VFY-MTC-04의 사례(사전 확인 뒤 쓰인 파일, 소유자 `complete`와의 경합, 동시 `sweep` 두 개)로 확인했다.
 
 ## Approval
 
 승인 메모:
 
 - 추가 조건 없음.
-- 이 제안은 [PR 정리 제안](./pr-worktree-closeout.md)이 제외한 "명령 종료 후 웹 병합의 자동 감시"를 다음 호출 때의 1회 조회로 바꾼다. 상주 감시, 나이 기반 삭제, 미등록 자료의 일괄 삭제는 계속 제외한다.
+- 이 제안은 [PR 정리 제안](../active/pr-worktree-closeout.md)이 제외한 "명령 종료 후 웹 병합의 자동 감시"를 다음 호출 때의 1회 조회로 바꾼다. 상주 감시, 나이 기반 삭제, 미등록 자료의 일괄 삭제는 계속 제외한다.
 
 ## Execution Plan
 
@@ -257,7 +257,7 @@ npm run check
 | `npm run verify:fsd`, `verify:server`, `verify:shared` | 통과 | |
 | `npm run test:architecture` | 460개 중 455개 통과, 5개 제외, 실패 0 | |
 | `npm run check` | 577개 중 571개 통과, 6개 제외, 실패 0 | lint, `docs:check`, `verify:ci-coverage`, 타입 검사 포함. |
-| Windows의 `check/task-worktrees` | Not run yet | PR의 CI에서 확인한다. |
+| Windows의 `check/task-worktrees` | 통과 | PR #414와 #417의 CI. |
 
 시험이 다루지 않은 사례: 둘째 페이지의 후보와 페이지 중단, 제거 도중 실제 프로세스를 끊는 중단. 목록 조회는 100건 미만 한 페이지 응답만 시험했다. 한 branch의 PR이 100건을 넘는 경우는 병합된 branch를 다시 쓰지 않는 규칙상 생기지 않는다고 보고 추가하지 않았다. 제거 도중의 중단은 작업 트리가 이미 제거된 원장 상태로 확인했고, 실제 프로세스 중단 뒤의 잠금·원장 보존은 기존 `recovery.test.mjs`가 같은 정리 경로에서 확인한다.
 
@@ -299,8 +299,8 @@ PR #414가 `dev`에 병합된 뒤 실제 저장소에서 `npm run pr -- sweep`�
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-11-22
+- verification-summary: PR #414와 #417의 `check`가 Windows·macOS의 `task-worktrees`를 포함해 통과했다. #414 병합 뒤 실제 저장소의 `npm run pr -- sweep`이 사람이 병합한 작업 1건을 PR 번호 입력 없이 정리했고, 병합되지 않은 작업 2건은 `no-merged-pr`로 보류했다.
+- implementation PR/commit: #414(`822614d`, 검사와 `sweep` 연산, `create` 연결, 규칙 문서), #417(`5da3a0f`, 중복 원격 조회 축소, 동시 실행과 공용 잠금 사례).
+- changed files summary: `scripts/pr/merged-sweep.mjs`(추가), `scripts/pr/index.mjs`, `scripts/pr/github-merge.mjs`, `scripts/pr/sweep.test.mjs`(추가), `scripts/pr/cli-integration.test.mjs`, `scripts/pr/testing/closeout-fixture.mjs`, `.github/workflows/check.yml`, `AGENTS.md`, `docs/architecture/verification.md`.
+- remaining follow-up: 없음. 정리 1건이 시작 예산 20초를 넘는 점은 Risks에 적은 대로 남는다. 남은 조회는 기존 `complete`·`cleanup`의 반복 보존 증명이며 줄이지 않기로 했다. 병합하지 않고 끝낸 작업의 정리는 [retire 보존 조건 제안](./2026-11-22-retire-remote-preserved-task.md)이 다뤘다.
