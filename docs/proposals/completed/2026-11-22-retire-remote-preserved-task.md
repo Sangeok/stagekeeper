@@ -1,20 +1,20 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-22"
 approved-by: "user"
 approved-at: "2026-11-22"
 approval-scope: "보존 조건 구현과 시험, AGENTS.md와 verification.md 규칙 수정, dev 대상 PR 생성. PR 병합과 두 잔여 작업의 push·retire는 제외."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-22"
+verification-summary: "PR #420의 check 통과(Windows·macOS task-worktrees 포함). 병합 뒤 실제 저장소에서 retire가 미병합 작업 2건을 retired로 처리했다."
 closed-at: null
 closed-by: null
 closed-reason: null
 owners: []
 related:
   - "docs/proposals/active/pr-worktree-closeout.md"
-  - "docs/proposals/active/merged-task-cleanup-at-start.md"
+  - "docs/proposals/completed/2026-11-22-merged-task-cleanup-at-start.md"
   - "docs/architecture/verification.md"
   - "AGENTS.md"
 ---
@@ -71,7 +71,7 @@ related:
 - 닫힌 PR의 `refs/pull/<n>/head`를 보존 증거로 쓰는 것. 원격 브랜치가 지워진 경우에는 다시 push하면 같은 조건으로 닫을 수 있다.
 - 원격 브랜치 삭제와 정리.
 - 미등록 작업 트리, 원장 형식, 사용 관측, Windows 처리.
-- 위 표의 두 작업을 실제로 닫는 일. PR이 병합된 뒤 별도 승인을 받아 수행한다.
+- 위 표의 두 작업을 실제로 닫는 일. PR 병합 뒤 별도 승인을 받아 수행했고, 결과는 Completion or Closure Notes에 있다.
 
 ## Proposal
 
@@ -211,7 +211,7 @@ related:
 | `node --test scripts/pr/*.test.mjs` | 61개 중 59 pass, 2 skip(기존 조건부 건너뜀), 0 fail |
 | `verify:fsd`, `verify:server`, `verify:shared`, `test:architecture`, `check` | 모두 exit 0 |
 
-CI의 Windows·macOS 결과는 PR에서 확인한다.
+PR #420의 CI에서 Windows·macOS의 `check/task-worktrees`가 통과했다.
 
 ## Risks and Rollback
 
@@ -233,3 +233,11 @@ CI의 Windows·macOS 결과는 PR에서 확인한다.
 ## Completion or Closure Notes
 
 완료 기록(`status: "completed"`일 때 작성):
+
+- completed-at: 2026-11-22
+- verification-summary: PR #420의 `check`가 Windows·macOS의 `task-worktrees`를 포함해 통과했다. 병합 뒤 실제 저장소에서 `retire`가 미병합 작업 2건을 한 번의 호출로 `retired`까지 처리했다.
+- implementation PR/commit: #420(`9eae2dc`).
+- changed files summary: `scripts/pr/index.mjs`, `scripts/pr/github-merge.mjs`, `scripts/pr/lifecycle.test.mjs`, `AGENTS.md`, `docs/architecture/verification.md`.
+- 제안과 달라진 점: 원격 브랜치가 다른 커밋인 경우를 봉인 전에 `remote-branch-reused`로 거부한다. 이전에는 봉인 뒤 `cleanup`에서 거부해 원장에 `cleanup-pending`이 남았다. 시험은 `lifecycle.test.mjs` 한 파일에만 추가했다.
+- 실제 적용(2026-11-22, 사용자 승인): `harness/background-liveness-diagnosis`는 닫힌 PR #405와 원격 브랜치를 근거로, `harness/task-start-cleanup-proposal`은 push한 원격 브랜치를 근거로 `retire`했다. 그 뒤 사용자 결정으로 두 원격 브랜치를 삭제했다. 앞의 커밋은 `refs/pull/405/head`에 남아 있고, 뒤의 커밋 5개는 남은 사본이 없다.
+- remaining follow-up: 없음.
