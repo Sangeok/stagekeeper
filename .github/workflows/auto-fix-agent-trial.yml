@@ -122,6 +122,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
         run: |
           claude --version
+          date +%s > "$RUNNER_TEMP/trial/started"
           claude --print --model "$TRIAL_MODEL" --effort "$TRIAL_EFFORT" --permission-mode bypassPermissions --disallowedTools WebFetch WebSearch --output-format stream-json --verbose --no-session-persistence < "$RUNNER_TEMP/trial/prompt.md" > "$RUNNER_TEMP/trial/transcript.jsonl"
       - name: Collect the result
         id: collect
@@ -133,6 +134,7 @@ jobs:
           AGENT_OUTCOME: ${{ steps.agent.outcome }}
         run: |
           echo "agent step: $AGENT_OUTCOME"
+          export AGENT_SECONDS="$(( $(date +%s) - $(cat "$RUNNER_TEMP/trial/started") ))"
           node tools/.github/auto-fix-agent-trial/collect.mjs "$RUNNER_TEMP/trial/transcript.jsonl" "$GITHUB_WORKSPACE/work" "$RUNNER_TEMP/trial/notes.md" "$RUNNER_TEMP/trial/out" "$(cat "$RUNNER_TEMP/trial/base-tree")"
       - uses: actions/upload-artifact@v4
         if: always() && steps.collect.outcome == 'success'

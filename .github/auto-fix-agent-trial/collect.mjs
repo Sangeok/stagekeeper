@@ -32,10 +32,13 @@ const describe = use => {
 };
 const commands = toolUses.map(describe).join("\n");
 
-const result = events.findLast(event => event.type === "result") ?? null;
+const results = events.filter(event => event.type === "result");
+const result = results.at(-1) ?? null;
 const init = events.find(event => event.type === "system" && event.subtype === "init") ?? null;
 const summary = {
   finished: Boolean(result),
+  agentSeconds: Number(process.env.AGENT_SECONDS ?? "") || null,
+  resultEvents: results.map(event => ({ subtype: event.subtype ?? null, durationMs: event.duration_ms ?? null, turns: event.num_turns ?? null, costUsd: event.total_cost_usd ?? null, outputTokens: event.usage?.output_tokens ?? null })),
   subtype: result?.subtype ?? null,
   isError: result?.is_error ?? null,
   durationMs: result?.duration_ms ?? null,

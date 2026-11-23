@@ -1,0 +1,21 @@
+diff --git a/plugin/bin/harness-watch.test.mjs b/plugin/bin/harness-watch.test.mjs
+index f3dfb44..db9cb33 100644
+--- a/plugin/bin/harness-watch.test.mjs
++++ b/plugin/bin/harness-watch.test.mjs
+@@ -433,12 +433,13 @@ it("honors a longer Retry-After, and a healthy overview restarts failure countin
+   const f = await fixture(t);
+   const session = (await f.start()).event.session;
+   let count = 0;
++  let refusedAt = 0;
+   f.setHandler(async (request, res) => {
+-    if (++count === 1) { res.writeHead(429, { "retry-after": "0.2" }); res.end(); }
++    if (++count === 1) { res.writeHead(429, { "retry-after": "0.2" }); res.end(); refusedAt = performance.now(); }
+     else send(res, request, READY);
+   });
+-  assert.equal((await f.poll(session).result).event.event, "work");
+-  assert.ok(f.calls[2].at - f.calls[1].at >= 190);
++  assert.equal((await f.run(["--session", session, "--interval", "0.02", "--deadline", "0.1", "--request-timeout", "5"]).result).event.event, "work");
++  assert.ok(f.calls[2].at - refusedAt >= 190);
+ });
+ 
+ it("refuses non-Git/bare roots, malformed config and missing runbook without network/state writes", async (t) => {

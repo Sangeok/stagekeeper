@@ -1,0 +1,7 @@
+{
+  "attempt": 1,
+  "commit": "c5f4e44e7be8d83607f2c644db3d5e6ae8c2d0a9",
+  "runner": "macos-15-intel",
+  "patch": "case1-sonnet-b.patch",
+  "rounds": 6
+}

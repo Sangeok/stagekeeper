@@ -1,0 +1,82 @@
+name: auto-fix-agent-trial-measure
+
+on:
+  push:
+    branches:
+      - harness/auto-fix-agent-trial
+    paths:
+      - .github/auto-fix-agent-trial/measure.json
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      plan: ${{ steps.read.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/auto-fix-agent-trial
+      - id: read
+        run: echo "plan=$(node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(".github/auto-fix-agent-trial/measure.json","utf8"))))')" >> "$GITHUB_OUTPUT"
+
+  measure:
+    needs: select
+    name: measure ${{ fromJSON(needs.select.outputs.plan).patch }} shard ${{ matrix.shard }}
+    runs-on: ${{ fromJSON(needs.select.outputs.plan).runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      TRIAL_COMMIT: ${{ fromJSON(needs.select.outputs.plan).commit }}
+      TRIAL_PATCH: ${{ fromJSON(needs.select.outputs.plan).patch }}
+      TRIAL_ROUNDS: ${{ fromJSON(needs.select.outputs.plan).rounds }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/auto-fix-agent-trial
+          path: tools
+      - name: Check out the failed commit without later history
+        shell: bash
+        run: |
+          git init --quiet work
+          git -C work fetch --quiet --no-tags "https://github.com/$GITHUB_REPOSITORY.git" "$TRIAL_COMMIT"
+          git -C work checkout --quiet --detach FETCH_HEAD
+          test "$(git -C work rev-parse HEAD)" = "$TRIAL_COMMIT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Prepare project dependencies
+        shell: bash
+        working-directory: work
+        run: |
+          npm ci --no-audit --no-fund
+          npm run db:generate
+      - name: Prepare the macOS runtime
+        if: runner.os == 'macOS'
+        shell: bash
+        working-directory: work
+        run: |
+          architecture="$(node -p process.arch)"
+          archive="$RUNNER_TEMP/node-v22.23.3-darwin-$architecture.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-$architecture.tar.gz" -o "$archive"
+          node scripts/macos/build-runtime.mjs --archive "$archive" --output "$PWD/plugin/runtime/macos/node"
+      - name: Measure before and after on this runner
+        shell: bash
+        working-directory: work
+        run: |
+          git apply --check "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/patches/$TRIAL_PATCH"
+          node "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/measure.mjs" "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/patches/$TRIAL_PATCH" "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/stress.mjs" "$TRIAL_ROUNDS" "$RUNNER_TEMP/measure.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: auto-fix-agent-trial-measure-${{ matrix.shard }}
+          path: ${{ runner.temp }}/measure.json
+          retention-days: 14
