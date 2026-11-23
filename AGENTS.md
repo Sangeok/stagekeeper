@@ -92,6 +92,11 @@ commits that were already green on `dev`.
   (`gh pr list --state open`) and read the proposals in `docs/proposals/active/`.
   Another session or machine may be changing the same files, or may own the decision
   you are about to make.
+- At the start of each independent task, also list the open issues labeled
+  `post-merge:rerun-failed` (`gh issue list --label post-merge:rerun-failed`) and tell
+  the user about each one together with the latest run result in its status block.
+  The label says that the latest recorded failure failed again when rerun, not that
+  the job still fails. Do not start fixing one unless the user asks.
 - Before choosing a branch or worktree, state whether the request is read-only,
   a continuation of the current task, or an independent change. Read-only inspection,
   explanation and review do not need a new branch or worktree. Continue the same
@@ -173,12 +178,18 @@ commits that were already green on `dev`.
   that test uses, and the rerun failed too), revert it first through a pull request
   and fix it afterwards. When an unrelated test failed and the rerun passed, or the
   issue collects different commits, fix the test; the count in the issue sets the
-  order. When the failure is outside the tests, such as a runner that did not start,
+  order. Leave that issue open while the test is unfixed: closing it restarts the
+  count. When the failure is outside the tests, such as a runner that did not start,
   confirm that the rerun passed. Write the cause and what was done in the issue, then
-  close it; the workflow never closes one.
+  close it. The workflow closes only an issue whose job did not start, once that job
+  passes in the rerun or in a later run. Each issue starts with a status block the
+  workflow rewrites when the state changes, and carries the label
+  `post-merge:rerun-failed` or `post-merge:rerun-passed` for its latest recorded
+  failure; neither label is set while a rerun is pending.
 - Before promoting, read the open `[post-merge]` issues. Stop while one concerns the
   commit being promoted or a change in this promotion: write the cause and the
-  decision in it and close it first. After `git fetch origin`,
+  decision in it first. Then close it when its label is `post-merge:rerun-failed`, and
+  leave it open when its label is `post-merge:rerun-passed`. After `git fetch origin`,
   `npm run find:green-dev` prints the newest `origin/dev` commit whose post-merge
   workflows all passed and the newer commits it leaves out.
 - Before promoting, run the `client-init-smoke` workflow on the `dev` commit being
