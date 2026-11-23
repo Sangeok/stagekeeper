@@ -139,9 +139,11 @@ export function exportPlugin(commit: string, directory: string): string {
   return directory;
 }
 
+export const marketplaceSource = (commit: string) => `${PLUGIN_REPOSITORY}#${commit}`;
+
 export async function installPlugin(run: Run, options: Pick<Options, "pluginSource" | "pluginBranch" | "pluginCommit">, work: string, env: NodeJS.ProcessEnv): Promise<Plugin> {
   if (options.pluginSource === "github-branch") {
-    run.succeed("claude", ["plugin", "marketplace", "add", `${PLUGIN_REPOSITORY}#${options.pluginBranch}`], REPO, env, "marketplace add");
+    run.succeed("claude", ["plugin", "marketplace", "add", marketplaceSource(options.pluginCommit)], REPO, env, "marketplace add");
     run.succeed("claude", ["plugin", "install", `harness@${MARKETPLACE}`], REPO, env, "plugin install");
     const clone = path.join(homedir(), ".claude", "plugins", "marketplaces", MARKETPLACE);
     const commit = git(clone, ["rev-parse", "HEAD"]);
