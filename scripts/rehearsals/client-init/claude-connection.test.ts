@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { it, type TestContext } from "node:test";
 import { Run } from "../support/command-run";
-import { Smoke, update, type Plugin } from "./claude-connection";
+import { Smoke, marketplaceSource, update, type Plugin } from "./claude-connection";
 import type { Options } from "./options";
 
 function fixture(t: TestContext, version: string) {
@@ -92,4 +92,9 @@ it("keeps installation failure and does not reconnect or generate afterward", as
   assert.deepEqual(f.events, ["cutover", "previous-connection", "install"]);
   assert.equal(f.run.failure, "plugin-install");
   assert.deepEqual(f.run.steps, [{ step: "plugin-install", result: "fail" }]);
+});
+
+it("adds the marketplace pinned to the commit under test, so a branch that moves during a run cannot change what is installed", () => {
+  const commit = "c".repeat(40);
+  assert.equal(marketplaceSource(commit), `https://github.com/Sangeok/stagekeeper.git#${commit}`);
 });

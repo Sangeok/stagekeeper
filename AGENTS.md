@@ -155,13 +155,8 @@ commits that were already green on `dev`.
   job has been running for more than 30 minutes, tell the user and then cancel that
   run. Dispatch a gate only when the commit has no finished run of it with those
   inputs, or that run is not green.
-- `client-init-smoke` and `pipeline-smoke` install the plugin from the tip of the
-  `dev` branch and fail with `installed marketplace commit <sha> is not the commit
-  under test` when that tip is no longer the commit they were dispatched on. Dispatch
-  them only when no pull request into `dev` is about to merge, and merge nothing into
-  `dev` until every leg of both has passed its `plugin-install` step. A run that
-  failed this way says nothing about the commit: write that cause in its `[gate]`
-  issue, close it, and dispatch again on the commit to promote.
+- `client-init-smoke` and `pipeline-smoke` install the plugin from the commit they
+  run on, so merging into `dev` while they run does not change what they install.
 - Every gate run on `dev` or `main` that was dispatched by hand or by schedule adds a
   row to the gate record (https://github.com/Sangeok/stagekeeper/issues/319). It also
   opens a `[gate] <workflow> <commit>` issue when the gate failed, a summary is
