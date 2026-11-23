@@ -76,7 +76,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/trial"
-          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$TRIAL_JOB_ID/logs" > "$RUNNER_TEMP/trial/failure.log"
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/jobs/$TRIAL_JOB_ID/logs" -o "$RUNNER_TEMP/trial/raw.log"
+          node -e 'const fs=require("fs");fs.writeFileSync(process.argv[2],fs.readFileSync(process.argv[1],"utf8").replace(/\u001b\[[0-9;]*[A-Za-z]/g,""))' "$RUNNER_TEMP/trial/raw.log" "$RUNNER_TEMP/trial/failure.log"
+          rm "$RUNNER_TEMP/trial/raw.log"
           wc -c "$RUNNER_TEMP/trial/failure.log"
       - name: Prepare project dependencies
         shell: bash
@@ -123,7 +125,7 @@ jobs:
           claude --print --model "$TRIAL_MODEL" --effort "$TRIAL_EFFORT" --permission-mode bypassPermissions --disallowedTools WebFetch WebSearch --output-format stream-json --verbose --no-session-persistence < "$RUNNER_TEMP/trial/prompt.md" > "$RUNNER_TEMP/trial/transcript.jsonl"
       - name: Collect the result
         id: collect
-        if: always()
+        if: always() && steps.agent.outcome != 'skipped'
         shell: bash
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
