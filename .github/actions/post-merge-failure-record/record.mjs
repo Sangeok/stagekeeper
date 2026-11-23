@@ -9,6 +9,19 @@ export const TARGETS = Object.freeze([
 ]);
 export const PREFIX = "[post-merge] ";
 export const NOT_STARTED = "did not start";
+export const RUNNER_SETUP_STEP = "Set up job";
+export const SETUP_STEPS = Object.freeze([
+  RUNNER_SETUP_STEP,
+  "Run actions/checkout@v5",
+  "Run actions/setup-node@v5",
+  "Run npm ci",
+  "Run npm ci --no-audit --no-fund",
+  "Run npm run db:generate",
+  "Prepare project dependencies with normal lifecycle scripts",
+  "Generate policy contract types",
+  "Prepare the Windows role runtime",
+  "Prepare the macOS runtime",
+]);
 export const LABELS = Object.freeze({ failed: "post-merge:rerun-failed", passed: "post-merge:rerun-passed" });
 const LABEL_DETAILS = Object.freeze({
   [LABELS.failed]: { color: "b60205", description: "The latest recorded post-merge failure failed again when it was rerun" },
@@ -91,6 +104,7 @@ function failuresOf(texts) {
 export const STATES = Object.freeze({
   "rerun-pending": () => ["The rerun has not finished.", "Nothing."],
   "not-started": ({ latestJob }) => [`The job did not start. Latest run of this job: ${latestJob}.`, "Wait. This issue closes when the job passes. If it keeps failing, look at why the runner does not start."],
+  "setup-failed": ({ latestJob }) => [`Failed in a setup step. Latest run of this job: ${latestJob}.`, "Wait. This issue closes when the job passes. If it keeps failing, look at the setup step."],
   resolved: () => ["The rerun failed too, but the latest run of this job passed.", "If it is fixed, write the cause and what was done, then close this issue."],
   broken: ({ latestJob }) => [`The rerun failed too. Latest run of this job: ${latestJob}.`, "Find the cause. Revert the merged change if it caused this, otherwise fix it. Write the cause and what was done, then close this issue."],
   collecting: ({ passedCount }) => [`Failures whose rerun passed: ${passedCount}.`, "Nothing. Close it if it stops happening."],
@@ -105,11 +119,11 @@ export function stateOf(title, texts, latestRuns = []) {
   const latestRun = latestRuns.find(found => found.workflowName === workflowName && found.branch === last.branch && found.runId >= last.run);
   const conclusion = latestRun?.jobs.find(found => found.name === job)?.conclusion;
   const latestJob = !conclusion ? "unknown" : PASSED.has(conclusion) ? "passed" : failed(conclusion) ? "failed" : "unknown";
-  const name = last.result === null ? "rerun-pending" : step === NOT_STARTED ? "not-started"
+  const name = last.result === null ? "rerun-pending" : step === NOT_STARTED ? "not-started" : SETUP_STEPS.includes(step) ? "setup-failed"
     : last.result === "failed" ? (latestJob === "passed" ? "resolved" : "broken") : last.result === "passed" ? "collecting" : "rerun-unclear";
   return { name, latestJob, passedCount: failures.filter(failure => failure.result === "passed").length,
     label: last.result === "failed" ? LABELS.failed : last.result === "passed" ? LABELS.passed : null,
-    closable: step === NOT_STARTED && (last.result === "passed" || latestJob === "passed") };
+    closable: (step === NOT_STARTED || SETUP_STEPS.includes(step)) && (last.result === "passed" || latestJob === "passed") };
 }
 
 function statusBlock(state) {
