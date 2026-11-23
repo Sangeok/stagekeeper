@@ -1,0 +1,12 @@
+name: setup-macos-runtime
+description: Download the pinned Node release and build the verified native macOS runtime into the plugin.
+runs:
+  using: composite
+  steps:
+    - name: Build the verified native macOS runtime
+      shell: bash
+      run: |
+        architecture="$(node -p process.arch)"
+        archive="$RUNNER_TEMP/node-v22.23.3-darwin-$architecture.tar.gz"
+        curl -fsSL "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-$architecture.tar.gz" -o "$archive"
+        node scripts/macos/build-runtime.mjs --archive "$archive" --output "$GITHUB_WORKSPACE/plugin/runtime/macos/node"

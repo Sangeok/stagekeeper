@@ -115,7 +115,7 @@ related:
 | 다시 실행해도 실패 | 바로 실행시킨다. 그 잡의 가장 최근에 끝난 실행이 통과했으면 실행시키지 않는다 |
 | 다시 실행하면 통과 | 열린 이슈 하나에 3건이 쌓이면 실행시킨다 |
 
-실패한 단계가 `did not start`이거나 준비 단계(2절의 공용 액션)인 이슈에는 어느
+실패한 단계가 `did not start`이거나 준비 단계(`record.mjs`의 `SETUP_STEPS`)인 이슈에는 어느
 경우에도 실행시키지 않는다. 준비 단계는 의존성 설치, 내려받기, 캐시 복원, 런타임
 빌드처럼 외부 서비스에 기대는 일이다. 준비가 깨져 있으면 수정 잡도 같은 곳에서
 실패해 에이전트가 시작하지 못하므로, 실행시켜서 얻는 것이 없다.
@@ -159,14 +159,20 @@ related:
   `medium`이다.
 - 수정 잡과 측정 잡은 실패한 잡과 같은 종류의 러너에서 돈다. 러너 종류는 실패한
   실행의 잡 기록에서 읽는다.
-- 병합 후 워크플로 세 개의 준비 단계를 공용 액션으로 빼고, 원래 워크플로, 수정 잡,
-  측정 잡이 함께 쓴다. 준비가 어긋나면 측정이 다른 환경에서 돌아 "재현 안 됨"으로
-  틀리게 적히기 때문이다. Windows와 macOS 워크플로는 준비와 검사가 섞여 있어서,
-  공용 액션을 런타임 준비와 의존성 준비의 둘로 나누고 단계의 순서는 건드리지 않는다.
-- `windows-role-runtime`의 PR 경로 조건에 `package.json`과 `package-lock.json`을
-  더한다. `macos-runtime-contracts`에는 이미 있다. Windows에서만 설치를 깨뜨리는
-  의존성 변경이 지금은 병합 전에 걸리지 않고, 준비 단계의 실패는 에이전트가 고치지
-  못하기 때문이다.
+- 런타임 준비를 공용 액션으로 빼고, 원래 워크플로, 수정 잡, 측정 잡이 함께 쓴다.
+  준비가 어긋나면 측정이 다른 환경에서 돌아 "재현 안 됨"으로 틀리게 적히기 때문이다.
+  `setup-windows-role-runtime`은 캐시 식별, 복원, 빌드, 검증, 저장을, `setup-macos-runtime`은
+  Node 내려받기와 런타임 빌드를 담는다. 단계의 순서는 건드리지 않는다.
+- 의존성 준비(`npm ci`, `npm run db:generate`)는 공용 액션으로 빼지 않는다(2단계에서
+  고친 결정). 명령 두 줄이고, 세 워크플로가 서로 다른 인자와 조건으로 쓴다. `check`는
+  모든 PR이 거치는 검사라 구조를 바꾸지 않는 쪽이 안전하다. 수정 잡은 같은 두 명령을
+  직접 돌린다.
+- 준비 단계인지는 실패한 단계의 이름으로 가린다. `record.mjs`의 `SETUP_STEPS`가 그
+  이름들을 갖고, 시험이 세 워크플로에 그 단계가 실제로 있는지 대조한다. 워크플로에서
+  이름을 바꾸면 시험이 실패한다.
+- `windows-role-runtime`의 PR 경로 조건에는 `package.json`과 `package-lock.json`이 이미
+  있다. 이 문서의 이전 판은 없다고 적고 더하기로 했으나, 목록의 앞부분만 읽고 내린
+  틀린 판단이었다. 고칠 것이 없다.
 - Windows 런타임 캐시가 없으면 빌드하지 않고 끝낸다. 세 번까지 다시 실행시키고,
   시도로 세지 않는다.
 - 전체 검사는 `check`에서 난 실패에는 돌리지 않는다. `check`는 수정 PR에서 돈다.
@@ -524,9 +530,8 @@ Opus로 다시 돌린다. 결과는 연습용 이슈에 모은다.
 | `.github/actions/post-merge-auto-fix/`(스크립트, 시험, 지시문) | add | `gate-record`, `post-merge-failure-record`와 같은 배치 | medium |
 | `.github/actions/post-merge-failure-record/record.mjs`와 시험 | update | 부르기, 두 번째 시도, 넘기기, 닫기의 판정과 라벨, 상태 줄 | medium. 이미 도는 기록을 건드린다 |
 | `.github/workflows/post-merge-failure-record.yml` | update | 수정 워크플로를 실행시키고 변수를 읽는다 | medium |
-| 병합 후 워크플로의 준비 단계를 담는 공용 액션 | add | 원래 워크플로, 수정 잡, 측정 잡이 함께 쓴다 | medium |
-| `.github/workflows/windows-role-runtime.yml`, `macos-runtime-contracts.yml` | update | 공용 액션 사용, `workflow_call` 입구, 브랜치 입력, 동시 실행 그룹, macOS 진단 단계의 조건, Windows의 PR 경로 조건에 의존성 파일 두 개 | medium. 검사 내용은 바꾸지 않는다. 의존성을 바꾸는 PR에서 Windows 검사가 한 번 더 돈다 |
-| `.github/workflows/check.yml` | update | 공용 액션 사용 | low |
+| `.github/actions/setup-windows-role-runtime/`, `.github/actions/setup-macos-runtime/` | add | 원래 워크플로, 수정 잡, 측정 잡이 함께 쓴다 | medium |
+| `.github/workflows/windows-role-runtime.yml`, `macos-runtime-contracts.yml` | update | 공용 액션 사용, `workflow_call` 입구, 브랜치 입력, 동시 실행 그룹, macOS 진단 단계의 조건 | medium. 검사 내용은 바꾸지 않는다 |
 | `package.json` | update | 새 시험 경로 | low |
 | `vercel.json` | update | 수정 브랜치는 배포하지 않는다는 설정 | low. 다른 브랜치의 배포는 그대로다 |
 | `docs/architecture/verification.md` | update | CI 범위 표에 새 잡 | low. `verify:ci-coverage`가 대조한다 |
@@ -585,10 +590,10 @@ Opus로 다시 돌린다. 결과는 연습용 이슈에 모은다.
    표식의 다시 실행 결과, `did not start` 이슈를 닫는 것을 더한다. `AGENTS.md`의
    승격 규칙과 작업 시작 규칙을 고친다. 수정 워크플로 없이도 쓸모가 있다. 실패 기록
    워크플로는 `main`의 파일로 돌기 때문에, `main`에 승격해야 바뀐 동작이 나온다.
-2. 준비 단계. 병합 후 워크플로 세 개의 준비 단계를 공용 액션으로 빼고, Windows와
-   macOS 워크플로에 `workflow_call` 입구를 더하고, Windows의 PR 경로 조건에 의존성
-   파일을 더한다. 준비 단계에서 실패한 이슈를 닫는 것을 실패 기록에 더한다. 옮긴 뒤
-   세 워크플로가 전과 같이 통과하는지 본다. 실패 기록의 변경은 1단계와 같이 승격해야
+2. 준비 단계. Windows와 macOS 워크플로의 런타임 준비를 공용 액션으로 빼고, 두
+   워크플로에 `workflow_call` 입구를 더한다. 준비 단계에서 실패한 이슈를 닫는 것을
+   실패 기록에 더한다. 옮긴 뒤 두 워크플로가 전과 같이 통과하는지 본다. `check`는
+   건드리지 않는다. 실패 기록의 변경은 1단계와 같이 승격해야
    동작한다.
 3. 수정 워크플로와 수동 실행. 워크플로, 스크립트, 지시문, 스위치, `vercel.json`의
    설정을 더한다. 실패

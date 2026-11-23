@@ -64,12 +64,19 @@ on:
       - package.json
       - package-lock.json
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch, tag or commit to check instead of the commit the caller runs on
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ inputs.ref && format('{0}-{1}', github.run_id, inputs.ref) || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -84,6 +91,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ inputs.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -92,18 +100,18 @@ jobs:
       - name: Probe native permissions and detached-child containment
         run: node scripts/macos/probe-seatbelt-containment.mjs "$RUNNER_TEMP/seatbelt-containment.json"
       - name: Probe recursive tracking and orphan ownership
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.ref
         run: node scripts/macos/probe-descendant-ownership.mjs "$RUNNER_TEMP/descendant-ownership.json"
       - name: Probe launchd lifecycle and detached descendants
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.ref
         run: node scripts/macos/probe-launchd-ownership.mjs "$RUNNER_TEMP/launchd-ownership.json"
       - name: Probe ordinary-user coalition control
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.ref
         run: node scripts/macos/probe-coalition-access.mjs "$RUNNER_TEMP/coalition-access.json"
       - name: Probe per-run sandbox identity, survivor confinement and quiescence
         run: node scripts/macos/probe-sandbox-identity.mjs "$RUNNER_TEMP/sandbox-identity.json"
       - uses: actions/upload-artifact@v4
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always() && github.event_name == 'workflow_dispatch' && !inputs.ref
         with:
           name: coalition-access-${{ matrix.runner }}
           path: ${{ runner.temp }}/coalition-access.json
@@ -121,13 +129,13 @@ jobs:
           path: ${{ runner.temp }}/seatbelt-containment.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always() && github.event_name == 'workflow_dispatch' && !inputs.ref
         with:
           name: descendant-ownership-${{ matrix.runner }}
           path: ${{ runner.temp }}/descendant-ownership.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always() && github.event_name == 'workflow_dispatch' && !inputs.ref
         with:
           name: launchd-ownership-${{ matrix.runner }}
           path: ${{ runner.temp }}/launchd-ownership.json
@@ -140,13 +148,8 @@ jobs:
         run: node --test scripts/plugin-lib.test.mjs scripts/lib/shared-module-graph.test.mjs scripts/checks/verify-shared-boundaries.test.mjs scripts/macos/package-plugin.test.mjs scripts/windows/package-windows-plugin.test.mjs
       - name: Validate owned smoke server lifecycle
         run: node --test scripts/rehearsals/support/smoke-server.test.mjs
-      - name: Build the verified native macOS runtime
-        shell: bash
-        run: |
-          architecture="$(node -p process.arch)"
-          archive="$RUNNER_TEMP/node-v22.23.3-darwin-$architecture.tar.gz"
-          curl -fsSL "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-$architecture.tar.gz" -o "$archive"
-          node scripts/macos/build-runtime.mjs --archive "$archive" --output "$GITHUB_WORKSPACE/plugin/runtime/macos/node"
+      - name: Prepare the macOS runtime
+        uses: ./.github/actions/setup-macos-runtime
       - name: Record contract-test environment
         run: node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,scope:"model-free runtime contracts"}))'
       - name: Validate shared runtime contracts without client credentials

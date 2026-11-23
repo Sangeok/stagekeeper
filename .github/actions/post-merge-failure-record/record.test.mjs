@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { it } from "node:test";
-import { LABELS, NOT_STARTED, STATES, apply, failedJobs, gather, markerOf, parse, plan, stateOf, summarize, titleOf, withStatus } from "./record.mjs";
+import { LABELS, NOT_STARTED, RUNNER_SETUP_STEP, SETUP_STEPS, STATES, apply, failedJobs, gather, markerOf, parse, plan, stateOf, summarize, titleOf, withStatus } from "./record.mjs";
 
 const SHA = "a".repeat(40);
 const job = (name, conclusion, steps = []) => ({ name, conclusion, url: `https://example.test/job/${encodeURIComponent(name)}`, steps });
@@ -101,6 +102,7 @@ it("describes the issue by its latest recorded failure and labels it by that fai
     ["resolved", title, [failure(2), rerun(2, "failed")], [latestRun(3, "success")], LABELS.failed, "but the latest run of this job passed"],
     ["rerun-unclear", title, [failure(2), rerun(2, "not-run")], [], null, "The rerun gave no result for this job."],
     ["not-started", notStarted, [failure(2), rerun(2, "failed")], [latestRun(2, "failure")], LABELS.failed, "The job did not start. Latest run of this job: failed."],
+    ["setup-failed", titleOf("check", JOB, "Run npm ci"), [failure(2), rerun(2, "failed")], [latestRun(2, "failure")], LABELS.failed, "Failed in a setup step. Latest run of this job: failed."],
   ];
   for (const [name, caseTitle, texts, latest, label, phrase] of cases) {
     const state = stateOf(caseTitle, texts, latest);
@@ -146,6 +148,24 @@ it("closes an issue of a job that did not start once the job passes, and no othe
   assert.ok(!types({ issues: [notStarted({ body: failure(1) })], latest: [latestRun(1, "failure")] }).includes("close"));
   assert.ok(!types({ issues: [issue({ body: `${failure(1)}\n${rerun(1, "passed")}` })], latest: [latestRun(2, "success")] }).includes("close"));
   assert.ok(!types({ issues: [notStarted({ state: "closed", body: `${failure(1)}\n${rerun(1, "passed")}` })] }).includes("close"));
+});
+
+it("closes an issue of a setup step once the job passes, the same way as a job that did not start", () => {
+  const setup = overrides => issue({ title: titleOf("windows-role-runtime", "native-runtime", "Prepare the Windows role runtime"), ...overrides });
+  const windowsRun = (runId, conclusion) => ({ workflowName: "windows-role-runtime", branch: "dev", runId, jobs: [{ name: "native-runtime", conclusion }] });
+  const marker = (runId, attempt, fields) => markerOf(runId, attempt, "native-runtime", fields);
+  const body = `${marker(1, 1, { branch: "dev" })}\n${marker(1, 2, { result: "failed" })}`;
+  const types = snapshot => plan({ runs: [], ...snapshot }).map(action => action.type);
+  assert.ok(types({ issues: [setup({ body })], latest: [windowsRun(2, "success")] }).includes("close"));
+  assert.ok(!types({ issues: [setup({ body })], latest: [windowsRun(2, "failure")] }).includes("close"));
+});
+
+it("names as setup steps only steps that the post-merge workflows really have", () => {
+  const workflows = ["check", "windows-role-runtime", "macos-runtime-contracts"].map(name => readFileSync(new URL(`../../workflows/${name}.yml`, import.meta.url), "utf8")).join("\n");
+  for (const step of SETUP_STEPS.filter(name => name !== RUNNER_SETUP_STEP)) {
+    const line = step.startsWith("Run actions/") ? `- uses: ${step.slice(4)}\n` : step.startsWith("Run ") ? `- run: ${step.slice(4)}\n` : `- name: ${step}\n`;
+    assert.ok(workflows.includes(line), step);
+  }
 });
 
 function fakeApi(routes, calls = []) {

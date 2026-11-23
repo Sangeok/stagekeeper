@@ -1,0 +1,44 @@
+name: setup-windows-role-runtime
+description: Restore the pinned Windows role runtime from the cache or build it, then verify it before anything launches it. Sets STAGEKEEPER_WINDOWS_RUNTIME_VERIFIED=true for later steps once verification passed.
+runs:
+  using: composite
+  steps:
+    - name: Calculate runtime cache identity
+      id: runtime-key
+      shell: pwsh
+      run: |
+        $key = node scripts/windows/windows-role-runtime-cache.mjs key
+        if ($LASTEXITCODE -ne 0) { throw 'Runtime cache identity failed' }
+        "key=$key" >> $env:GITHUB_OUTPUT
+    - uses: actions/cache/restore@v4
+      id: node-cache
+      with:
+        path: ${{ runner.temp }}/stagekeeper-node-source/runtime
+        key: ${{ steps.runtime-key.outputs.key }}
+    - name: Refuse a partial runtime cache match
+      if: steps.node-cache.outputs.cache-matched-key != '' && steps.node-cache.outputs.cache-matched-key != steps.runtime-key.outputs.key
+      shell: pwsh
+      run: throw 'Only an exact runtime cache may be reused; partial cache restore refused'
+    - name: Build pinned Node with AppContainer pipe backport
+      id: node-build
+      if: steps.node-cache.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Write-Output 'Runtime cache miss: compiling pinned Node'
+        ./scripts/windows/build-windows-role-node.ps1 -BuildRoot "$env:RUNNER_TEMP/stagekeeper-node-source"
+    - name: Verify prepared runtime with runner Node
+      id: runtime-verify
+      shell: pwsh
+      run: |
+        node scripts/windows/windows-role-runtime-cache.mjs verify --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
+        if ($LASTEXITCODE -ne 0) { throw 'Runtime cache integrity failed; cached executables were not launched' }
+        Write-Output "Runtime cache hit: ${{ steps.node-cache.outputs.cache-hit == 'true' }}"
+        & "$env:RUNNER_TEMP/stagekeeper-node-source/runtime/node.exe" -e 'const cp=require("node:child_process"); const r=cp.spawnSync(process.execPath,["-e","console.log(123)"],{encoding:"utf8"}); if(r.status!==0 || r.stdout.trim()!=="123") process.exit(1);'
+        if ($LASTEXITCODE -ne 0) { throw 'Prepared runtime child-process smoke failed' }
+        "verified=true" >> $env:GITHUB_OUTPUT
+        "STAGEKEEPER_WINDOWS_RUNTIME_VERIFIED=true" >> $env:GITHUB_ENV
+    - uses: actions/cache/save@v4
+      if: steps.node-cache.outputs.cache-hit != 'true' && steps.runtime-verify.outputs.verified == 'true'
+      with:
+        path: ${{ runner.temp }}/stagekeeper-node-source/runtime
+        key: ${{ steps.runtime-key.outputs.key }}
