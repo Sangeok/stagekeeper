@@ -1,12 +1,12 @@
 {
-  "case": "1",
-  "attempt": 3,
-  "commit": "c5f4e44e7be8d83607f2c644db3d5e6ae8c2d0a9",
+  "case": "3",
+  "attempt": 1,
+  "commit": "e1ede74f9c3b6b2ce2108f6019f63cb807ab5483",
   "runner": "macos-15-intel",
   "workflow": ".github/workflows/macos-runtime-contracts.yml",
   "job": "runtime contracts (macos-15-intel)",
-  "jobId": "133861718616",
-  "step": "Validate shared runtime contracts without client credentials",
+  "jobId": "131049279478",
+  "step": "Build the complete project inside the offline native role",
   "model": "claude-sonnet-5-5",
   "effort": "medium"
 }
