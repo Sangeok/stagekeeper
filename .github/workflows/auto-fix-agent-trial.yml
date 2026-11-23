@@ -1,0 +1,141 @@
+name: auto-fix-agent-trial
+
+on:
+  push:
+    branches:
+      - harness/auto-fix-agent-trial
+    paths:
+      - .github/auto-fix-agent-trial/case.json
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: auto-fix-agent-trial
+  cancel-in-progress: false
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      case: ${{ steps.read.outputs.case }}
+      runner: ${{ fromJSON(steps.read.outputs.case).runner }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/auto-fix-agent-trial
+      - id: read
+        run: echo "case=$(node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(".github/auto-fix-agent-trial/case.json","utf8"))))')" >> "$GITHUB_OUTPUT"
+
+  trial:
+    needs: select
+    name: trial ${{ fromJSON(needs.select.outputs.case).case }} (${{ fromJSON(needs.select.outputs.case).model }})
+    runs-on: ${{ needs.select.outputs.runner }}
+    timeout-minutes: 100
+    env:
+      TRIAL_COMMIT: ${{ fromJSON(needs.select.outputs.case).commit }}
+      TRIAL_WORKFLOW: ${{ fromJSON(needs.select.outputs.case).workflow }}
+      TRIAL_JOB: ${{ fromJSON(needs.select.outputs.case).job }}
+      TRIAL_JOB_ID: ${{ fromJSON(needs.select.outputs.case).jobId }}
+      TRIAL_STEP: ${{ fromJSON(needs.select.outputs.case).step }}
+      TRIAL_MODEL: ${{ fromJSON(needs.select.outputs.case).model }}
+      TRIAL_EFFORT: ${{ fromJSON(needs.select.outputs.case).effort }}
+    steps:
+      - name: Check the secrets
+        shell: bash
+        env:
+          CLAUDE_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+          TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
+        run: |
+          if [ -z "$CLAUDE_TOKEN" ] || [ -z "$TRANSCRIPT_KEY" ]; then
+            echo "::error::E2E_CLAUDE_OAUTH_TOKEN and E2E_TRANSCRIPT_KEY are both required"
+            exit 1
+          fi
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/auto-fix-agent-trial
+          path: tools
+      - name: Check out the failed commit without later history
+        shell: bash
+        run: |
+          git init --quiet work
+          git -C work fetch --quiet --no-tags "https://github.com/$GITHUB_REPOSITORY.git" "$TRIAL_COMMIT"
+          git -C work checkout --quiet --detach FETCH_HEAD
+          test "$(git -C work rev-parse HEAD)" = "$TRIAL_COMMIT"
+          test -z "$(git -C work remote)"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Download the log of the failed job
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/trial"
+          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$TRIAL_JOB_ID/logs" > "$RUNNER_TEMP/trial/failure.log"
+          wc -c "$RUNNER_TEMP/trial/failure.log"
+      - name: Prepare project dependencies
+        shell: bash
+        working-directory: work
+        run: |
+          npm ci --no-audit --no-fund
+          npm run db:generate
+      - name: Prepare the macOS runtime
+        if: runner.os == 'macOS'
+        shell: bash
+        working-directory: work
+        run: |
+          architecture="$(node -p process.arch)"
+          archive="$RUNNER_TEMP/node-v22.23.3-darwin-$architecture.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-$architecture.tar.gz" -o "$archive"
+          node scripts/macos/build-runtime.mjs --archive "$archive" --output "$PWD/plugin/runtime/macos/node"
+      - name: Install Claude Code
+        shell: bash
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Write the prompt
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("fs");
+            const values = { workflow: process.env.TRIAL_WORKFLOW, job: process.env.TRIAL_JOB, step: process.env.TRIAL_STEP, log: process.argv[2], notes: process.argv[3] };
+            const text = fs.readFileSync(process.argv[1], "utf8").replace(/\{\{(\w+)\}\}/g, (_, name) => values[name]);
+            fs.writeFileSync(process.argv[4], text);
+          ' tools/.github/auto-fix-agent-trial/prompt.md "$RUNNER_TEMP/trial/failure.log" "$RUNNER_TEMP/trial/notes.md" "$RUNNER_TEMP/trial/prompt.md"
+          git -C work add -A
+          git -C work write-tree > "$RUNNER_TEMP/trial/base-tree"
+          git -C work reset --quiet
+      - name: Run the agent
+        id: agent
+        continue-on-error: true
+        timeout-minutes: 60
+        shell: bash
+        working-directory: work
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+        run: |
+          claude --version
+          claude --print --model "$TRIAL_MODEL" --effort "$TRIAL_EFFORT" --permission-mode bypassPermissions --disallowedTools WebFetch WebSearch --output-format stream-json --verbose --no-session-persistence < "$RUNNER_TEMP/trial/prompt.md" > "$RUNNER_TEMP/trial/transcript.jsonl"
+      - name: Collect the result
+        id: collect
+        if: always()
+        shell: bash
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+          TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
+          AGENT_OUTCOME: ${{ steps.agent.outcome }}
+        run: |
+          echo "agent step: $AGENT_OUTCOME"
+          node tools/.github/auto-fix-agent-trial/collect.mjs "$RUNNER_TEMP/trial/transcript.jsonl" "$GITHUB_WORKSPACE/work" "$RUNNER_TEMP/trial/notes.md" "$RUNNER_TEMP/trial/out" "$(cat "$RUNNER_TEMP/trial/base-tree")"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.collect.outcome == 'success'
+        with:
+          name: auto-fix-agent-trial-${{ fromJSON(needs.select.outputs.case).case }}-${{ fromJSON(needs.select.outputs.case).attempt }}
+          path: ${{ runner.temp }}/trial/out
+          retention-days: 14
+          if-no-files-found: error

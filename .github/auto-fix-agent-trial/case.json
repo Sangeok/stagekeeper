@@ -1,0 +1,12 @@
+{
+  "case": "1",
+  "attempt": 1,
+  "commit": "c5f4e44e7be8d83607f2c644db3d5e6ae8c2d0a9",
+  "runner": "macos-15-intel",
+  "workflow": ".github/workflows/macos-runtime-contracts.yml",
+  "job": "runtime contracts (macos-15-intel)",
+  "jobId": "133861718616",
+  "step": "Validate shared runtime contracts without client credentials",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium"
+}
