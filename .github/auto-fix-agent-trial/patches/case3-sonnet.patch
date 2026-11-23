@@ -1,0 +1,22 @@
+diff --git a/next.config.mjs b/next.config.mjs
+index 07eef03..37f0f9e 100644
+--- a/next.config.mjs
++++ b/next.config.mjs
+@@ -1,6 +1,7 @@
+ // @ts-check
+ 
+ const windowsRole = process.platform === "win32" && process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1";
++const nativeRole = ["win32", "darwin"].includes(process.platform) && process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1";
+ 
+ /** @param {unknown} value @returns {value is Record<string, unknown>} */
+ function isRecord(value) {
+@@ -12,8 +13,8 @@ const nextConfig = {
+   turbopack: {},
+   ...(windowsRole ? { experimental: { cpus: 2, useTypeScriptCli: false } } : {}),
+   webpack(config) {
++    if (nativeRole) config.cache = false;
+     if (!windowsRole) return config;
+-    config.cache = false;
+     let delegatedLoaders = 0;
+     const visited = new WeakSet();
+     /** @param {unknown} value */

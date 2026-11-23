@@ -37,6 +37,7 @@ jobs:
       TRIAL_COMMIT: ${{ fromJSON(needs.select.outputs.plan).commit }}
       TRIAL_PATCH: ${{ fromJSON(needs.select.outputs.plan).patch }}
       TRIAL_ROUNDS: ${{ fromJSON(needs.select.outputs.plan).rounds }}
+      TRIAL_COMMAND: ${{ fromJSON(needs.select.outputs.plan).command }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -73,7 +74,7 @@ jobs:
         working-directory: work
         run: |
           git apply --check "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/patches/$TRIAL_PATCH"
-          node "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/measure.mjs" "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/patches/$TRIAL_PATCH" "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/stress.mjs" "$TRIAL_ROUNDS" "$RUNNER_TEMP/measure.json"
+          node "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/measure.mjs" "$GITHUB_WORKSPACE/tools/.github/auto-fix-agent-trial/patches/$TRIAL_PATCH" "$TRIAL_COMMAND" "$TRIAL_ROUNDS" "$RUNNER_TEMP/measure.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

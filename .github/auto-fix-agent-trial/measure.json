@@ -1,7 +1,8 @@
 {
-  "attempt": 1,
-  "commit": "c5f4e44e7be8d83607f2c644db3d5e6ae8c2d0a9",
+  "attempt": 2,
+  "commit": "e1ede74f9c3b6b2ce2108f6019f63cb807ab5483",
   "runner": "macos-15-intel",
-  "patch": "case1-sonnet-b.patch",
-  "rounds": 6
+  "patch": "case3-sonnet.patch",
+  "rounds": 6,
+  "command": "node scripts/macos/rehearse-project-build.mjs --root \"$PWD\" --runtime \"$PWD/plugin/runtime/macos/node\" --evidence \"$RUNNER_TEMP/evidence-$RANDOM.json\""
 }
