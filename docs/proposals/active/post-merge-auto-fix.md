@@ -368,7 +368,8 @@ Opus로 다시 돌린다. 결과는 연습용 이슈에 모은다.
 2. 연습 세 건이 끝까지 돌고 시도 결과 기록이 이슈에 남는다.
 3. 암호화한 대화 기록을 열 수 있다.
 4. 60분에 잘림, 사람의 취소, 잡 시간 상한이 맞게 판정된다.
-5. 1절, 4절부터 7절의 판정이 `plan()`의 시험으로 고정되어 통과한다.
+5. 1절, 4절부터 7절의 판정과 16절의 상태 줄 문구가 `plan()`의 시험으로 고정되어
+   통과한다.
 6. 연습에 못 쓸 결과(단언 삭제, 무관한 대량 변경, 정책 값 변경)가 없다.
 7. `harness-watch` 건에서 고치기 전 측정에 실패가 나오고 고친 뒤 0이 된다.
 8. 첫 번째 시도의 모델을 그대로 둘지 결론을 낸다.
@@ -442,6 +443,51 @@ Opus로 다시 돌린다. 결과는 연습용 이슈에 모은다.
   곳은 찾지 못했다.
 - 확인되지 않은 것: pytorch의 자동 되돌리기와 go의 자동 닫기가 실제 운영에서 켜져
   있는지, kubernetes와 OpenHands의 방식.
+
+### 16. 이슈의 상태 줄
+
+병합 후 실패 이슈의 본문 맨 위에 상태 줄을 둔다. 이슈를 연 사람이 지금 상태, 그
+이유, 자기가 할 일을 바로 알게 하는 자리다. 지금까지의 절에서 "상태 줄에 적는다"고
+한 것을 여기에 모은다.
+
+- 실패 기록 워크플로가 쓴다. 문구는 아래의 고정된 것에서 고르고, 숫자, 이슈와 PR의
+  번호, 모델 이름, 시각만 채운다. 워크플로가 직접 만들지 않은 글은 넣지 않는다.
+- 영어로 쓴다. 워크플로가 이슈에 쓰는 다른 글과 같은 언어다.
+- 본문의 표시된 자리만 바꾸고, 문구가 바뀐 때만 고친다. 그래서 본문의 수정 이력이
+  상태가 바뀐 기록이 된다. 사람이 본문의 다른 곳에 적은 것은 건드리지 않는다.
+- 판정은 상태 줄을 읽지 않는다. 표식과 실행 기록에서 계산한 결과를 옮겨 적을 뿐이다.
+- 수정 워크플로에 관한 문구는 실행 계획의 3단계부터 적는다.
+
+주 상태는 위에서부터 먼저 해당하는 것 하나를 적는다. 사람이 할 일이 있는 것이
+앞이다.
+
+| 순서 | 상태 | 적는 것 | 사람이 할 일 |
+| --- | --- | --- | --- |
+| 1 | 수정 PR이 열려 있음 | `Fix pull request #N is open. Failures recorded since it opened: M.` | `Review it, then merge or close it.` |
+| 2 | 두 번 해도 못 고침 | `Auto-fix tried twice and did not fix this. It will not run again for this issue.` | `Read the attempt records below, fix it, write the cause and what was done, then close this issue.` |
+| 3 | 사람이 수정 실행을 취소함 | `A fix run was cancelled. Auto-fix will not start again by itself.` | `Start a manual run to continue.` |
+| 4 | 수정이 도는 중 | `Attempt K (model) is running.` | `Nothing.` |
+| 5 | 실행시킬 차례인데 기다리는 중 | `Auto-fix is due but waiting: a model gate is running.` 또는 `... the usage limit resets at <time>.` | `Nothing.` |
+| 6 | 지켜보는 중 | `A fix merged. This issue closes after N passing runs in a row.` | `Do not close it early.` |
+| 7 | 준비 단계의 실패 | `Failed in a setup step, so auto-fix is not called. Latest run of this job: failed.` | `Wait. It closes when the job passes. If it keeps failing, look at the setup step.` |
+| 8 | 시작하지 못함 | `The job did not start, so auto-fix is not called. Latest run of this job: failed.` | 7번과 같다 |
+| 9 | 이미 풀린 듯함 | `The rerun failed too, but the latest run of this job passed, so auto-fix was not called.` | `If it is fixed, write the cause and close this issue.` |
+| 10 | 다시 실행한 결과를 기다리는 중 | `The rerun has not finished.` | `Nothing.` |
+| 11 | 가끔 나는 실패가 쌓이는 중 | `Failures whose rerun passed: M. Auto-fix is called at 3.` | `Nothing. Close it if it stops happening.` |
+
+덧붙이는 상태는 해당하면 주 상태 뒤에 모두 적는다. 이슈가 어느 단계에 있든 함께
+해당할 수 있는 것들이다.
+
+| 상태 | 적는 것 |
+| --- | --- |
+| 사람이 뺌 | ``Excluded from auto-fix by the `auto-fix:skip` label. Remove the label to include it again.`` |
+| 자동 실행이 꺼져 있음 | `Automatic calls are off (AUTO_FIX_MODE).` 또는 `Automatic calls are paused by #N.` |
+
+- 6번에는 진행 횟수를 적지 않는다. 통과할 때마다 숫자가 바뀌어 본문이 하루에 여러 번
+  고쳐지기 때문이다. 닫을 때 워크플로가 남기는 댓글에 횟수가 적힌다.
+- `plan()`이 낼 수 있는 결과마다 주 상태 문구가 정확히 하나 있고, 덧붙이는 상태가
+  조건에 맞게 붙는지를 시험으로 고정한다. 판정을 늘리고 문구를 넣지 않으면 시험이
+  실패한다.
 
 ## Affected Files
 
@@ -535,6 +581,7 @@ npm run check
   쓸 수 없다.
 - 표식 모양의 문자열이 든 글과 백틱 묶음이 든 글을 올려도 판정과 코드 블록이 바뀌지
   않는다는 시험을 둔다.
+- 판정 결과마다 상태 줄의 주 상태 문구가 정확히 하나 있다는 시험을 둔다(16절).
 - 토큰 검사가 토큰과 키가 든 결과물을 잡는다는 시험을 둔다.
 - 2단계 뒤 세 워크플로의 `dev` 푸시 실행과 PR 실행이 전과 같은 단계로 통과한다.
 - 3단계에서 12절의 수동 실행으로 다음을 확인한다. 설정을 켠 뒤 워크플로가 PR을
