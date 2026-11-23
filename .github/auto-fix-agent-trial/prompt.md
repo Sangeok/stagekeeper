@@ -10,8 +10,8 @@ A check that runs after merges failed on this repository. The current directory 
 Find the cause of the failure and fix it in this checkout.
 
 1. Read the log and the workflow file to learn what failed and how that step runs.
-2. Try to reproduce the failure here by running the failing test the way the step runs it. A failure may be intermittent, so repeat the run and count how many runs fail.
-3. Fix the cause. Then run the same reproduction again and count again.
+2. Reproduce the failure here. Run the whole command of the failed step, with the environment the step sets, and not one test alone: the load from the other tests can be part of the cause. A failure may be intermittent, so repeat that command and count how many runs fail. You may say that the failure does not reproduce only after repeating that command for at least 20 minutes without a failure.
+3. Fix the cause. When other tests or other code in the same file have the same cause, fix them in the same change. Then repeat the same command at least as many times as before and count again.
 4. Write your notes to {{notes}} before you finish. Use exactly these headings:
    - `## Cause`
    - `## Reproduced` (yes or no, and failed runs out of total runs)
