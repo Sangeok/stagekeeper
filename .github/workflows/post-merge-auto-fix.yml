@@ -45,6 +45,9 @@ jobs:
       open_pr: ${{ steps.plan.outputs.open_pr }}
       branch: ${{ steps.plan.outputs.branch }}
       refused: ${{ steps.plan.outputs.refused }}
+      source: ${{ steps.plan.outputs.source }}
+      patch_sha: ${{ steps.plan.outputs.patch_sha }}
+      plan_sha: ${{ steps.plan.outputs.plan_sha }}
       base: ${{ steps.base.outputs.sha }}
     steps:
       - uses: actions/checkout@v5
@@ -100,11 +103,17 @@ jobs:
           ref: ${{ needs.plan.outputs.base }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Check out the workflow's own tools beside the code under test
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions
+          path: .auto-fix-tools
       - uses: actions/setup-node@v5
         if: steps.gate.outputs.run == 'true'
         with:
           node-version: 22
-          cache: npm
       - uses: actions/download-artifact@v4
         if: steps.gate.outputs.run == 'true'
         with:
@@ -118,21 +127,23 @@ jobs:
           npm run db:generate
       - name: Prepare the Windows role runtime
         if: steps.gate.outputs.run == 'true' && runner.os == 'Windows'
-        uses: ./.github/actions/setup-windows-role-runtime
+        uses: ./.auto-fix-tools/.github/actions/setup-windows-role-runtime
         with:
           build-on-miss: "false"
       - name: Prepare the macOS runtime
         if: steps.gate.outputs.run == 'true' && runner.os == 'macOS'
-        uses: ./.github/actions/setup-macos-runtime
+        uses: ./.auto-fix-tools/.github/actions/setup-macos-runtime
       - name: Repeat the command before and after the change in turn
         if: steps.gate.outputs.run == 'true'
         shell: bash
         env:
           STAGEKEEPER_MACOS_RUNTIME_REQUIRED: ${{ runner.os == 'macOS' && '1' || '' }}
           STAGEKEEPER_RELEASED_READERS: required
+          PATCH_SHA: ${{ needs.plan.outputs.patch_sha }}
+          PLAN_SHA: ${{ needs.plan.outputs.plan_sha }}
         run: |
           mkdir -p "$RUNNER_TEMP/auto-fix-result"
-          node "$RUNNER_TEMP/auto-fix/fix.mjs" measure --plan "$RUNNER_TEMP/auto-fix/measure.json" --patch "$RUNNER_TEMP/auto-fix/change.patch" --cwd "$GITHUB_WORKSPACE" --minutes 40 --out "$RUNNER_TEMP/auto-fix-result/result.json"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs measure --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --cwd "$GITHUB_WORKSPACE" --minutes 40 --out "$RUNNER_TEMP/auto-fix-result/result.json"
       - uses: actions/upload-artifact@v4
         if: steps.gate.outputs.run == 'true'
         with:
@@ -153,9 +164,21 @@ jobs:
       open: ${{ steps.decide.outputs.open }}
       verdict: ${{ steps.decide.outputs.verdict }}
       labels: ${{ steps.decide.outputs.labels }}
+      required: ${{ steps.decide.outputs.required }}
+      before: ${{ steps.decide.outputs.before }}
+      after: ${{ steps.decide.outputs.after }}
       pushed: ${{ steps.push.outputs.pushed }}
       duplicate: ${{ steps.duplicate.outputs.pr }}
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.plan.outputs.base }}
+      - name: Check out the workflow's own tools beside the code under test
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/post-merge-auto-fix
+          path: .auto-fix-tools
       - uses: actions/download-artifact@v4
         with:
           name: auto-fix-change
@@ -167,17 +190,10 @@ jobs:
       - name: Decide from the measured counts
         id: decide
         shell: bash
-        run: node "$RUNNER_TEMP/auto-fix/fix.mjs" decide --change "$RUNNER_TEMP/auto-fix" --results "$RUNNER_TEMP/auto-fix-results" --out "$RUNNER_TEMP/auto-fix/decision.json"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: auto-fix-decision
-          path: ${{ runner.temp }}/auto-fix/decision.json
-          retention-days: 7
-          if-no-files-found: error
-      - uses: actions/checkout@v5
-        if: steps.decide.outputs.open == 'true'
-        with:
-          ref: ${{ needs.plan.outputs.base }}
+        env:
+          PATCH_SHA: ${{ needs.plan.outputs.patch_sha }}
+          PLAN_SHA: ${{ needs.plan.outputs.plan_sha }}
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs decide --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --results "$RUNNER_TEMP/auto-fix-results"
       - name: Find an open pull request that carries the same change
         id: duplicate
         if: steps.decide.outputs.open == 'true'
@@ -234,13 +250,13 @@ jobs:
       number: ${{ steps.open.outputs.number }}
       full_check: ${{ steps.full.outputs.result }}
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/post-merge-auto-fix
       - uses: actions/download-artifact@v4
         with:
           name: auto-fix-change
-          path: ${{ runner.temp }}/auto-fix
-      - uses: actions/download-artifact@v4
-        with:
-          name: auto-fix-decision
           path: ${{ runner.temp }}/auto-fix
       - name: Read the result of the full check
         id: full
@@ -264,12 +280,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ needs.plan.outputs.branch }}
+          ISSUE: ${{ needs.plan.outputs.issue }}
+          SOURCE: ${{ needs.plan.outputs.source }}
+          WORKFLOW: ${{ needs.plan.outputs.workflow }}
+          PATCH_SHA: ${{ needs.plan.outputs.patch_sha }}
+          PLAN_SHA: ${{ needs.plan.outputs.plan_sha }}
+          VERDICT: ${{ needs.branch.outputs.verdict }}
+          REQUIRED: ${{ needs.branch.outputs.required }}
+          BEFORE: ${{ needs.branch.outputs.before }}
+          AFTER: ${{ needs.branch.outputs.after }}
           LABELS: ${{ needs.branch.outputs.labels }}
           FULL: ${{ steps.full.outputs.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          title="$(node "$RUNNER_TEMP/auto-fix/fix.mjs" body --change "$RUNNER_TEMP/auto-fix" --decision "$RUNNER_TEMP/auto-fix/decision.json" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/auto-fix/body.md" | sed -n 's/^title=//p')"
-          arguments=(--repo "$GITHUB_REPOSITORY" --base dev --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/auto-fix/body.md")
+          title="$(node .github/actions/post-merge-auto-fix/fix.mjs body --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --issue "$ISSUE" --source "$SOURCE" --workflow "$WORKFLOW" --verdict "$VERDICT" --open true --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/body.md" | sed -n 's/^title=//p')"
+          test -n "$title"
+          arguments=(--repo "$GITHUB_REPOSITORY" --base dev --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md")
           if [ -n "$LABELS" ]; then
             gh label create "$LABELS" --repo "$GITHUB_REPOSITORY" --color BFD4F2 --force
             arguments+=(--label "$LABELS")
@@ -294,27 +320,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      contents: read
       issues: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/post-merge-auto-fix
       - uses: actions/download-artifact@v4
         with:
           name: auto-fix-change
-          path: ${{ runner.temp }}/auto-fix
-      - uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: auto-fix-decision
           path: ${{ runner.temp }}/auto-fix
       - name: Write the attempt record to the issue
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ needs.plan.outputs.issue }}
+          SOURCE: ${{ needs.plan.outputs.source }}
+          WORKFLOW: ${{ needs.plan.outputs.workflow }}
+          OPEN_PR: ${{ needs.plan.outputs.open_pr }}
+          REFUSED: ${{ needs.plan.outputs.refused }}
+          PATCH_SHA: ${{ needs.plan.outputs.patch_sha }}
+          PLAN_SHA: ${{ needs.plan.outputs.plan_sha }}
+          VERDICT: ${{ needs.branch.outputs.verdict }}
+          OPEN: ${{ needs.branch.outputs.open }}
+          REQUIRED: ${{ needs.branch.outputs.required }}
+          BEFORE: ${{ needs.branch.outputs.before }}
+          AFTER: ${{ needs.branch.outputs.after }}
           PUSHED: ${{ needs.branch.outputs.pushed }}
           DUPLICATE: ${{ needs.branch.outputs.duplicate }}
           FULL: ${{ needs.pull-request.outputs.full_check }}
           PR: ${{ needs.pull-request.outputs.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          node "$RUNNER_TEMP/auto-fix/fix.mjs" record --change "$RUNNER_TEMP/auto-fix" --decision "$RUNNER_TEMP/auto-fix/decision.json" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "${FULL:-}" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/auto-fix/record.md"
-          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/auto-fix/record.md"
+          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "$SOURCE" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"

@@ -10,15 +10,18 @@ import {
   changeStats,
   changedFiles,
   combine,
+  digestOf,
   endState,
   forbiddenFiles,
   fullCheckResult,
   judge,
   measure,
   prBody,
+  readCounts,
   readMeasurePlan,
   readRequest,
   requiredPasses,
+  verifyChange,
 } from "./fix.mjs";
 
 const patchOf = (file, added = ["+const value = 1;"], removed = []) =>
@@ -203,7 +206,23 @@ it("writes the pull request body from numbers and fixed phrases only", () => {
   assert.match(body, /\| After the change \| 0 failed of 6 runs \|/);
   assert.match(body, /\| Full check \| macos-runtime-contracts: passed \|/);
   assert.match(body, /\| Assertion lines added \/ removed \| 1 \/ 0 \|/);
+  assert.match(body, /The source of the change chose that command/);
   assert.doesNotMatch(body, /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?) #\d/i);
+});
+
+it("accepts a change only when it is the one whose digests the checking job published", () => {
+  const change = { patch: patchOf("scripts/a.test.mjs"), plan: '{"command":"node --test a","runs":2}\n' };
+  const expected = { patchSha: digestOf(change.patch), planSha: digestOf(change.plan) };
+  assert.doesNotThrow(() => verifyChange(change, expected));
+  assert.throws(() => verifyChange({ ...change, patch: `${change.patch}+extra\n` }, expected), /not the one that was checked/);
+  assert.throws(() => verifyChange({ ...change, plan: '{"command":"true","runs":2}\n' }, expected), /measurement plan is not the one/);
+  assert.throws(() => verifyChange(change, { patchSha: "", planSha: expected.planSha }), /digests are missing/);
+  assert.throws(() => verifyChange(change, { patchSha: expected.patchSha }), /digests are missing/);
+});
+
+it("reads counts that another job published and rejects anything else", () => {
+  assert.deepEqual(readCounts("12,3"), { runs: 12, failed: 3 });
+  for (const bad of ["", undefined, "12", "12,3,4", "a,b", "12, 3", "-1,0"]) assert.equal(readCounts(bad), null);
 });
 
 it("keeps the attempt record inside a code block that its own text cannot close", () => {

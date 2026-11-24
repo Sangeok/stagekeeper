@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -94,6 +95,8 @@ export const prTitle = issue => `fix: auto-fix attempt for #${issue}`;
 export function prBody({ issue, runUrl, source, measured, decision, stats, fullCheck, fullCheckWorkflow }) {
   return [
     `Automatic fix attempt for #${issue}. A person reviews and merges this pull request; the workflow does not merge it.`,
+    "",
+    "The counts below come from repeating one command before and after the change. The source of the change chose that command, so check in the issue that it measures the failure.",
     "",
     "| Item | Value |",
     "| --- | --- |",
@@ -197,6 +200,19 @@ export function measure({ plan, patch, cwd, minutes, run = runCommand, apply = v
   return { ...totals, log };
 }
 
+export const digestOf = text => createHash("sha256").update(text).digest("hex");
+
+export function verifyChange({ patch, plan }, expected) {
+  if (!/^[0-9a-f]{64}$/.test(String(expected.patchSha)) || !/^[0-9a-f]{64}$/.test(String(expected.planSha))) throw new Error("the expected digests are missing");
+  if (digestOf(patch) !== expected.patchSha) throw new Error("the change is not the one that was checked");
+  if (digestOf(plan) !== expected.planSha) throw new Error("the measurement plan is not the one that was checked");
+}
+
+export function readCounts(text) {
+  const match = /^(\d+),(\d+)$/.exec(String(text ?? ""));
+  return match ? { runs: Number(match[1]), failed: Number(match[2]) } : null;
+}
+
 const readJson = file => JSON.parse(readFileSync(file, "utf8"));
 const output = pairs => {
   const text = Object.entries(pairs).map(([name, value]) => `${name}=${value}`).join("\n");
@@ -215,50 +231,84 @@ function options(argv) {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+function readVerified(args) {
+  const patch = readFileSync(path.join(args.change, "change.patch"), "utf8");
+  const plan = readFileSync(path.join(args.change, "measure.json"), "utf8");
+  verifyChange({ patch, plan }, { patchSha: args["patch-sha"], planSha: args["plan-sha"] });
+  return { patch, plan: readMeasurePlan(JSON.parse(plan)) };
+}
+
+function readJudged(args) {
+  const before = readCounts(args.before);
+  const after = readCounts(args.after);
+  if (!args.verdict || !before || !after) return null;
+  return { measured: { before, after }, decision: { verdict: args.verdict, open: args.open === "true", required: Number(args.required) || 0 } };
+}
+
 const commands = {
   plan(args) {
     const request = readRequest({ issue: process.env.INPUT_ISSUE, runner: process.env.INPUT_RUNNER, workflow: process.env.INPUT_WORKFLOW, prepared: process.env.INPUT_PREPARED, openPr: process.env.INPUT_OPEN_PR });
     const source = path.join(here, "prepared", request.prepared);
     const patch = readFileSync(path.join(source, "change.patch"), "utf8");
-    const plan = readMeasurePlan(readJson(path.join(source, "measure.json")));
+    const plan = `${JSON.stringify(readMeasurePlan(readJson(path.join(source, "measure.json"))))}\n`;
     const stats = changeStats(patch);
     mkdirSync(args.out, { recursive: true });
     writeFileSync(path.join(args.out, "change.patch"), patch);
-    writeFileSync(path.join(args.out, "measure.json"), `${JSON.stringify(plan)}\n`);
-    writeFileSync(path.join(args.out, "change.json"), `${JSON.stringify({ request, stats, source: `prepared change ${request.prepared}` })}\n`);
-    writeFileSync(path.join(args.out, "fix.mjs"), readFileSync(fileURLToPath(import.meta.url)));
-    output({ issue: request.issue, runner: request.runner, workflow: request.workflow, open_pr: request.openPr, branch: branchName(request.issue, args.run), refused: stats.forbidden.length > 0 });
+    writeFileSync(path.join(args.out, "measure.json"), plan);
+    output({
+      issue: request.issue,
+      runner: request.runner,
+      workflow: request.workflow,
+      open_pr: request.openPr,
+      branch: branchName(request.issue, args.run),
+      refused: stats.forbidden.length > 0,
+      source: `prepared change ${request.prepared}`,
+      patch_sha: digestOf(patch),
+      plan_sha: digestOf(plan),
+    });
   },
   measure(args) {
-    const plan = readMeasurePlan(readJson(args.plan));
-    execFileSync("git", ["apply", "--check", args.patch], { cwd: args.cwd });
-    const result = measure({ plan, patch: args.patch, cwd: args.cwd, minutes: Number(args.minutes) });
+    const { plan } = readVerified(args);
+    const patch = path.join(args.change, "change.patch");
+    execFileSync("git", ["apply", "--check", patch], { cwd: args.cwd });
+    const result = measure({ plan, patch, cwd: args.cwd, minutes: Number(args.minutes) });
     writeFileSync(args.out, `${JSON.stringify(result)}\n`);
     console.log(JSON.stringify({ before: result.before, after: result.after }));
   },
   decide(args) {
-    const change = readJson(path.join(args.change, "change.json"));
+    const { patch } = readVerified(args);
     const files = existsSync(args.results) ? readdirSync(args.results, { recursive: true }).filter(name => String(name).endsWith(".json")) : [];
     const measured = combine(files.map(name => readJson(path.join(args.results, String(name)))));
-    const decision = change.stats.forbidden.length ? { verdict: "refused", open: false, labels: [], required: 0 } : judge(measured, change.stats);
-    writeFileSync(args.out, `${JSON.stringify({ measured, decision })}\n`);
-    output({ open: decision.open, verdict: decision.verdict, labels: decision.labels.join(",") });
+    const decision = judge(measured, changeStats(patch));
+    output({
+      open: decision.open,
+      verdict: decision.verdict,
+      labels: decision.labels.join(","),
+      required: decision.required,
+      before: `${measured.before.runs},${measured.before.failed}`,
+      after: `${measured.after.runs},${measured.after.failed}`,
+    });
   },
   body(args) {
-    const change = readJson(path.join(args.change, "change.json"));
-    const { measured, decision } = readJson(args.decision);
-    writeFileSync(args.out, prBody({ issue: change.request.issue, runUrl: args["run-url"], source: change.source, measured, decision, stats: change.stats, fullCheck: args["full-check"], fullCheckWorkflow: change.request.workflow }));
-    output({ title: prTitle(change.request.issue) });
+    const { patch } = readVerified(args);
+    const judged = readJudged(args);
+    if (!judged) throw new Error("the measured counts are missing");
+    writeFileSync(args.out, prBody({ issue: Number(args.issue), runUrl: args["run-url"], source: args.source, ...judged, stats: changeStats(patch), fullCheck: args["full-check"], fullCheckWorkflow: args.workflow }));
+    output({ title: prTitle(Number(args.issue)) });
   },
   record(args) {
-    const change = existsSync(path.join(args.change, "change.json")) ? readJson(path.join(args.change, "change.json")) : null;
-    const judged = existsSync(args.decision) ? readJson(args.decision) : null;
-    const plan = existsSync(path.join(args.change, "measure.json")) ? readJson(path.join(args.change, "measure.json")) : null;
+    let command = null;
+    try {
+      command = readVerified(args).plan.command;
+    } catch {
+      command = null;
+    }
+    const judged = readJudged(args);
     const fullCheck = args["full-check"] || null;
     const pr = Number(args.pr) || null;
     const duplicateOf = Number(args.duplicate) || null;
-    const state = endState({ request: change?.request, stats: change?.stats, decision: judged?.decision, pushed: args.pushed === "true", duplicateOf, fullCheck, pr });
-    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: change?.source ?? "unknown", measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: change?.request.workflow, pr, command: plan?.command, duplicateOf }));
+    const state = endState({ request: { openPr: args["open-pr"] === "true" }, stats: { forbidden: args.refused === "true" ? ["refused"] : [] }, decision: judged?.decision, pushed: args.pushed === "true", duplicateOf, fullCheck, pr });
+    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, command, duplicateOf }));
     output({ state });
   },
 };
