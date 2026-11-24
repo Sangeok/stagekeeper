@@ -98,6 +98,7 @@ export function combine(results) {
 
 export function judge({ before, after }, { testOnly }) {
   if (before.runs === 0 || after.runs === 0) return { verdict: "not-measured", open: false, labels: [], required: 0 };
+  if (after.failed > 0 && before.failed === 0) return { verdict: "failing-unreproduced", open: false, labels: [], required: 0 };
   if (after.failed > 0) return { verdict: "still-failing", open: false, labels: [], required: requiredPasses(before.runs, before.failed) };
   if (before.failed === 0) return { verdict: "not-reproduced", open: testOnly, labels: [LABELS.notReproduced], required: 0 };
   const required = requiredPasses(before.runs, before.failed);
@@ -147,6 +148,7 @@ export const END_STATES = Object.freeze({
   noOutput: "did not finish: the agent job produced no usable output",
   recordOnly: "recorded only: the change was not opened as a pull request",
   stillFailing: "recorded only: the failure remained after the change",
+  failingUnreproduced: "recorded only: the failure was not seen before the change and a run failed after it",
   fullCheckFailed: "recorded only: the full check failed on the fix branch",
   duplicate: "recorded only: an open pull request already carries the same change",
   refused: "refused: the change touches a path that an automatic fix must not change",
@@ -161,6 +163,7 @@ export function endState({ request, stats, change, decision, pushed, duplicateOf
   if (duplicateOf) return "duplicate";
   if (!decision) return "unfinished";
   if (decision.verdict === "still-failing") return "stillFailing";
+  if (decision.verdict === "failing-unreproduced") return "failingUnreproduced";
   if (!decision.open) return decision.verdict === "not-measured" ? "unfinished" : "recordOnly";
   if (request?.rehearsal) return "rehearsed";
   if (!pushed) return "unfinished";
@@ -278,10 +281,16 @@ export function promptText(template, values) {
   });
 }
 
+export function failedTests(output) {
+  const names = [...String(output).matchAll(/^\s*(?:not ok \d+ - |✖ )(.+)$/gm)].map(match => match[1].replace(/\s+\(\d+(?:\.\d+)?ms\)$/, "").trim());
+  return [...new Set(names)].slice(0, 10);
+}
+
 function runCommand(command, cwd, timeoutMs) {
   const started = Date.now();
   const run = spawnSync("bash", ["-c", command], { cwd, encoding: "utf8", timeout: timeoutMs, maxBuffer: 256 * 1024 * 1024, killSignal: "SIGKILL" });
-  return { failed: run.status !== 0, timedOut: run.error?.code === "ETIMEDOUT", seconds: Math.round((Date.now() - started) / 1000) };
+  const failed = run.status !== 0;
+  return { failed, timedOut: run.error?.code === "ETIMEDOUT", seconds: Math.round((Date.now() - started) / 1000), tests: failed ? failedTests(`${run.stdout ?? ""}\n${run.stderr ?? ""}`) : [] };
 }
 
 export function measure({ plan, patch, cwd, minutes, run = runCommand, apply = variant => execFileSync("git", ["apply", ...(variant === "before" ? ["-R"] : []), patch], { cwd }), now = Date.now }) {
@@ -303,7 +312,7 @@ export function measure({ plan, patch, cwd, minutes, run = runCommand, apply = v
         if (result.timedOut) continue;
         totals[variant].runs += 1;
         totals[variant].failed += result.failed ? 1 : 0;
-        log.push({ round, variant, failed: result.failed, seconds: result.seconds });
+        log.push({ round, variant, failed: result.failed, seconds: result.seconds, ...(result.tests?.length ? { tests: result.tests } : {}) });
       }
     }
   } finally {
@@ -469,6 +478,7 @@ const commands = {
     const result = measure({ plan, patch, cwd: args.cwd, minutes: Number(args.minutes) });
     writeFileSync(args.out, `${JSON.stringify(result)}\n`);
     console.log(JSON.stringify({ before: result.before, after: result.after }));
+    for (const entry of result.log.filter(item => item.failed)) console.log(JSON.stringify({ round: entry.round, variant: entry.variant, tests: entry.tests ?? [] }));
   },
   decide(args) {
     const { patch } = readVerified(args);

@@ -14,6 +14,7 @@ import {
   combine,
   digestOf,
   endState,
+  failedTests,
   forbiddenFiles,
   fullCheckResult,
   judge,
@@ -121,7 +122,8 @@ it("decides from the measured counts whether a pull request may open", () => {
     [{ before: [20, 2], after: [30, 1] }, true, { verdict: "still-failing", open: false, labels: [], required: 30 }],
     [{ before: [20, 0], after: [20, 0] }, true, { verdict: "not-reproduced", open: true, labels: [LABELS.notReproduced], required: 0 }],
     [{ before: [20, 0], after: [20, 0] }, false, { verdict: "not-reproduced", open: false, labels: [LABELS.notReproduced], required: 0 }],
-    [{ before: [20, 0], after: [20, 1] }, true, { verdict: "still-failing", open: false, labels: [], required: 20 }],
+    [{ before: [20, 0], after: [20, 1] }, true, { verdict: "failing-unreproduced", open: false, labels: [], required: 0 }],
+    [{ before: [39, 0], after: [39, 1] }, false, { verdict: "failing-unreproduced", open: false, labels: [], required: 0 }],
     [{ before: [0, 0], after: [0, 0] }, true, { verdict: "not-measured", open: false, labels: [], required: 0 }],
     [{ before: [20, 2], after: [0, 0] }, false, { verdict: "not-measured", open: false, labels: [], required: 0 }],
   ];
@@ -204,6 +206,7 @@ it("names how an attempt ended from what the jobs produced", () => {
     [{ stats, decision: verified, pushed: false, duplicateOf: 7 }, "duplicate"],
     [{ stats }, "unfinished"],
     [{ stats, decision: { verdict: "still-failing", open: false } }, "stillFailing"],
+    [{ stats, decision: { verdict: "failing-unreproduced", open: false } }, "failingUnreproduced"],
     [{ stats, decision: { verdict: "not-reproduced", open: false } }, "recordOnly"],
     [{ stats, decision: { verdict: "not-measured", open: false } }, "unfinished"],
     [{ stats, decision: verified, pushed: false }, "unfinished"],
@@ -342,4 +345,13 @@ it("fills every placeholder of the repository's prompt and refuses one it does n
   assert.match(text, /- Failed job: J/);
   assert.throws(() => promptText("{{unknown}}", {}), /unknown value unknown/);
   assert.equal(stripAnsi("\u001b[36;1mnot ok 3\u001b[0m"), "not ok 3");
+});
+
+it("names the tests that failed in a run from either reporter and keeps the list short", () => {
+  const tap = "ok 1 - passes\nnot ok 2 - honors a longer Retry-After\n  ---\n    not ok 3 - nested failure\n";
+  const spec = "✔ passes (1.2ms)\n✖ skips a signal the server no longer routes (812.44ms)\n✖ skips a signal the server no longer routes (812.44ms)\n";
+  assert.deepEqual(failedTests(tap), ["honors a longer Retry-After", "nested failure"]);
+  assert.deepEqual(failedTests(spec), ["skips a signal the server no longer routes"]);
+  assert.deepEqual(failedTests("no test output"), []);
+  assert.equal(failedTests(Array.from({ length: 30 }, (_, index) => `not ok ${index} - t${index}`).join("\n")).length, 10);
 });
