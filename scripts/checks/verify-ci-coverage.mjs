@@ -75,6 +75,8 @@ export function readWorkflow(name, text) {
   return jobs.map(job => {
     const where = `${name}/${job.id}`;
     const body = job.lines.join("\n");
+    const called = /^ {4}uses: \.\/\.github\/workflows\/([a-z0-9-]+)\.yml$/m.exec(body)?.[1];
+    if (called) return { key: where, text: body, systems: [], calls: called, matrixLegs: [], summaryLegs: [], needs: [], recordLegs: null };
     const runsOn = /^ {4}runs-on: (.+)$/m.exec(body)?.[1].trim();
     if (!runsOn) throw new Error(`${where}: no runs-on`);
     const strategyLines = readMappingBlock(job.lines, "strategy", 4, where);
@@ -135,9 +137,20 @@ function testTargets(packageJson) {
   return [...String(packageJson?.scripts?.test ?? "").matchAll(/\\?"([^"\\]+)\\?"/g)].map(match => match[1]);
 }
 
+export function resolveCalls(workflows) {
+  const all = workflows.flat();
+  return all.map(job => {
+    if (!job.calls) return job;
+    const target = all.filter(other => other.key.startsWith(`${job.calls}/`));
+    if (target.length === 0) throw new Error(`${job.key}: called workflow ${job.calls} does not exist`);
+    if (target.some(other => other.calls)) throw new Error(`${job.key}: called workflow ${job.calls} calls another workflow`);
+    return { ...job, systems: [...new Set(target.flatMap(other => other.systems))] };
+  });
+}
+
 export function inspectCoverage({ workflows, table, packageJson }) {
   const problems = [];
-  const jobs = new Map(workflows.flat().map(job => [job.key, job]));
+  const jobs = new Map(resolveCalls(workflows).map(job => [job.key, job]));
   const classified = new Set();
   const targets = testTargets(packageJson);
   const has = (job, value) => (value === "npm test" ? job.text.includes("npm test") || (targets.length > 0 && targets.every(target => job.text.includes(target))) : job.text.includes(value));

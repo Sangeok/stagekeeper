@@ -1,0 +1,12 @@
+diff --git a/scripts/checks/auto-fix-pr-path.test.mjs b/scripts/checks/auto-fix-pr-path.test.mjs
+new file mode 100644
+index 0000000..c20a77a
+--- /dev/null
++++ b/scripts/checks/auto-fix-pr-path.test.mjs
+@@ -0,0 +1,6 @@
++import assert from "node:assert/strict";
++import { it } from "node:test";
++
++it("is the prepared change that exercises the automatic fix pull request path", () => {
++  assert.equal([1, 2].length, 2);
++});

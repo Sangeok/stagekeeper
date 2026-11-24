@@ -1,0 +1,4 @@
+{
+  "command": "node --test scripts/checks/auto-fix-pr-path.test.mjs",
+  "runs": 3
+}

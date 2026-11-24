@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { it } from "node:test";
-import { inspectCoverage, inspectRepository, readCoverageTable, readWorkflow } from "./verify-ci-coverage.mjs";
+import { inspectCoverage, inspectRepository, readCoverageTable, readWorkflow, resolveCalls } from "./verify-ci-coverage.mjs";
 
 const head = "name: sample\n\non:\n  workflow_dispatch:\n\njobs:\n";
 const smoke = readWorkflow("smoke", `${head}  gate:
@@ -176,11 +176,23 @@ it("rejects matrix exclusions and inline mappings it cannot interpret", () => {
 it("refuses a workflow shape it cannot read instead of passing it", () => {
   assert.throws(() => readWorkflow("empty", "name: empty\n"), /no jobs section/);
   assert.throws(() => readWorkflow("none", head), /no jobs/);
-  assert.throws(() => readWorkflow("reusable", `${head}  call:\n    uses: ./.github/workflows/other.yml\n`), /no runs-on/);
+  assert.throws(() => readWorkflow("reusable", `${head}  call:\n    uses: owner/repository/.github/workflows/other.yml@v1\n`), /no runs-on/);
   assert.throws(() => readWorkflow("hosted", `${head}  job:\n    runs-on: [self-hosted, macOS]\n`), /not a Windows, macOS or Ubuntu runner/);
   assert.throws(() => readWorkflow("matrix", `${head}  job:\n    runs-on: \${{ matrix.os }}\n    steps: []\n`), /no runners for matrix\.os/);
   assert.throws(() => readWorkflow("anchor", `${head}  job: &shared\n    runs-on: ubuntu-latest\n`), /unsupported job line/);
   assert.throws(() => readWorkflow("after", `${head}  job:\n    runs-on: ubuntu-latest\nenv:\n  A: 1\n`), /unexpected top-level line/);
+});
+
+it("gives a job that calls another workflow the systems that workflow runs on", () => {
+  const caller = readWorkflow("caller", `${head}  full:\n    needs: [plan]\n    uses: ./.github/workflows/smoke.yml\n    with:\n      ref: branch\n`);
+  assert.deepEqual(caller.map(job => [job.key, job.systems, job.calls]), [["caller/full", [], "smoke"]]);
+  assert.deepEqual(resolveCalls([smoke, caller]).find(job => job.key === "caller/full").systems, ["Windows", "macOS", "Linux"]);
+
+  const row = "| 부른 검사 | 공통 | `caller/full` | `caller/full` | `caller/full` | | |";
+  assert.deepEqual(inspectCoverage({ workflows: [smoke, caller], table: table(rows.smoke, rows.record, row), packageJson }), []);
+  assert.throws(() => resolveCalls([caller]), /called workflow smoke does not exist/);
+  const chained = readWorkflow("chain", `${head}  again:\n    uses: ./.github/workflows/caller.yml\n`);
+  assert.throws(() => resolveCalls([smoke, caller, chained]), /calls another workflow/);
 });
 
 it("refuses a coverage table without its markers, columns or cells", () => {
