@@ -1,8 +1,8 @@
 {
-  "attempt": 1,
+  "attempt": 2,
   "issue": 430,
-  "runner": "macos-15",
-  "workflow": "macos-runtime-contracts",
+  "runner": "ubuntu-latest",
+  "workflow": "windows-role-runtime",
   "prepared": "pr-path",
   "openPr": false
 }
