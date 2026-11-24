@@ -1,0 +1,12 @@
+diff --git a/plugin/bin/auto-fix-full-check-fails.test.mjs b/plugin/bin/auto-fix-full-check-fails.test.mjs
+new file mode 100644
+index 0000000..81255eb
+--- /dev/null
++++ b/plugin/bin/auto-fix-full-check-fails.test.mjs
+@@ -0,0 +1,6 @@
++import assert from "node:assert/strict";
++import { it } from "node:test";
++
++it("fails on purpose so that the full check of the fix branch fails", () => {
++  assert.equal(1, 2);
++});
