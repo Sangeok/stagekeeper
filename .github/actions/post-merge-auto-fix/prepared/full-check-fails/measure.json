@@ -1,4 +1,0 @@
-{
-  "command": "test -f plugin/bin/auto-fix-full-check-fails.test.mjs",
-  "runs": 2
-}
