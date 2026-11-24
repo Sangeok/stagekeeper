@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       runner:
-        description: Runner of the failed job, used for the measurement
+        description: Runner of the failed job, used for the agent and the measurement
         required: true
         type: choice
         options: [windows-2022, macos-15, macos-15-intel, ubuntu-latest]
@@ -17,9 +17,33 @@ on:
         required: true
         type: choice
         options: [windows-role-runtime, macos-runtime-contracts, none]
-      prepared:
-        description: Name of a prepared change under .github/actions/post-merge-auto-fix/prepared
+      source:
+        description: Where the change comes from
         required: true
+        type: choice
+        default: prepared
+        options: [prepared, agent]
+      prepared:
+        description: For a prepared change, its name under .github/actions/post-merge-auto-fix/prepared
+        required: false
+        type: string
+      model:
+        description: For an agent, the model
+        required: false
+        type: choice
+        default: claude-sonnet-5-5
+        options: [claude-sonnet-5-5, claude-opus-5-5]
+      runs:
+        description: For an agent, the failed run numbers whose logs it reads, separated by commas
+        required: false
+        type: string
+      job:
+        description: For an agent, the name of the failed job in those runs
+        required: false
+        type: string
+      commit:
+        description: Practice only. A full commit id to work on instead of dev. Opens no pull request and calls no full check
+        required: false
         type: string
       open_pr:
         description: Open a pull request when the checks allow it
@@ -44,24 +68,19 @@ jobs:
       workflow: ${{ steps.plan.outputs.workflow }}
       open_pr: ${{ steps.plan.outputs.open_pr }}
       branch: ${{ steps.plan.outputs.branch }}
-      refused: ${{ steps.plan.outputs.refused }}
       source: ${{ steps.plan.outputs.source }}
-      patch_sha: ${{ steps.plan.outputs.patch_sha }}
-      plan_sha: ${{ steps.plan.outputs.plan_sha }}
-      base: ${{ steps.base.outputs.sha }}
+      prepared: ${{ steps.plan.outputs.prepared }}
+      model: ${{ steps.plan.outputs.model }}
+      runs: ${{ steps.plan.outputs.runs }}
+      job: ${{ steps.plan.outputs.job }}
+      rehearsal: ${{ steps.plan.outputs.rehearsal }}
+      base: ${{ steps.plan.outputs.base }}
     steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
           sparse-checkout: .github/actions/post-merge-auto-fix
-      - name: Resolve the commit of dev that the change is applied to
-        id: base
-        shell: bash
-        run: |
-          sha="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/dev | cut -f1)"
-          test -n "$sha"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-      - name: Read the request and the prepared change
+      - name: Read the request
         id: plan
         shell: bash
         env:
@@ -70,8 +89,171 @@ jobs:
           INPUT_WORKFLOW: ${{ inputs.workflow }}
           INPUT_PREPARED: ${{ inputs.prepared }}
           INPUT_OPEN_PR: ${{ inputs.open_pr }}
-        run: node .github/actions/post-merge-auto-fix/fix.mjs plan --out "$RUNNER_TEMP/auto-fix" --run "$GITHUB_RUN_ID"
+          INPUT_SOURCE: ${{ inputs.source }}
+          INPUT_MODEL: ${{ inputs.model }}
+          INPUT_COMMIT: ${{ inputs.commit }}
+          INPUT_RUNS: ${{ inputs.runs }}
+          INPUT_JOB: ${{ inputs.job }}
+        run: |
+          dev="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/dev | cut -f1)"
+          test -n "$dev"
+          node .github/actions/post-merge-auto-fix/fix.mjs plan --run "$GITHUB_RUN_ID" --dev "$dev"
+
+  fix:
+    needs: [plan]
+    if: needs.plan.outputs.source == 'agent'
+    name: fix ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, macos-15, macos-15-intel, ubuntu-latest]
+    steps:
+      - name: Run only on the runner of the failed job
+        id: gate
+        shell: bash
+        env:
+          WANTED: ${{ needs.plan.outputs.runner }}
+          THIS: ${{ matrix.runner }}
+        run: echo "run=$([ "$WANTED" = "$THIS" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Check out the code without history after it and without a remote
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          BASE: ${{ needs.plan.outputs.base }}
+        run: |
+          git init --quiet .
+          git fetch --quiet --no-tags "https://github.com/$GITHUB_REPOSITORY.git" "$BASE"
+          git checkout --quiet --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$BASE"
+          test -z "$(git remote)"
+          echo ".auto-fix-tools/" >> .git/info/exclude
+      - name: Check out the workflow's own tools beside the code
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions
+          path: .auto-fix-tools
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+      - name: Download the logs of the failed job
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNS: ${{ needs.plan.outputs.runs }}
+          JOB: ${{ needs.plan.outputs.job }}
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs logs --repository "$GITHUB_REPOSITORY" --runs "$RUNS" --job "$JOB" --out "$RUNNER_TEMP/auto-fix-input"
+      - name: Prepare project dependencies
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npm run db:generate
+      - name: Prepare the Windows role runtime
+        if: steps.gate.outputs.run == 'true' && runner.os == 'Windows'
+        uses: ./.auto-fix-tools/.github/actions/setup-windows-role-runtime
+        with:
+          build-on-miss: "false"
+      - name: Prepare the macOS runtime
+        if: steps.gate.outputs.run == 'true' && runner.os == 'macOS'
+        uses: ./.auto-fix-tools/.github/actions/setup-macos-runtime
+      - name: Install Claude Code (Windows)
+        if: steps.gate.outputs.run == 'true' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://claude.ai/install.ps1 | iex
+          "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Install Claude Code (macOS and Linux)
+        if: steps.gate.outputs.run == 'true' && runner.os != 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Write the prompt and record the state before the agent
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          WORKFLOW: ${{ needs.plan.outputs.workflow }}
+          JOB: ${{ needs.plan.outputs.job }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/auto-fix-agent"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs prompt --workflow "$WORKFLOW" --job "$JOB" --logs "$RUNNER_TEMP/auto-fix-input" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --plan "$RUNNER_TEMP/auto-fix-agent/measure.json" --out "$RUNNER_TEMP/auto-fix-input/prompt.md"
+          git add -A
+          git write-tree > "$RUNNER_TEMP/auto-fix-input/base-tree"
+          git reset --quiet
+      - name: Run the agent
+        id: agent
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        timeout-minutes: 60
+        shell: bash
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+          MODEL: ${{ needs.plan.outputs.model }}
+        run: |
+          claude --version
+          date +%s > "$RUNNER_TEMP/auto-fix-input/started"
+          claude --print --model "$MODEL" --effort medium --permission-mode dontAsk --allowedTools Bash Read Edit Write Glob Grep --disallowedTools WebFetch WebSearch --output-format stream-json --verbose --no-session-persistence < "$RUNNER_TEMP/auto-fix-input/prompt.md" > "$RUNNER_TEMP/auto-fix-agent/transcript.jsonl"
+      - name: Collect the output and stop when a secret is in it
+        id: collect
+        if: always() && steps.gate.outputs.run == 'true' && steps.agent.outcome != 'skipped'
+        shell: bash
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+          TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
+          MODEL: ${{ needs.plan.outputs.model }}
+        run: |
+          seconds="$(( $(date +%s) - $(cat "$RUNNER_TEMP/auto-fix-input/started") ))"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs collect --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --transcript "$RUNNER_TEMP/auto-fix-agent/transcript.jsonl" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --plan "$RUNNER_TEMP/auto-fix-agent/measure.json" --seconds "$seconds" --model "$MODEL" --out "$RUNNER_TEMP/auto-fix-output"
       - uses: actions/upload-artifact@v4
+        if: always() && steps.collect.outcome == 'success'
+        with:
+          name: auto-fix-agent-output
+          path: ${{ runner.temp }}/auto-fix-output
+          retention-days: 7
+          if-no-files-found: error
+
+  change:
+    needs: [plan, fix]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      change: ${{ steps.change.outputs.change }}
+      refused: ${{ steps.change.outputs.refused }}
+      source: ${{ steps.change.outputs.source }}
+      patch_sha: ${{ steps.change.outputs.patch_sha }}
+      plan_sha: ${{ steps.change.outputs.plan_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/post-merge-auto-fix
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.source == 'agent'
+        continue-on-error: true
+        with:
+          name: auto-fix-agent-output
+          path: ${{ runner.temp }}/auto-fix-agent
+      - name: Check the change and publish its digests
+        id: change
+        shell: bash
+        env:
+          SOURCE: ${{ needs.plan.outputs.source }}
+          PREPARED: ${{ needs.plan.outputs.prepared }}
+          MODEL: ${{ needs.plan.outputs.model }}
+        run: node .github/actions/post-merge-auto-fix/fix.mjs change --source "$SOURCE" --prepared "$PREPARED" --model "$MODEL" --agent "$RUNNER_TEMP/auto-fix-agent" --out "$RUNNER_TEMP/auto-fix"
+      - uses: actions/upload-artifact@v4
+        if: steps.change.outputs.change == 'ready'
         with:
           name: auto-fix-change
           path: ${{ runner.temp }}/auto-fix
@@ -79,8 +261,8 @@ jobs:
           if-no-files-found: error
 
   measure:
-    needs: [plan]
-    if: needs.plan.outputs.refused == 'false'
+    needs: [plan, change]
+    if: ${{ !cancelled() && needs.change.outputs.change == 'ready' && needs.change.outputs.refused == 'false' }}
     name: measure ${{ matrix.runner }} ${{ matrix.shard }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
@@ -139,8 +321,8 @@ jobs:
         env:
           STAGEKEEPER_MACOS_RUNTIME_REQUIRED: ${{ runner.os == 'macOS' && '1' || '' }}
           STAGEKEEPER_RELEASED_READERS: required
-          PATCH_SHA: ${{ needs.plan.outputs.patch_sha }}
-          PLAN_SHA: ${{ needs.plan.outputs.plan_sha }}
+          PATCH_SHA: ${{ needs.change.outputs.patch_sha }}
+          PLAN_SHA: ${{ needs.change.outputs.plan_sha }}
         run: |
           mkdir -p "$RUNNER_TEMP/auto-fix-result"
           node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs measure --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --cwd "$GITHUB_WORKSPACE" --minutes 40 --out "$RUNNER_TEMP/auto-fix-result/result.json"
@@ -153,7 +335,7 @@ jobs:
           if-no-files-found: error
 
   branch:
-    needs: [plan, measure]
+    needs: [plan, change, measure]
     if: ${{ !cancelled() && needs.measure.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -191,12 +373,12 @@ jobs:
         id: decide
         shell: bash
         env:
-          PATCH_SHA: ${{ needs.plan.outputs.patch_sha }}
-          PLAN_SHA: ${{ needs.plan.outputs.plan_sha }}
+          PATCH_SHA: ${{ needs.change.outputs.patch_sha }}
+          PLAN_SHA: ${{ needs.change.outputs.plan_sha }}
         run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs decide --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --results "$RUNNER_TEMP/auto-fix-results"
       - name: Find an open pull request that carries the same change
         id: duplicate
-        if: steps.decide.outputs.open == 'true'
+        if: steps.decide.outputs.open == 'true' && needs.plan.outputs.rehearsal != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -208,7 +390,7 @@ jobs:
           done
       - name: Push the change as a fix branch
         id: push
-        if: steps.decide.outputs.open == 'true' && steps.duplicate.outputs.pr == ''
+        if: steps.decide.outputs.open == 'true' && steps.duplicate.outputs.pr == '' && needs.plan.outputs.rehearsal != 'true'
         shell: bash
         env:
           BRANCH: ${{ needs.plan.outputs.branch }}
@@ -238,7 +420,7 @@ jobs:
       ref: ${{ needs.plan.outputs.branch }}
 
   pull-request:
-    needs: [plan, branch, full-windows, full-macos]
+    needs: [plan, change, branch, full-windows, full-macos]
     if: ${{ always() && needs.branch.outputs.pushed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -281,10 +463,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ needs.plan.outputs.branch }}
           ISSUE: ${{ needs.plan.outputs.issue }}
-          SOURCE: ${{ needs.plan.outputs.source }}
+          SOURCE: ${{ needs.change.outputs.source }}
           WORKFLOW: ${{ needs.plan.outputs.workflow }}
-          PATCH_SHA: ${{ needs.plan.outputs.patch_sha }}
-          PLAN_SHA: ${{ needs.plan.outputs.plan_sha }}
+          PATCH_SHA: ${{ needs.change.outputs.patch_sha }}
+          PLAN_SHA: ${{ needs.change.outputs.plan_sha }}
           VERDICT: ${{ needs.branch.outputs.verdict }}
           REQUIRED: ${{ needs.branch.outputs.required }}
           BEFORE: ${{ needs.branch.outputs.before }}
@@ -315,7 +497,7 @@ jobs:
           esac
 
   record:
-    needs: [plan, measure, branch, full-windows, full-macos, pull-request]
+    needs: [plan, fix, change, measure, branch, full-windows, full-macos, pull-request]
     if: ${{ always() && needs.plan.outputs.issue != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -328,20 +510,31 @@ jobs:
           persist-credentials: false
           sparse-checkout: .github/actions/post-merge-auto-fix
       - uses: actions/download-artifact@v4
+        if: needs.change.outputs.change == 'ready'
+        continue-on-error: true
         with:
           name: auto-fix-change
           path: ${{ runner.temp }}/auto-fix
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.source == 'agent'
+        continue-on-error: true
+        with:
+          name: auto-fix-agent-output
+          path: ${{ runner.temp }}/auto-fix-agent
       - name: Write the attempt record to the issue
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ needs.plan.outputs.issue }}
-          SOURCE: ${{ needs.plan.outputs.source }}
           WORKFLOW: ${{ needs.plan.outputs.workflow }}
           OPEN_PR: ${{ needs.plan.outputs.open_pr }}
-          REFUSED: ${{ needs.plan.outputs.refused }}
-          PATCH_SHA: ${{ needs.plan.outputs.patch_sha }}
-          PLAN_SHA: ${{ needs.plan.outputs.plan_sha }}
+          REHEARSAL: ${{ needs.plan.outputs.rehearsal }}
+          MODEL: ${{ needs.plan.outputs.model }}
+          SOURCE: ${{ needs.change.outputs.source }}
+          CHANGED: ${{ needs.change.outputs.change }}
+          REFUSED: ${{ needs.change.outputs.refused }}
+          PATCH_SHA: ${{ needs.change.outputs.patch_sha }}
+          PLAN_SHA: ${{ needs.change.outputs.plan_sha }}
           VERDICT: ${{ needs.branch.outputs.verdict }}
           OPEN: ${{ needs.branch.outputs.open }}
           REQUIRED: ${{ needs.branch.outputs.required }}
@@ -353,5 +546,5 @@ jobs:
           PR: ${{ needs.pull-request.outputs.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "$SOURCE" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
+          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "$SOURCE" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"
