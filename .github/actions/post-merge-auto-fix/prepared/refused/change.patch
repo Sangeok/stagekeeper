@@ -1,0 +1,13 @@
+diff --git a/vercel.json b/vercel.json
+index 4885a8c..4b98795 100644
+--- a/vercel.json
++++ b/vercel.json
+@@ -8,7 +8,7 @@
+   "crons": [
+     {
+       "path": "/api/cron/github-maintenance",
+-      "schedule": "0 18 * * *"
++      "schedule": "0 19 * * *"
+     }
+   ]
+ }

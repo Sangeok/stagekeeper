@@ -1,0 +1,9 @@
+diff --git a/README.md b/README.md
+index 6a37762..4887d1a 100644
+--- a/README.md
++++ b/README.md
+@@ -510,3 +510,4 @@ product itself speaks English; see the product copy.
+ | [ADRs](./docs/ADR/README.md) | Architecture decision records |
+ | [Proposals](./docs/proposals/README.md) · [Investigations](./docs/investigations/README.md) · [Test reports](./docs/test-reports/README.md) | Planned work, investigations, and acceptance reports |
+ | [Plugin](./plugin/README.md) | The local Claude Code and Codex adapters |
++

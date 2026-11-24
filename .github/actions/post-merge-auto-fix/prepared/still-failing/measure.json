@@ -1,0 +1,4 @@
+{
+  "command": "node --test scripts/checks/auto-fix-still-failing.test.mjs",
+  "runs": 2
+}
