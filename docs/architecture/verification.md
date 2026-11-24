@@ -315,6 +315,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | 검사 | 분류 | Windows | macOS | Linux | 미충족 | 이유 또는 확인 문자열 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
+| 기본 검사의 집계 | 공통 | | | `check/required` | | |
 | 작업 worktree·브랜치 정리 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/pr/lifecycle.test.mjs`, `scripts/pr/merge.test.mjs`, `scripts/pr/cleanup.test.mjs`, `scripts/pr/recovery.test.mjs`, `scripts/pr/migration.test.mjs`, `scripts/pr/preservation.test.mjs`, `scripts/pr/sweep.test.mjs`, `scripts/pr/cli-integration.test.mjs`를 파일별 필수 step으로 실행. 실제 Git/파일/OS, GitHub 대역. Windows는 미지원 보존·수동 인수, qualified 자동 제거 positive는 별도 로컬 gate |
 | worktree 사용 관측 후보 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | 양 OS에서 `scripts/pr/process-usage/`의 `process-usage.test.mjs` runtime/`process-usage-probe.test.mjs` 경계 필수. macOS는 `process-usage-qualification.test.mjs`의 `STAGEKEEPER_USAGE_QUALIFICATION: "macos"` native 평가, Windows는 `windows-directory-usage.test.mjs`의 실제 누락 반례를 필수 실행한다. Windows 자동 삭제 미지원 결정으로 기존 정상 cwd 자격 평가는 명시적 `all` 모드로 분리하며 과거 FAIL은 유지한다. Linux는 공통 계약만 검증 |
 | 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |

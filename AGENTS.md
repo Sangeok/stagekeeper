@@ -129,7 +129,13 @@ commits that were already green on `dev`.
   that its pull request is still open (`gh pr view <number> --json state`). When it
   is already merged, start a new branch from the latest `dev` instead: the merged
   branch is deleted, and a push would recreate it outside any pull request.
-- A pull request into `dev` merges only when the `check` workflow is green.
+- A pull request into `dev` merges only when the `check` workflow is green. The
+  active ruleset `Require check on dev` enforces it. The job `check (required)` runs
+  on every pull request and fails unless every other job of `check.yml` passed. When
+  adding a job to `check.yml`, add it to the `needs` of `required`; a test in
+  `scripts/checks/verify-ci-coverage.test.mjs` fails otherwise. Do not rename
+  `check (required)` without changing the ruleset in the same step, or every pull
+  request stays blocked.
 - Promote `dev` to `main` by fast-forward only, and name the commit. After
   `git fetch origin`, run `git push origin <sha>:refs/heads/main`, where `<sha>` is the
   full `origin/dev` commit the gates ran on. Git refuses that push unless it is a
@@ -235,8 +241,9 @@ commits that were already green on `dev`.
   remains fast-forward only. The active GitHub ruleset `Keep dev and main` forbids
   deletion and force pushes of both protected refs. The active ruleset
   `Require pull request on dev` accepts a change to `dev` only through a pull
-  request, so a direct push to `dev` is refused. Neither ruleset has bypass actors;
-  retain that protection.
+  request, so a direct push to `dev` is refused. The active ruleset
+  `Require check on dev` merges a pull request only after its required status check
+  passed. No ruleset has bypass actors; retain that protection.
 - Feature branches are deleted automatically when their pull request merges
   (`deleteBranchOnMerge` is on). That is intended — it keeps `harness/<topic>` branches
   from piling up — and `gh pr merge` needs no `--delete-branch`.

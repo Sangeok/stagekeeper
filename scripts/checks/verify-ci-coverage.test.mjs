@@ -315,3 +315,14 @@ it("starts both native jobs for each migrated policy and distribution source ind
     for (const file of inputs) assert.ok(paths.some(pattern => pattern === file || pattern.endsWith("/**") && file.startsWith(pattern.slice(0, -2))), `${workflow} misses ${file}`);
   }
 });
+
+it("keeps every job of the check workflow behind the one job that the dev ruleset requires", () => {
+  const text = readFileSync(new URL("../../.github/workflows/check.yml", import.meta.url), "utf8");
+  const jobs = readWorkflow("check", text);
+  const required = jobs.find(job => job.key === "check/required");
+  assert.ok(required, "check.yml has no required job");
+  assert.deepEqual([...required.needs].sort(), jobs.filter(job => job !== required).map(job => job.key).sort());
+  assert.match(required.text, /^ {4}name: check \(required\)$/m);
+  assert.match(required.text, /^ {4}if: \$\{\{ always\(\) && github\.event_name == 'pull_request' \}\}$/m);
+  assert.doesNotMatch(required.text, /continue-on-error/);
+});
