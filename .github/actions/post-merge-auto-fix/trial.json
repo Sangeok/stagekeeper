@@ -1,8 +1,8 @@
 {
-  "attempt": 12,
+  "attempt": 13,
   "issue": 430,
   "runner": "ubuntu-latest",
   "workflow": "none",
-  "prepared": "pr-path true",
+  "prepared": "refused true",
   "openPr": 
 }
