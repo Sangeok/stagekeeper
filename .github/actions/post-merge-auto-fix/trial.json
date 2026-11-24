@@ -1,8 +1,0 @@
-{
-  "attempt": 3,
-  "issue": 430,
-  "runner": "macos-15",
-  "workflow": "none",
-  "prepared": "pr-path",
-  "openPr": true
-}

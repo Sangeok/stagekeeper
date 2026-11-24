@@ -217,8 +217,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 const commands = {
   plan(args) {
-    const raw = args.trial ? readJson(args.trial) : { issue: process.env.INPUT_ISSUE, runner: process.env.INPUT_RUNNER, workflow: process.env.INPUT_WORKFLOW, prepared: process.env.INPUT_PREPARED, openPr: process.env.INPUT_OPEN_PR };
-    const request = readRequest(raw);
+    const request = readRequest({ issue: process.env.INPUT_ISSUE, runner: process.env.INPUT_RUNNER, workflow: process.env.INPUT_WORKFLOW, prepared: process.env.INPUT_PREPARED, openPr: process.env.INPUT_OPEN_PR });
     const source = path.join(here, "prepared", request.prepared);
     const patch = readFileSync(path.join(source, "change.patch"), "utf8");
     const plan = readMeasurePlan(readJson(path.join(source, "measure.json")));
