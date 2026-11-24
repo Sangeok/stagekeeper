@@ -26,16 +26,12 @@ on:
         required: false
         type: boolean
         default: false
-  push:
-    branches: [harness/auto-fix-pr-path]
-    paths:
-      - .github/actions/post-merge-auto-fix/trial.json
 
 permissions:
   contents: read
 
 concurrency:
-  group: post-merge-auto-fix-${{ inputs.issue || github.ref }}
+  group: post-merge-auto-fix-${{ inputs.issue }}
   cancel-in-progress: false
 
 jobs:
@@ -71,11 +67,7 @@ jobs:
           INPUT_WORKFLOW: ${{ inputs.workflow }}
           INPUT_PREPARED: ${{ inputs.prepared }}
           INPUT_OPEN_PR: ${{ inputs.open_pr }}
-          TRIAL: ${{ github.event_name == 'push' && '.github/actions/post-merge-auto-fix/trial.json' || '' }}
-        run: |
-          arguments=(--out "$RUNNER_TEMP/auto-fix" --run "$GITHUB_RUN_ID")
-          if [ -n "$TRIAL" ]; then arguments+=(--trial "$TRIAL"); fi
-          node .github/actions/post-merge-auto-fix/fix.mjs plan "${arguments[@]}"
+        run: node .github/actions/post-merge-auto-fix/fix.mjs plan --out "$RUNNER_TEMP/auto-fix" --run "$GITHUB_RUN_ID"
       - uses: actions/upload-artifact@v4
         with:
           name: auto-fix-change
