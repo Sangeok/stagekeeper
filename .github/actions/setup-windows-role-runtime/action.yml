@@ -27,7 +27,7 @@ runs:
     - name: Stop when the runtime cache is missing and building is not allowed
       if: steps.node-cache.outputs.cache-hit != 'true' && inputs.build-on-miss == 'false'
       shell: pwsh
-      run: throw 'Runtime cache miss: this job does not compile the runtime'
+      run: throw 'This job does not compile the runtime, and the runtime cache has no exact match'
     - name: Build pinned Node with AppContainer pipe backport
       id: node-build
       if: steps.node-cache.outputs.cache-hit != 'true'
