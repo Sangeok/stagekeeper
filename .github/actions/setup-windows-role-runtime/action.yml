@@ -1,5 +1,10 @@
 name: setup-windows-role-runtime
 description: Restore the pinned Windows role runtime from the cache or build it, then verify it before anything launches it. Sets STAGEKEEPER_WINDOWS_RUNTIME_VERIFIED=true for later steps once verification passed.
+inputs:
+  build-on-miss:
+    description: Set to "false" to stop instead of compiling Node when the runtime cache has no exact match.
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
@@ -19,6 +24,10 @@ runs:
       if: steps.node-cache.outputs.cache-matched-key != '' && steps.node-cache.outputs.cache-matched-key != steps.runtime-key.outputs.key
       shell: pwsh
       run: throw 'Only an exact runtime cache may be reused; partial cache restore refused'
+    - name: Stop when the runtime cache is missing and building is not allowed
+      if: steps.node-cache.outputs.cache-hit != 'true' && inputs.build-on-miss == 'false'
+      shell: pwsh
+      run: throw 'Runtime cache miss: this job does not compile the runtime'
     - name: Build pinned Node with AppContainer pipe backport
       id: node-build
       if: steps.node-cache.outputs.cache-hit != 'true'

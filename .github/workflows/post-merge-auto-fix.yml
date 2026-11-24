@@ -1,0 +1,328 @@
+name: post-merge-auto-fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Number of the issue that receives the attempt record
+        required: true
+        type: string
+      runner:
+        description: Runner of the failed job, used for the measurement
+        required: true
+        type: choice
+        options: [windows-2022, macos-15, macos-15-intel, ubuntu-latest]
+      workflow:
+        description: Workflow to call once on the fix branch
+        required: true
+        type: choice
+        options: [windows-role-runtime, macos-runtime-contracts, none]
+      prepared:
+        description: Name of a prepared change under .github/actions/post-merge-auto-fix/prepared
+        required: true
+        type: string
+      open_pr:
+        description: Open a pull request when the checks allow it
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches: [harness/auto-fix-pr-path]
+    paths:
+      - .github/actions/post-merge-auto-fix/trial.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: post-merge-auto-fix-${{ inputs.issue || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      issue: ${{ steps.plan.outputs.issue }}
+      runner: ${{ steps.plan.outputs.runner }}
+      workflow: ${{ steps.plan.outputs.workflow }}
+      open_pr: ${{ steps.plan.outputs.open_pr }}
+      branch: ${{ steps.plan.outputs.branch }}
+      refused: ${{ steps.plan.outputs.refused }}
+      base: ${{ steps.base.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/post-merge-auto-fix
+      - name: Resolve the commit of dev that the change is applied to
+        id: base
+        shell: bash
+        run: |
+          sha="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/dev | cut -f1)"
+          test -n "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Read the request and the prepared change
+        id: plan
+        shell: bash
+        env:
+          INPUT_ISSUE: ${{ inputs.issue }}
+          INPUT_RUNNER: ${{ inputs.runner }}
+          INPUT_WORKFLOW: ${{ inputs.workflow }}
+          INPUT_PREPARED: ${{ inputs.prepared }}
+          INPUT_OPEN_PR: ${{ inputs.open_pr }}
+          TRIAL: ${{ github.event_name == 'push' && '.github/actions/post-merge-auto-fix/trial.json' || '' }}
+        run: |
+          arguments=(--out "$RUNNER_TEMP/auto-fix" --run "$GITHUB_RUN_ID")
+          if [ -n "$TRIAL" ]; then arguments+=(--trial "$TRIAL"); fi
+          node .github/actions/post-merge-auto-fix/fix.mjs plan "${arguments[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: auto-fix-change
+          path: ${{ runner.temp }}/auto-fix
+          retention-days: 7
+          if-no-files-found: error
+
+  measure:
+    needs: [plan]
+    if: needs.plan.outputs.refused == 'false'
+    name: measure ${{ matrix.runner }} ${{ matrix.shard }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, macos-15, macos-15-intel, ubuntu-latest]
+        shard: [1, 2]
+    steps:
+      - name: Run only on the runner of the failed job
+        id: gate
+        shell: bash
+        env:
+          WANTED: ${{ needs.plan.outputs.runner }}
+          THIS: ${{ matrix.runner }}
+        run: echo "run=$([ "$WANTED" = "$THIS" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          ref: ${{ needs.plan.outputs.base }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/download-artifact@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          name: auto-fix-change
+          path: ${{ runner.temp }}/auto-fix
+      - name: Prepare project dependencies
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npm run db:generate
+      - name: Prepare the Windows role runtime
+        if: steps.gate.outputs.run == 'true' && runner.os == 'Windows'
+        uses: ./.github/actions/setup-windows-role-runtime
+        with:
+          build-on-miss: "false"
+      - name: Prepare the macOS runtime
+        if: steps.gate.outputs.run == 'true' && runner.os == 'macOS'
+        uses: ./.github/actions/setup-macos-runtime
+      - name: Repeat the command before and after the change in turn
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          STAGEKEEPER_MACOS_RUNTIME_REQUIRED: ${{ runner.os == 'macOS' && '1' || '' }}
+          STAGEKEEPER_RELEASED_READERS: required
+        run: |
+          mkdir -p "$RUNNER_TEMP/auto-fix-result"
+          node "$RUNNER_TEMP/auto-fix/fix.mjs" measure --plan "$RUNNER_TEMP/auto-fix/measure.json" --patch "$RUNNER_TEMP/auto-fix/change.patch" --cwd "$GITHUB_WORKSPACE" --minutes 40 --out "$RUNNER_TEMP/auto-fix-result/result.json"
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          name: auto-fix-measure-${{ matrix.runner }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/auto-fix-result
+          retention-days: 7
+          if-no-files-found: error
+
+  branch:
+    needs: [plan, measure]
+    if: ${{ !cancelled() && needs.measure.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      open: ${{ steps.decide.outputs.open }}
+      verdict: ${{ steps.decide.outputs.verdict }}
+      labels: ${{ steps.decide.outputs.labels }}
+      pushed: ${{ steps.push.outputs.pushed }}
+      duplicate: ${{ steps.duplicate.outputs.pr }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: auto-fix-change
+          path: ${{ runner.temp }}/auto-fix
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: auto-fix-measure-*
+          path: ${{ runner.temp }}/auto-fix-results
+      - name: Decide from the measured counts
+        id: decide
+        shell: bash
+        run: node "$RUNNER_TEMP/auto-fix/fix.mjs" decide --change "$RUNNER_TEMP/auto-fix" --results "$RUNNER_TEMP/auto-fix-results" --out "$RUNNER_TEMP/auto-fix/decision.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: auto-fix-decision
+          path: ${{ runner.temp }}/auto-fix/decision.json
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/checkout@v5
+        if: steps.decide.outputs.open == 'true'
+        with:
+          ref: ${{ needs.plan.outputs.base }}
+      - name: Find an open pull request that carries the same change
+        id: duplicate
+        if: steps.decide.outputs.open == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          own="$(git patch-id --stable < "$RUNNER_TEMP/auto-fix/change.patch" | cut -d' ' -f1)"
+          for number in $(gh pr list --state open --base dev --author 'app/github-actions' --json number,headRefName --jq '.[] | select(.headRefName | startswith("harness/auto-fix-")) | .number'); do
+            other="$(gh pr diff "$number" | git patch-id --stable | cut -d' ' -f1)"
+            if [ -n "$own" ] && [ "$own" = "$other" ]; then echo "pr=$number" >> "$GITHUB_OUTPUT"; break; fi
+          done
+      - name: Push the change as a fix branch
+        id: push
+        if: steps.decide.outputs.open == 'true' && steps.duplicate.outputs.pr == ''
+        shell: bash
+        env:
+          BRANCH: ${{ needs.plan.outputs.branch }}
+          ISSUE: ${{ needs.plan.outputs.issue }}
+        run: |
+          git apply --index "$RUNNER_TEMP/auto-fix/change.patch"
+          if git diff --cached --name-only | grep -E '^(\.github/|AGENTS\.md$|CLAUDE\.md$|vercel\.json$|vercel\.ts$)'; then
+            echo "::error::the change touches a path that an automatic fix must not change"
+            exit 1
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit --quiet --message "fix: apply the automatic fix change for #$ISSUE"
+          git push origin "HEAD:refs/heads/$BRANCH"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+  full-windows:
+    needs: [plan, branch]
+    if: ${{ !cancelled() && needs.branch.outputs.pushed == 'true' && needs.plan.outputs.workflow == 'windows-role-runtime' }}
+    uses: ./.github/workflows/windows-role-runtime.yml
+    with:
+      ref: ${{ needs.plan.outputs.branch }}
+
+  full-macos:
+    needs: [plan, branch]
+    if: ${{ !cancelled() && needs.branch.outputs.pushed == 'true' && needs.plan.outputs.workflow == 'macos-runtime-contracts' }}
+    uses: ./.github/workflows/macos-runtime-contracts.yml
+    with:
+      ref: ${{ needs.plan.outputs.branch }}
+
+  pull-request:
+    needs: [plan, branch, full-windows, full-macos]
+    if: ${{ always() && needs.branch.outputs.pushed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      number: ${{ steps.open.outputs.number }}
+      full_check: ${{ steps.full.outputs.result }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: auto-fix-change
+          path: ${{ runner.temp }}/auto-fix
+      - uses: actions/download-artifact@v4
+        with:
+          name: auto-fix-decision
+          path: ${{ runner.temp }}/auto-fix
+      - name: Read the result of the full check
+        id: full
+        shell: bash
+        env:
+          WORKFLOW: ${{ needs.plan.outputs.workflow }}
+          WINDOWS: ${{ needs.full-windows.result }}
+          MACOS: ${{ needs.full-macos.result }}
+        run: |
+          case "$WORKFLOW" in
+            none) result=not-run ;;
+            windows-role-runtime) [ "$WINDOWS" = success ] && result=passed || result=failed ;;
+            macos-runtime-contracts) [ "$MACOS" = success ] && result=passed || result=failed ;;
+            *) result=failed ;;
+          esac
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+      - name: Open the pull request
+        id: open
+        if: needs.plan.outputs.open_pr == 'true' && steps.full.outputs.result != 'failed'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.plan.outputs.branch }}
+          LABELS: ${{ needs.branch.outputs.labels }}
+          FULL: ${{ steps.full.outputs.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="$(node "$RUNNER_TEMP/auto-fix/fix.mjs" body --change "$RUNNER_TEMP/auto-fix" --decision "$RUNNER_TEMP/auto-fix/decision.json" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/auto-fix/body.md" | sed -n 's/^title=//p')"
+          arguments=(--repo "$GITHUB_REPOSITORY" --base dev --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/auto-fix/body.md")
+          if [ -n "$LABELS" ]; then
+            gh label create "$LABELS" --repo "$GITHUB_REPOSITORY" --color BFD4F2 --force
+            arguments+=(--label "$LABELS")
+          fi
+          url="$(gh pr create "${arguments[@]}")"
+          echo "number=${url##*/}" >> "$GITHUB_OUTPUT"
+      - name: Remove the fix branch when no pull request was opened
+        if: always() && steps.open.outputs.number == ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.plan.outputs.branch }}
+        run: |
+          case "$BRANCH" in
+            harness/auto-fix-*) gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH" ;;
+            *) echo "::error::refusing to remove a branch outside harness/auto-fix-"; exit 1 ;;
+          esac
+
+  record:
+    needs: [plan, measure, branch, full-windows, full-macos, pull-request]
+    if: ${{ always() && needs.plan.outputs.issue != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: auto-fix-change
+          path: ${{ runner.temp }}/auto-fix
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: auto-fix-decision
+          path: ${{ runner.temp }}/auto-fix
+      - name: Write the attempt record to the issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ needs.plan.outputs.issue }}
+          PUSHED: ${{ needs.branch.outputs.pushed }}
+          DUPLICATE: ${{ needs.branch.outputs.duplicate }}
+          FULL: ${{ needs.pull-request.outputs.full_check }}
+          PR: ${{ needs.pull-request.outputs.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node "$RUNNER_TEMP/auto-fix/fix.mjs" record --change "$RUNNER_TEMP/auto-fix" --decision "$RUNNER_TEMP/auto-fix/decision.json" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "${FULL:-}" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/auto-fix/record.md"
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/auto-fix/record.md"
