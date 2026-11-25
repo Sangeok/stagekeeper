@@ -24,7 +24,6 @@ on:
       - src/server/**
       - src/app/api/**
       - prisma/**
-      - package.json
       - package-lock.json
   push:
     branches: [dev]

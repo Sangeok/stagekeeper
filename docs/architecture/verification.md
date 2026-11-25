@@ -247,6 +247,8 @@ GitHub이 통과로 처리하므로, 의존한 잡이 실패했을 때 이 잡�
 - `shared-distribution-acceptance`는 Codex의 모델 없는 승격 필수 검사다. 승격할 `dev` 커밋에서 모든 다리가
   녹색이어야 하며, 그 커밋의 실행이 없으면 직접 실행한다. `record` job이 없어 위 기록에는 남지 않는다. PR이 아닌
   실행에서 템플릿 입력이 없으면 입력 검사 step이 실패하므로, 모든 단계를 건너뛴 녹색은 PR에서만 생긴다.
+  `package.json`만 바꾼 PR에서는 실행하지 않는다. 의존성 변경은 lock이 함께 바뀌어 선택되고, 이 검사가 쓰는
+  `npm run build` 정의의 회귀는 PR의 `check` 빌드와 `dev` push의 Windows·macOS 오프라인 빌드에서 드러난다.
   Codex 모델 CI는 아직 승격을 막지 않는다. 승격할 커밋에 Codex `eval`·`pipeline` 행이 없으면 승격 보고에
   미검증으로 적고, 기록 이슈에는 그런 행을 쓰지 않는다. 신뢰된 기록이 없으면 미검증이 기본값이다.
 - macOS Codex 구독 검증은 별도 private GitHub Actions 저장소의 신뢰된 Mac runner에서
