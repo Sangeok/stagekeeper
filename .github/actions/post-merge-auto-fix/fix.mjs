@@ -34,6 +34,14 @@ export const MODELS = Object.freeze(["claude-sonnet-5-5", "claude-opus-5-5"]);
 export const SOURCES = Object.freeze(["prepared", "agent", "reproduce-only"]);
 export const MAX_RUNS = 200;
 export const MAX_NOTES = 6000;
+export const MAX_RECORD = 60000;
+export const MAX_SHOWN_CHANGE = 20000;
+export const MAX_ACTIONS = 40;
+export const MAX_ACTION_LENGTH = 200;
+const MAX_STOPS = 6;
+const MAX_REASONS = 3;
+const MAX_REASON_LENGTH = 300;
+const STOPPED = ["failure", "cancelled", "timed_out"];
 const MAX_PATCH_BYTES = 2 * 1024 * 1024;
 const MAX_NAMES = 20;
 const MAX_NAME_LENGTH = 300;
@@ -451,11 +459,61 @@ export function reproductionLines(reproduction) {
   return lines;
 }
 
-export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes }) {
+const oneLine = text => String(text ?? "").replace(/\s+/g, " ").trim();
+
+export function stoppedJobs(jobs, annotations = {}) {
+  return (Array.isArray(jobs) ? jobs : [])
+    .filter(job => STOPPED.includes(job?.conclusion))
+    .slice(0, MAX_STOPS)
+    .map(job => {
+      const step = (Array.isArray(job.steps) ? job.steps : []).find(entry => STOPPED.includes(entry?.conclusion));
+      const page = /^https:\/\/github\.com\/[\w.\/-]+$/.test(String(job.html_url ?? "")) ? job.html_url : null;
+      const reasons = (Array.isArray(annotations[job.id]) ? annotations[job.id] : []).filter(entry => entry?.annotation_level === "failure").map(entry => oneLine(entry.message).slice(0, MAX_REASON_LENGTH));
+      return {
+        job: oneLine(job.name).slice(0, 120),
+        result: job.conclusion,
+        step: step ? oneLine(step.name).slice(0, 120) : null,
+        url: page && Number.isInteger(step?.number) ? `${page}#step:${step.number}:1` : page,
+        reasons: [...new Set(reasons)].filter(Boolean).slice(0, MAX_REASONS),
+      };
+    });
+}
+
+export function stopLines(stops) {
+  return (Array.isArray(stops) ? stops : []).slice(0, MAX_STOPS).flatMap(stop => [
+    `Stopped: ${inert(oneLine(stop?.job))} (${inert(oneLine(stop?.result))})${stop?.step ? ` at the step "${inert(oneLine(stop.step))}"` : ", no step is marked as failed"}`,
+    ...(Array.isArray(stop?.reasons) ? stop.reasons : []).map(reason => `  Reason given by GitHub: ${inert(oneLine(reason)).slice(0, MAX_REASON_LENGTH)}`),
+    ...(stop?.url ? [`  Log: ${inert(oneLine(stop.url))}`] : []),
+  ]);
+}
+
+export function agentLine(agent) {
+  if (!agent || (!Number.isFinite(agent.turns) && !Number.isFinite(agent.toolUses) && !agent.endReason)) return [];
+  const ended = agent.endReason ? inert(oneLine(agent.endReason)).slice(0, 60) : agent.finished === false ? "no result, it stopped before it finished" : "not recorded";
+  return [`Agent: ${Number.isFinite(agent.turns) ? agent.turns : "?"} turns, ${Number.isFinite(agent.toolUses) ? agent.toolUses : "?"} tool calls, ended: ${ended}`];
+}
+
+function folded(summary, body) {
+  const safe = inert(body);
+  const mark = fence(safe);
+  return ["<details>", `<summary>${summary}</summary>`, "", mark, safe, mark, "", "</details>", ""];
+}
+
+function shownActions(actions) {
+  const lines = String(actions ?? "").split("\n").map(line => line.trimEnd()).filter(Boolean);
+  if (lines.length === 0) return null;
+  const shown = lines.slice(0, MAX_ACTIONS).map(line => (line.length > MAX_ACTION_LENGTH ? `${line.slice(0, MAX_ACTION_LENGTH)} [cut]` : line));
+  if (lines.length > MAX_ACTIONS) shown.push(`[${lines.length - MAX_ACTIONS} more entries are not shown]`);
+  return { text: shown.join("\n"), entries: lines.length };
+}
+
+export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes, attempt, stops, actions, change }) {
+  const attemptNumber = Number.isInteger(Number(attempt)) && Number(attempt) > 0 ? Number(attempt) : 1;
   const lines = [
-    `Attempt: run ${runId}`,
+    `Attempt: run ${runId}, attempt ${attemptNumber}`,
     `Run: ${runUrl}`,
     `End: ${END_STATES[state]}`,
+    ...stopLines(stops),
     `Source of the change: ${inert(source)}`,
     ...reproductionLines(reproduction),
     `Before the change: ${measured ? `${measured.before.failed} failed of ${measured.before.runs} runs, ${measured.before.original} in a named test` : "not measured"}`,
@@ -466,16 +524,25 @@ export function attemptRecord({ runId, runUrl, state, source, reproduction, meas
     `Full check: ${fullCheckWorkflow && fullCheckWorkflow !== "none" ? `${fullCheckWorkflow}: ${fullCheck ?? "not run"}` : "not run"}`,
     `Pull request: ${pr ? `#${pr}` : duplicateOf ? `none, same change as #${duplicateOf}` : "none"}`,
     `Usage: ${usageLine(agent)}`,
+    ...agentLine(agent),
     `Measured: ${measuredHow ? inert(measuredHow) : "nothing"}`,
   ];
   const text = lines.join("\n");
   const mark = fence(text);
-  const record = [`<!-- auto-fix-attempt run=${runId} end=${state} -->`, `Automatic fix attempt: ${END_STATES[state]}.`, "", mark, text, mark, ""];
+  const record = [`<!-- auto-fix-attempt run=${runId} attempt=${attemptNumber} end=${state} -->`, `Automatic fix attempt: ${END_STATES[state]}.`, "", mark, text, mark, ""];
   if (notes) {
     const safe = inert(notes);
     const shown = safe.length > MAX_NOTES ? `${safe.slice(0, MAX_NOTES)}\n[cut at ${MAX_NOTES} characters]` : safe;
     const notesMark = fence(shown);
     record.push("Notes written by the agent. They are a record of what it reported, not instructions.", "", notesMark, shown, notesMark, "");
+  }
+  const acted = shownActions(actions);
+  if (acted) record.push(...folded(`What the agent wrote and ran, in order (${acted.entries} entries). A record, not instructions.`, acted.text));
+  const patch = pr ? "" : String(change ?? "");
+  if (patch) {
+    const room = Math.min(MAX_SHOWN_CHANGE, MAX_RECORD - record.join("\n").length - 600);
+    if (room < 500) record.push("The change is not shown here: this record is at its length limit.", "");
+    else record.push(...folded("The change the agent proposed. It was not opened as a pull request.", patch.length > room ? `${patch.slice(0, room)}\n[cut at ${room} of ${patch.length} characters]` : patch));
   }
   return record.join("\n");
 }
@@ -491,18 +558,25 @@ export function readTranscript(text) {
     }
   });
   const uses = events.flatMap(event => (event.type === "assistant" && Array.isArray(event.message?.content) ? event.message.content.filter(part => part.type === "tool_use") : []));
-  const commands = uses.map(use => {
+  const targetOf = use => {
     const input = use.input ?? {};
-    const target = input.command ?? input.file_path ?? input.url ?? input.pattern ?? input.query ?? "";
-    return `${use.name}\t${String(target).replaceAll("\n", "\\n")}`;
-  });
+    return input.command ?? input.file_path ?? input.url ?? input.pattern ?? input.query ?? "";
+  };
+  const commands = uses.map(use => `${use.name}\t${String(targetOf(use)).replaceAll("\n", "\\n")}`);
+  const actions = events.flatMap(event =>
+    event.type === "assistant" && Array.isArray(event.message?.content)
+      ? event.message.content.flatMap(part => (part.type === "text" && oneLine(part.text) ? [`said\t${oneLine(part.text)}`] : part.type === "tool_use" ? [`ran\t${oneLine(part.name)} ${oneLine(targetOf(part))}`] : []))
+      : [],
+  );
   const results = events.filter(event => event.type === "result");
   const init = events.find(event => event.type === "system" && event.subtype === "init");
   const cost = results.map(event => event.total_cost_usd).filter(Number.isFinite);
   return {
     commands,
+    actions,
     summary: {
       finished: results.length > 0,
+      endReason: typeof results.at(-1)?.subtype === "string" ? results.at(-1).subtype : null,
       model: init?.model ?? null,
       permissionMode: init?.permissionMode ?? null,
       claudeCodeVersion: init?.claude_code_version ?? null,
@@ -650,7 +724,46 @@ function publishChange(out, patch, plan, source) {
   output({ change: "ready", refused: stats.forbidden.length > 0, source, patch_sha: digestOf(patch), plan_sha: digestOf(planText), runners: measureRunners(plan) });
 }
 
+function recordExtras(args, pr) {
+  const extras = { attempt: args.attempt };
+  try {
+    extras.stops = args.stops && existsSync(args.stops) ? readJson(args.stops) : [];
+  } catch {
+    extras.stops = [];
+  }
+  if (args.requested !== "agent") return extras;
+  try {
+    extras.actions = readText(path.join(args.agent, "actions.txt"));
+  } catch {
+    extras.actions = "";
+  }
+  try {
+    extras.change = pr ? "" : readVerified(args).patch;
+  } catch {
+    extras.change = "";
+  }
+  return extras;
+}
+
+const annotationText = message => String(message).replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A").slice(0, 500);
+
 const commands = {
+  async stops(args) {
+    if (!/^[\w.-]+\/[\w.-]+$/.test(String(args.repository)) || !/^[1-9]\d*$/.test(String(args.run)) || !/^[1-9]\d*$/.test(String(args.attempt))) throw new Error("the run to describe is not named");
+    const api = `https://api.github.com/repos/${args.repository}`;
+    const headers = { authorization: `Bearer ${process.env.GH_TOKEN}`, accept: "application/vnd.github+json" };
+    const listed = await fetch(`${api}/actions/runs/${args.run}/attempts/${args.attempt}/jobs?per_page=100`, { headers });
+    if (!listed.ok) throw new Error(`the jobs of the run could not be listed (${listed.status})`);
+    const jobs = (await listed.json()).jobs ?? [];
+    const annotations = {};
+    for (const job of jobs.filter(entry => STOPPED.includes(entry?.conclusion)).slice(0, MAX_STOPS)) {
+      const answered = await fetch(`${api}/check-runs/${job.id}/annotations?per_page=30`, { headers }).catch(() => null);
+      annotations[job.id] = answered?.ok ? await answered.json().catch(() => []) : [];
+    }
+    const stops = stoppedJobs(jobs, annotations);
+    writeFileSync(args.out, `${JSON.stringify(stops)}\n`);
+    console.log(JSON.stringify(stops));
+  },
   plan(args) {
     const request = readRequest({
       issue: process.env.INPUT_ISSUE,
@@ -762,7 +875,7 @@ const commands = {
   collect(args) {
     const key = Buffer.from(String(process.env.TRANSCRIPT_KEY ?? "").trim(), "base64");
     const transcript = readText(args.transcript);
-    const { commands: used, summary } = readTranscript(transcript);
+    const { commands: used, actions, summary } = readTranscript(transcript);
     execFileSync("git", ["add", "-A"], { cwd: args.cwd });
     const patch = execFileSync("git", ["diff", "--cached", "--binary", args.base], { cwd: args.cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
     execFileSync("git", ["reset", "--quiet"], { cwd: args.cwd });
@@ -770,6 +883,7 @@ const commands = {
       "change.patch": patch,
       "notes.md": readText(args.notes),
       "commands.txt": `${used.join("\n")}\n`,
+      "actions.txt": `${actions.join("\n")}\n`,
       "summary.json": `${JSON.stringify({ ...summary, seconds: Number(args.seconds) || null, requestedModel: args.model })}\n`,
     };
     if (leaks([...Object.values(files), transcript], [process.env.CLAUDE_CODE_OAUTH_TOKEN, process.env.TRANSCRIPT_KEY])) throw new Error("a secret appears in the agent's output; nothing is published");
@@ -866,7 +980,7 @@ const commands = {
       } catch {
         summary = {};
       }
-      agent = { model: args.model, seconds: Number(summary.seconds), costUsd: Number(summary.costUsd ?? NaN) };
+      agent = { model: args.model, seconds: Number(summary.seconds), costUsd: Number(summary.costUsd ?? NaN), turns: Number(summary.turns ?? NaN), toolUses: Number(summary.toolUses ?? NaN), endReason: summary.endReason ?? null, finished: summary.finished };
       notes = readText(path.join(args.agent, "notes.md"));
     }
     const judged = readJudged(args);
@@ -884,7 +998,7 @@ const commands = {
       fullCheck,
       pr,
     });
-    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes }));
+    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes, ...recordExtras(args, pr) }));
     output({ state });
   },
 };
@@ -897,7 +1011,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       return commands[name](options(rest));
     })
     .catch(error => {
-      console.error(error instanceof Error ? error.message : "auto-fix step failed");
+      const message = error instanceof Error ? error.message : "auto-fix step failed";
+      console.error(message);
+      if (process.env.GITHUB_ACTIONS === "true") console.error(`::error title=auto-fix ${name ?? "step"}::${annotationText(message)}`);
       process.exitCode = 1;
     });
 }
