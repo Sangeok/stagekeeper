@@ -470,6 +470,7 @@ jobs:
       verdict: ${{ steps.decide.outputs.verdict }}
       labels: ${{ steps.decide.outputs.labels }}
       required: ${{ steps.decide.outputs.required }}
+      compared: ${{ steps.decide.outputs.compared }}
       before: ${{ steps.decide.outputs.before }}
       after: ${{ steps.decide.outputs.after }}
       remaining: ${{ steps.decide.outputs.remaining }}
@@ -594,13 +595,14 @@ jobs:
           PLAN_SHA: ${{ needs.change.outputs.plan_sha }}
           VERDICT: ${{ needs.branch.outputs.verdict }}
           REQUIRED: ${{ needs.branch.outputs.required }}
+          COMPARED: ${{ needs.branch.outputs.compared }}
           BEFORE: ${{ needs.branch.outputs.before }}
           AFTER: ${{ needs.branch.outputs.after }}
           LABELS: ${{ needs.branch.outputs.labels }}
           FULL: ${{ steps.full.outputs.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          title="$(node .github/actions/post-merge-auto-fix/fix.mjs body --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --issue "$ISSUE" --source "$SOURCE" --workflow "$WORKFLOW" --verdict "$VERDICT" --open true --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/body.md" | sed -n 's/^title=//p')"
+          title="$(node .github/actions/post-merge-auto-fix/fix.mjs body --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --issue "$ISSUE" --source "$SOURCE" --workflow "$WORKFLOW" --verdict "$VERDICT" --open true --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/body.md" | sed -n 's/^title=//p')"
           test -n "$title"
           arguments=(--repo "$GITHUB_REPOSITORY" --base dev --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md")
           if [ -n "$LABELS" ]; then
@@ -670,6 +672,7 @@ jobs:
           VERDICT: ${{ needs.branch.outputs.verdict }}
           OPEN: ${{ needs.branch.outputs.open }}
           REQUIRED: ${{ needs.branch.outputs.required }}
+          COMPARED: ${{ needs.branch.outputs.compared }}
           BEFORE: ${{ needs.branch.outputs.before }}
           AFTER: ${{ needs.branch.outputs.after }}
           REMAINING: ${{ needs.branch.outputs.remaining }}
@@ -680,5 +683,5 @@ jobs:
           PR: ${{ needs.pull-request.outputs.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
+          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"

@@ -226,10 +226,10 @@ it("asks for a clearer drop when the runs shared a load than when they ran alone
 });
 
 it("adds the counts of every measurement job and the tests that still failed", () => {
-  const shard = (before, after, remaining, missing) => ({ before, after, remaining, missing, log: [] });
-  const combined = combine([shard(counts(10, 1), counts(15, 1, 0, 0, 2), { "other test": 1 }, { gone: 2 }), shard(counts(10, 0), counts(10, 2, 0, 1, 1), { "other test": 1, third: 1 }, { gone: 1 })]);
-  assert.deepEqual(combined, { before: counts(20, 1), after: counts(25, 3, 0, 1, 3), remaining: { "other test": 2, third: 1 }, missing: { gone: 3 } });
-  assert.deepEqual(combine([]), { before: counts(0, 0), after: counts(0, 0), remaining: {}, missing: {} });
+  const shard = (before, after, remaining, missing, compared) => ({ before, after, remaining, missing, compared, log: [] });
+  const combined = combine([shard(counts(10, 1), counts(15, 1, 0, 0, 2), { "other test": 1 }, { gone: 2 }, 43), shard(counts(10, 0), counts(10, 2, 0, 1, 1), { "other test": 1, third: 1 }, { gone: 1 }, 41)]);
+  assert.deepEqual(combined, { before: counts(20, 1), after: counts(25, 3, 0, 1, 3), remaining: { "other test": 2, third: 1 }, missing: { gone: 3 }, compared: 41 });
+  assert.deepEqual(combine([]), { before: counts(0, 0), after: counts(0, 0), remaining: {}, missing: {}, compared: 0 });
 });
 
 const ranNamed = (failed, names = []) => ({ failed, timedOut: false, seconds: 60, ran: 43, names, executed: [...namedPlan.names, "another test"] });
@@ -574,7 +574,9 @@ it("writes the pull request body from numbers and fixed phrases only", () => {
   assert.match(remaining, /names of those tests are in the issue/);
   assert.doesNotMatch(body, /touches only test files|were not compared/);
   const testOnly = prBody({ issue: 431, runUrl: "u", source: "agent m", measured: { before: counts(20, 6), after: counts(20, 0) }, decision: { verdict: "verified", required: 10 }, stats: { files: 2, testOnly: true }, fullCheck: "passed", fullCheckWorkflow: "none", otherTestFiles: ["plugin/runtime/role.test.mjs", "a`b.test.mjs"] });
-  assert.match(testOnly, /touches only test files\. Every test that ran before it still ran after it and passed\./);
+  assert.match(testOnly, /touches only test files\. The measurement does not show/);
+  assert.match(testOnly, /\| Tests compared before and after \| none: no test ran in every run before the change, so a dropped test would not be seen \|/);
+  assert.match(prBody({ issue: 431, runUrl: "u", source: "agent m", measured: { before: counts(20, 6), after: counts(20, 0) }, decision: { verdict: "verified", required: 10 }, stats: { files: 1 }, fullCheck: "passed", fullCheckWorkflow: "none", compared: 43 }), /\| Tests compared before and after \| 43, each ran in every passing run after the change \|/);
   assert.match(testOnly, /emptied test bodies, weaker assertions and longer deadlines/);
   assert.match(testOnly, /also touches 2 other test files, which were not compared: `plugin\/runtime\/role\.test\.mjs`, others whose names are not shown\./);
   assert.doesNotMatch(body, /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?) #\d/i);
@@ -611,6 +613,7 @@ it("keeps the attempt record inside a code block that its own text cannot close"
     measuredHow: describePlan(namedPlan),
     remaining: { [hostile]: 2 },
     missing: { [hostile]: 3 },
+    compared: 43,
   });
   const lines = record.split("\n");
   assert.equal(lines[0], "<!-- auto-fix-attempt run=5 end=rehearsed -->");
@@ -626,6 +629,7 @@ it("keeps the attempt record inside a code block that its own text cannot close"
   assert.match(record, /Verification: 2 failed of 40 runs after the change, 0 in a named test, 10 required, failures-remain/);
   assert.match(record, /Failed after the change: 2 runs, echo/);
   assert.match(record, /Ran before the change and not after it: 3 passing runs, echo/);
+  assert.match(record, /Tests compared before and after: 43/);
   assert.match(record, /Measured: node --test plugin\/bin\/harness-watch\.test\.mjs, 4 at once with every core busy/);
   const unreproduced = attemptRecord({ runId: 6, runUrl: "u", state: "notReproduced", source: "agent m", reproduction: { kind: "not-reproduced", file: namedPlan.file, names: namedPlan.names, plain: counts(5, 0), loaded: counts(30, 0) } });
   assert.match(unreproduced, /no agent was called/);

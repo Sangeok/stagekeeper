@@ -299,7 +299,8 @@ export function combine(results) {
     for (const result of results) for (const [name, times] of Object.entries(result[key] ?? {})) tests[name] = (tests[name] ?? 0) + times;
     return tests;
   };
-  return { before: sum("before"), after: sum("after"), remaining: merged("remaining"), missing: merged("missing") };
+  const compared = results.map(result => result.compared).filter(Number.isInteger);
+  return { before: sum("before"), after: sum("after"), remaining: merged("remaining"), missing: merged("missing"), compared: compared.length ? Math.min(...compared) : 0 };
 }
 
 const choose = (n, k) => {
@@ -346,7 +347,9 @@ export function fullCheckResult(workflow, results) {
 
 export const prTitle = issue => `fix: auto-fix attempt for #${issue}`;
 
-export function prBody({ issue, runUrl, source, measured, decision, stats, fullCheck, fullCheckWorkflow, otherTestFiles = [] }) {
+export const comparedLine = compared => (compared > 0 ? `${compared}, each ran in every passing run after the change` : "none: no test ran in every run before the change, so a dropped test would not be seen");
+
+export function prBody({ issue, runUrl, source, measured, decision, stats, fullCheck, fullCheckWorkflow, otherTestFiles = [], compared = 0 }) {
   return [
     `Automatic fix attempt for #${issue}. A person reviews and merges this pull request; the workflow does not merge it.`,
     "",
@@ -361,6 +364,7 @@ export function prBody({ issue, runUrl, source, measured, decision, stats, fullC
     `| After the change | ${measured.after.failed} failed of ${measured.after.runs} runs |`,
     `| Runs in which a test named in the failure logs failed | ${measured.before.original} before, ${measured.after.original} after |`,
     `| Passes required after the change | ${decision.required} |`,
+    `| Tests compared before and after | ${comparedLine(compared)} |`,
     `| Measurement | ${decision.verdict} |`,
     `| Full check | ${fullCheckWorkflow === "none" ? "not run" : `${fullCheckWorkflow}: ${fullCheck}`} |`,
     `| Files changed | ${stats.files} |`,
@@ -371,7 +375,7 @@ export function prBody({ issue, runUrl, source, measured, decision, stats, fullC
     `| Adds a skip marker | ${stats.addsSkip ? "yes" : "no"} |`,
     "",
     ...(decision.verdict === "failures-remain" ? ["Runs still failed after the change, in tests the failure logs did not name. They were clearly fewer than before. The names of those tests are in the issue; decide from them whether this change is enough.", ""] : []),
-    ...(stats.testOnly ? ["This change touches only test files. Every test that ran before it still ran after it and passed. That does not show the tests still check the same thing: read the change for emptied test bodies, weaker assertions and longer deadlines.", ""] : []),
+    ...(stats.testOnly ? ["This change touches only test files. The measurement does not show the tests still check the same thing: read the change for emptied test bodies, weaker assertions and longer deadlines.", ""] : []),
     ...(otherTestFiles.length ? [`The measurement repeated one test file. The change also touches ${otherTestFiles.length} other test files, which were not compared: ${[...otherTestFiles.filter(file => SAFE_PATH.test(file)).map(file => `\`${file}\``), ...(otherTestFiles.some(file => !SAFE_PATH.test(file)) ? ["others whose names are not shown"] : [])].join(", ")}.`, ""] : []),
     "The cause and what was repeated are in the issue.",
     "",
@@ -446,7 +450,7 @@ export function reproductionLines(reproduction) {
   return lines;
 }
 
-export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, duplicateOf, agent, notes }) {
+export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes }) {
   const lines = [
     `Attempt: run ${runId}`,
     `Run: ${runUrl}`,
@@ -456,6 +460,7 @@ export function attemptRecord({ runId, runUrl, state, source, reproduction, meas
     `Before the change: ${measured ? `${measured.before.failed} failed of ${measured.before.runs} runs, ${measured.before.original} in a named test` : "not measured"}`,
     `Verification: ${measured && decision ? `${measured.after.failed} failed of ${measured.after.runs} runs after the change, ${measured.after.original} in a named test, ${decision.required} required, ${decision.verdict}` : "not measured"}`,
     ...Object.entries(remaining ?? {}).map(([name, times]) => `Failed after the change: ${times} runs, ${inert(name)}`),
+    ...(measured && decision ? [`Tests compared before and after: ${Number(compared) > 0 ? compared : "none"}`] : []),
     ...Object.entries(missing ?? {}).map(([name, times]) => `Ran before the change and not after it: ${times} passing runs, ${inert(name)}`),
     `Full check: ${fullCheckWorkflow && fullCheckWorkflow !== "none" ? `${fullCheckWorkflow}: ${fullCheck ?? "not run"}` : "not run"}`,
     `Pull request: ${pr ? `#${pr}` : duplicateOf ? `none, same change as #${duplicateOf}` : "none"}`,
@@ -814,6 +819,7 @@ const commands = {
       after: counts(measured.after),
       remaining: JSON.stringify(shortNames(measured.remaining)),
       missing: JSON.stringify(shortNames(measured.missing)),
+      compared: measured.compared,
     });
   },
   body(args) {
@@ -821,7 +827,7 @@ const commands = {
     const judged = readJudged(args);
     if (!judged) throw new Error("the measured counts are missing");
     const otherTestFiles = changedFiles(patch).filter(file => isTestFile(file) && file !== plan.file);
-    writeFileSync(args.out, prBody({ issue: Number(args.issue), runUrl: args["run-url"], source: args.source, ...judged, stats: changeStats(patch), fullCheck: args["full-check"], fullCheckWorkflow: args.workflow, otherTestFiles }));
+    writeFileSync(args.out, prBody({ issue: Number(args.issue), runUrl: args["run-url"], source: args.source, ...judged, stats: changeStats(patch), fullCheck: args["full-check"], fullCheckWorkflow: args.workflow, otherTestFiles, compared: Number(args.compared) || 0 }));
     output({ title: prTitle(Number(args.issue)) });
   },
   record(args) {
@@ -877,7 +883,7 @@ const commands = {
       fullCheck,
       pr,
     });
-    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, duplicateOf, agent, notes }));
+    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes }));
     output({ state });
   },
 };
