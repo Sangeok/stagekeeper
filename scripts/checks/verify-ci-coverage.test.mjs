@@ -326,3 +326,4 @@ it("keeps every job of the check workflow behind the one job that the dev rulese
   assert.match(required.text, /^ {4}if: \$\{\{ always\(\) && github\.event_name == 'pull_request' \}\}$/m);
   assert.doesNotMatch(required.text, /continue-on-error/);
 });
+
