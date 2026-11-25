@@ -13,7 +13,7 @@ export const DOCS_PAGES = [
     id: "overview",
     path: docsPath("overview"),
     nav: "Overview",
-    title: "Stagekeeper docs — Claude Code pipeline with approval gates",
+    title: "Stagekeeper docs — Pipeline and records for Claude Code",
     description: "Learn how Stagekeeper connects Claude Code to a development pipeline, approval gates, and records in your own repository.",
   },
   {

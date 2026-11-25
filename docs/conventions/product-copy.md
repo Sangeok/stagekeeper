@@ -163,7 +163,7 @@ Until it is in, the main loop waits for acceptance. Only a recorded failure make
 | Where | Copy |
 | --- | --- |
 | `<title>` | Stagekeeper |
-| meta description | Agent development pipeline with human approval gates. |
+| meta description | Agent development pipeline with records linked to your repository. |
 | `<html lang>` | `en` |
 | App header | **Stagekeeper** / `harness-smoke` ▾ — menu: the other projects · All projects · New project. Right: GitHub login, mono |
 | Project tabs | Board · Inbox · Backlog · Pipeline · History · Tokens |
@@ -1703,7 +1703,7 @@ Approval gates → Security. Only the article body has the exception in this fil
 metadata and common controls below stay locked to the rendered pages.
 
 <!-- copy-lock:docs-meta -->
-> Stagekeeper docs — Claude Code pipeline with approval gates
+> Stagekeeper docs — Pipeline and records for Claude Code
 > Learn how Stagekeeper connects Claude Code to a development pipeline, approval gates, and records in your own repository.
 > Get started
 > Connect a repository to Stagekeeper, install the Claude Code plugin, and run your first backlog item.

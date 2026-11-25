@@ -24,7 +24,7 @@ const mono = localFont({
 export const metadata: Metadata = {
   metadataBase: siteUrl(),
   title: "Stagekeeper",
-  description: "Agent development pipeline with human approval gates.",
+  description: "Agent development pipeline with records linked to your repository.",
   openGraph: { siteName: "Stagekeeper", type: "website" },
   robots: { index: false, follow: false },
 };
