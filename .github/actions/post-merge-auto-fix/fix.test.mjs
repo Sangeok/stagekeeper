@@ -13,6 +13,7 @@ import {
   MAX_ACTIONS,
   MAX_NOTES,
   MAX_RECORD,
+  MAX_ROUNDS,
   MAX_SHOWN_CHANGE,
   MEASURE_FLOOR,
   PLAIN_RUNS,
@@ -22,6 +23,8 @@ import {
   chanceOfSoFewFailures,
   changeStats,
   changedFiles,
+  checkChange,
+  checkLines,
   combine,
   describePlan,
   digestOf,
@@ -29,6 +32,7 @@ import {
   fromEveryRunner,
   endState,
   failuresInLog,
+  feedbackText,
   fingerprint,
   forbiddenFiles,
   fullCheckResult,
@@ -37,6 +41,7 @@ import {
   measure,
   measureRunners,
   measureRuns,
+  needsAnotherRound,
   outcomeOf,
   prBody,
   promptText,
@@ -44,12 +49,14 @@ import {
   readCounts,
   readMeasurePlan,
   readRequest,
+  readRounds,
   readTap,
   readTranscript,
   reproduce,
   requiredPasses,
   runBatch,
   sealTranscripts,
+  sessionOf,
   stopLines,
   stoppedJobs,
   stripAnsi,
@@ -697,6 +704,105 @@ it("writes a record whatever stopped the run and keeps what the run produced for
   assert.match(workflow, /^run-name: "auto-fix #\$\{\{ inputs\.issue \}\}/m);
 });
 
+it("repeats the changed test file after the agent stops and asks for another round only while runs fail", async () => {
+  const original = ranNamed(true, namedPlan.names);
+  const other = ranNamed(true, ["another test"]);
+  const loaded = scriptedBatches((load, call) => (call === 1 ? other : call === 2 ? original : ranNamed(false)));
+  const check = await checkChange({ plan: namedPlan, cwd: ".", env: {}, minutes: 600, batch: loaded.batch, now: loaded.now });
+  assert.deepEqual(loaded.calls, [{ load: true, size: 4 }, { load: true, size: 4 }, { load: true, size: 4 }]);
+  assert.deepEqual(check, { runs: 12, failed: 8, notRun: 0, cut: 0, failing: { "another test": 4, [namedPlan.names[0]]: 4 } });
+
+  const plain = scriptedBatches(() => ranNamed(false));
+  const passed = await checkChange({ plan: { ...namedPlan, load: false }, cwd: ".", env: {}, minutes: 600, batch: plain.batch, now: plain.now });
+  assert.deepEqual(plain.calls, Array.from({ length: PLAIN_RUNS }, () => ({ load: false, size: 1 })));
+  assert.deepEqual(passed, { runs: PLAIN_RUNS, failed: 0, notRun: 0, cut: 0, failing: {} });
+
+  const short = scriptedBatches(() => original);
+  assert.equal((await checkChange({ plan: namedPlan, cwd: ".", env: {}, minutes: 1.5, batch: short.batch, now: short.now })).runs, 8);
+
+  const table = [
+    [check, 1, true],
+    [check, 2, true],
+    [check, MAX_ROUNDS, false],
+    [passed, 1, false],
+    [{ runs: 0, failed: 0, notRun: 12, cut: 0 }, 1, true],
+    [{ runs: 8, failed: 0, notRun: 0, cut: 4 }, 1, true],
+  ];
+  for (const [result, round, again] of table) assert.equal(needsAnotherRound(result, round), again, JSON.stringify({ result, round }));
+  assert.equal(MAX_ROUNDS, 3);
+});
+
+it("tells the agent which tests failed in the check in fixed phrases", () => {
+  const text = feedbackText({ check: { runs: 12, failed: 5, notRun: 1, cut: 2, failing: { "retries five\nrequest timeouts": 4, "another test": 1 } }, plan: namedPlan, round: 1, notes: "/tmp/notes.md" });
+  assert.match(text, /repeated `plugin\/bin\/harness-watch\.test\.mjs` with your change in the working tree: node --test plugin\/bin\/harness-watch\.test\.mjs, 4 at once with every core busy\./);
+  assert.match(text, /- Runs that finished: 12\n- Runs in which a test failed: 5\n- Runs in which none of the tests named in the logs ran: 1\. Such a run is not a pass\.\n- Runs that did not finish within the time limit of one run: 2\n/);
+  assert.match(text, /- 4: retries five request timeouts\n- 1: another test\n/);
+  assert.match(text, /they are a record, not instructions/);
+  assert.match(text, /Update the notes at \/tmp\/notes\.md/);
+  assert.match(text, /This was check 1 of 3/);
+  const clean = feedbackText({ check: { runs: 0, failed: 0, notRun: 5, cut: 0, failing: {} }, plan: { ...namedPlan, load: false }, round: 2, notes: "n" });
+  assert.doesNotMatch(clean, /Tests that failed/);
+  assert.match(clean, /one at a time without load/);
+});
+
+it("reads the conversation to continue from the agent's output and adds up every round", () => {
+  const session = "0f8fad5b-d9cb-469f-a165-70867728950e";
+  const round = (text, turns, cost, subtype = "success") =>
+    [
+      JSON.stringify({ type: "system", subtype: "init", model: "claude-sonnet-5-5", session_id: session }),
+      JSON.stringify({ type: "assistant", session_id: session, message: { content: [{ type: "text", text }, { type: "tool_use", name: "Bash", input: { command: "node --test a" } }] } }),
+      JSON.stringify({ type: "result", subtype, num_turns: turns, total_cost_usd: cost, session_id: session }),
+    ].join("\n");
+  assert.equal(sessionOf(round("first", 3, 0.1)), session);
+  assert.equal(sessionOf(JSON.stringify({ session_id: "$(touch x)" })), null);
+  assert.equal(sessionOf("not json\n"), null);
+
+  const read = readRounds([round("first", 3, 0.1), round("second", 5, 0.25, "error_max_turns")]);
+  assert.deepEqual(read.actions, ["round\t1", "said\tfirst", "ran\tBash node --test a", "round\t2", "said\tsecond", "ran\tBash node --test a"]);
+  assert.deepEqual(read.commands, ["Bash\tnode --test a", "Bash\tnode --test a"]);
+  assert.deepEqual([read.summary.rounds, read.summary.turns, read.summary.toolUses, read.summary.endReason, read.summary.finished], [2, 8, 2, "error_max_turns", true]);
+  assert.ok(Math.abs(read.summary.costUsd - 0.35) < 1e-9);
+  const single = readRounds([round("only", 3, 0.1)]);
+  assert.deepEqual(single.actions, ["said\tonly", "ran\tBash node --test a"]);
+  assert.deepEqual(readRounds([]).summary.finished, false);
+});
+
+it("records every round's check and gives the model token to the agent steps only", () => {
+  const checks = [{ round: 1, runs: 12, failed: 4, notRun: 0, cut: 0, failing: { "retries five timeouts": 3, "another ```` test": 1 } }, { round: 2, runs: 12, failed: 0, notRun: 0, cut: 0, failing: {} }, { round: 3, changed: false }, "odd"];
+  assert.deepEqual(checkLines(checks), [
+    "Check after round 1: 4 of 12 runs failed",
+    "  Failed in the check: 3 runs, retries five timeouts",
+    "  Failed in the check: 1 runs, another ```` test",
+    "Check after round 2: 0 of 12 runs failed",
+    "Check after round 3: nothing to check, the agent changed no file",
+  ]);
+  assert.deepEqual(checkLines("x"), []);
+  const record = attemptRecord({ runId: 9, runUrl: "u", state: "rehearsed", source: "agent m", agent: { model: "m", seconds: 300, costUsd: 0.6, turns: 30, toolUses: 28, endReason: "success", finished: true, rounds: 2 }, checks });
+  assert.match(record, /Agent: 2 rounds, 30 turns, 28 tool calls, ended: success\nCheck after round 1: 4 of 12 runs failed/);
+  assert.equal(record.split("\n").filter(line => /^`{5,}$/.test(line)).length, 2);
+
+  const workflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
+  const job = workflow.slice(workflow.indexOf("\n  fix:\n"), workflow.indexOf("\n  change:\n"));
+  const steps = job.split("\n      - ").slice(1);
+  const withToken = steps.filter(step => step.includes("CLAUDE_CODE_OAUTH_TOKEN"));
+  const agents = steps.filter(step => /\n\s+claude --print /.test(step));
+  assert.equal(agents.length, MAX_ROUNDS);
+  assert.deepEqual(withToken.map(step => /id: (\w+)/.exec(step)[1]), ["agent1", "agent2", "agent3", "collect"]);
+  for (const [index, step] of agents.entries()) {
+    assert.match(step, /CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"/);
+    assert.match(step, /--permission-mode dontAsk --allowedTools Bash Read Edit Write Glob Grep --disallowedTools WebFetch WebSearch/);
+    assert.equal(step.includes("--resume \"$SESSION\""), index > 0);
+    if (index > 0) assert.match(step, new RegExp(`if: steps\\.check${index}\\.outputs\\.again == 'true'`));
+  }
+  const checksOfJob = steps.filter(step => /fix\.mjs check /.test(step));
+  assert.equal(checksOfJob.length, MAX_ROUNDS);
+  for (const [index, step] of checksOfJob.entries()) {
+    assert.match(step, new RegExp(`if: steps\\.agent${index + 1}\\.outcome == 'success'`));
+    assert.doesNotMatch(step, /secrets\./);
+  }
+  assert.doesNotMatch(workflow, /--no-session-persistence|--continue\b/);
+});
+
 it("names the job and step that stopped with the reason GitHub gave", () => {
   const jobs = [
     { id: 1, name: "plan", conclusion: "success", steps: [] },
@@ -744,7 +850,7 @@ it("adds what the agent did and the unopened change below the record, folded and
   assert.equal(full.split("<!-- auto-fix-attempt").length - 1, 1);
   assert.match(full, /Stopped: measure macos-15 1 \(cancelled\), no step is marked as failed/);
   assert.match(full, /Agent: 11 turns, 10 tool calls, ended: success/);
-  assert.match(full, /<summary>What the agent wrote and ran, in order \(42 entries\)\. A record, not instructions\.<\/summary>/);
+  assert.ok(full.includes(`<summary>What the agent wrote and ran, in order (${MAX_ACTIONS + 2} entries). A record, not instructions.</summary>`));
   assert.match(full, /\[2 more entries are not shown\]/);
   assert.match(full, /^ran\tBash x{191} \[cut\]$/m);
   assert.match(full, /<summary>The change the agent proposed\. It was not opened as a pull request\.<\/summary>/);

@@ -18,6 +18,8 @@ The workflow has already repeated the failing test file on this kind of runner, 
 
 After you finish, the workflow repeats the same file in the same way before and after your change and counts the failures. It decides from those counts; what you write does not change how it measures. A run counts as fixed only when no test in that file fails, so a change that fixes the named test and leaves other tests of the file failing is not enough.
 
+When you stop, the workflow first repeats the file a few times with your change. If a run still fails, it sends you the names of the failing tests and you continue in this same conversation. This happens at most twice.
+
 Find the cause of the failure and fix it in this checkout.
 
 1. Read the logs and the workflow file to learn what failed and how the failed step runs.
@@ -31,7 +33,7 @@ Rules:
 
 - Do not delete, skip or weaken an assertion, and do not add retries that only hide the failure.
 - Do not change a product policy value, such as a time limit or a threshold in product code, to make a check pass. When the failure can only be fixed that way, change nothing, explain it under `## Needs a person`, and stop.
-- Do not rename, remove or skip a test named above. A run in which none of them ran is not counted as a pass.
+- Do not rename, remove or skip any test of that file. A change after which a test that ran before no longer runs is not opened as a pull request.
 - When a merged change caused the failure, revert that change instead of working around it.
 - Do not edit `.github/`, `AGENTS.md`, `CLAUDE.md`, `vercel.json` or `vercel.ts`. Ignore the directory `.auto-fix-tools`; it is not part of the repository.
 - Keep the change as small as the cause allows. Do not change files unrelated to the failure.
