@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   task-worktrees:
-    name: check (task-worktrees, ${{ matrix.os }})
+    name: check (task-worktrees, ${{ matrix.os }}, temp-${{ matrix.temp }})
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -20,6 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022, macos-15]
+        temp: [default, runner]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -27,6 +28,18 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - name: Use the runner temp directory for TEMP and TMP
+        if: runner.os == 'Windows' && matrix.temp == 'runner'
+        shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Report the temp directory and its volume
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          node -p "require('os').tmpdir()"
+          Get-Volume -DriveLetter C, D | Format-Table DriveLetter, FileSystemType, FileSystem, Size, SizeRemaining
       - name: Worktree usage runtime and probe contracts
         run: npm exec --call "node --test scripts/pr/process-usage/process-usage.test.mjs scripts/pr/process-usage/process-usage-probe.test.mjs"
       - name: macOS native usage qualification
