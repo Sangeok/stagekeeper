@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       runner:
-        description: Runner of the failed job, used for the agent and the measurement
+        description: Runner of the failed job, used for the reproduction, the agent and the measurement
         required: true
         type: choice
         options: [windows-2022, macos-15, macos-15-intel, ubuntu-latest]
@@ -18,11 +18,11 @@ on:
         type: choice
         options: [windows-role-runtime, macos-runtime-contracts, none]
       source:
-        description: Where the change comes from
+        description: Where the change comes from. reproduce-only repeats the failing test, records what it saw and asks for no change
         required: true
         type: choice
         default: prepared
-        options: [prepared, agent]
+        options: [prepared, agent, reproduce-only]
       prepared:
         description: For a prepared change, its name under .github/actions/post-merge-auto-fix/prepared
         required: false
@@ -34,13 +34,19 @@ on:
         default: claude-sonnet-5-5
         options: [claude-sonnet-5-5, claude-opus-5-5]
       runs:
-        description: For an agent, the failed run numbers whose logs it reads, separated by commas
+        description: For an agent or reproduce-only, the failed run numbers whose logs name the failing test, separated by commas
         required: false
         type: string
       job:
-        description: For an agent, the name of the failed job in those runs
+        description: For an agent or reproduce-only, the name of the failed job in those runs
         required: false
         type: string
+      reproduction:
+        description: For an agent. skip calls it without reproducing the failure first and marks the result as not reproduced
+        required: false
+        type: choice
+        default: required
+        options: [required, skip]
       commit:
         description: Practice only. A full commit id to work on instead of dev. Opens no pull request and calls no full check
         required: false
@@ -74,6 +80,7 @@ jobs:
       runs: ${{ steps.plan.outputs.runs }}
       job: ${{ steps.plan.outputs.job }}
       rehearsal: ${{ steps.plan.outputs.rehearsal }}
+      reproduction: ${{ steps.plan.outputs.reproduction }}
       base: ${{ steps.plan.outputs.base }}
     steps:
       - uses: actions/checkout@v5
@@ -92,6 +99,7 @@ jobs:
           INPUT_SOURCE: ${{ inputs.source }}
           INPUT_MODEL: ${{ inputs.model }}
           INPUT_COMMIT: ${{ inputs.commit }}
+          INPUT_REPRODUCTION: ${{ inputs.reproduction }}
           INPUT_RUNS: ${{ inputs.runs }}
           INPUT_JOB: ${{ inputs.job }}
         run: |
@@ -99,9 +107,112 @@ jobs:
           test -n "$dev"
           node .github/actions/post-merge-auto-fix/fix.mjs plan --run "$GITHUB_RUN_ID" --dev "$dev"
 
-  fix:
+  reproduce:
     needs: [plan]
-    if: needs.plan.outputs.source == 'agent'
+    if: needs.plan.outputs.source != 'prepared'
+    name: reproduce ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, macos-15, macos-15-intel, ubuntu-latest]
+    steps:
+      - name: Run only on the runner of the failed job
+        id: gate
+        shell: bash
+        env:
+          WANTED: ${{ needs.plan.outputs.runner }}
+          THIS: ${{ matrix.runner }}
+        run: echo "run=$([ "$WANTED" = "$THIS" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Check out the code without a remote
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          BASE: ${{ needs.plan.outputs.base }}
+        run: |
+          git init --quiet .
+          git fetch --quiet --no-tags "https://github.com/$GITHUB_REPOSITORY.git" "$BASE"
+          git checkout --quiet --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$BASE"
+          echo ".auto-fix-tools/" >> .git/info/exclude
+      - name: Check out the workflow's own tools beside the code
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions
+          path: .auto-fix-tools
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+      - name: Download the logs of the failed job
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNS: ${{ needs.plan.outputs.runs }}
+          JOB: ${{ needs.plan.outputs.job }}
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs logs --repository "$GITHUB_REPOSITORY" --runs "$RUNS" --job "$JOB" --out "$RUNNER_TEMP/auto-fix-input"
+      - name: Prepare project dependencies
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npm run db:generate
+      - name: Prepare the Windows role runtime
+        if: steps.gate.outputs.run == 'true' && runner.os == 'Windows'
+        uses: ./.auto-fix-tools/.github/actions/setup-windows-role-runtime
+        with:
+          build-on-miss: "false"
+      - name: Prepare the macOS runtime
+        if: steps.gate.outputs.run == 'true' && runner.os == 'macOS'
+        uses: ./.auto-fix-tools/.github/actions/setup-macos-runtime
+      - name: Repeat the test file named in the logs, without load first
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          RUNNER_NAME: ${{ matrix.runner }}
+          SKIP: ${{ needs.plan.outputs.reproduction == 'skip' }}
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs reproduce --logs "$RUNNER_TEMP/auto-fix-input" --cwd "$GITHUB_WORKSPACE" --runner "$RUNNER_NAME" --skip "$SKIP" --minutes 45 --out "$RUNNER_TEMP/auto-fix-reproduction"
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          name: auto-fix-reproduction
+          path: ${{ runner.temp }}/auto-fix-reproduction
+          retention-days: 7
+          if-no-files-found: error
+
+  reproduction:
+    needs: [plan, reproduce]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.source != 'prepared' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      kind: ${{ steps.read.outputs.kind }}
+      proceed: ${{ steps.read.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/post-merge-auto-fix
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: auto-fix-reproduction
+          path: ${{ runner.temp }}/auto-fix-reproduction
+      - name: Read what the reproduction found
+        id: read
+        shell: bash
+        run: node .github/actions/post-merge-auto-fix/fix.mjs reproduction --dir "$RUNNER_TEMP/auto-fix-reproduction"
+
+  fix:
+    needs: [plan, reproduction]
+    if: ${{ !cancelled() && needs.plan.outputs.source == 'agent' && needs.reproduction.outputs.proceed == 'true' }}
     name: fix ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -165,6 +276,11 @@ jobs:
       - name: Prepare the macOS runtime
         if: steps.gate.outputs.run == 'true' && runner.os == 'macOS'
         uses: ./.auto-fix-tools/.github/actions/setup-macos-runtime
+      - uses: actions/download-artifact@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          name: auto-fix-reproduction
+          path: ${{ runner.temp }}/auto-fix-reproduction
       - name: Install Claude Code (Windows)
         if: steps.gate.outputs.run == 'true' && runner.os == 'Windows'
         shell: pwsh
@@ -185,7 +301,7 @@ jobs:
           JOB: ${{ needs.plan.outputs.job }}
         run: |
           mkdir -p "$RUNNER_TEMP/auto-fix-agent"
-          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs prompt --workflow "$WORKFLOW" --job "$JOB" --logs "$RUNNER_TEMP/auto-fix-input" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --plan "$RUNNER_TEMP/auto-fix-agent/measure.json" --out "$RUNNER_TEMP/auto-fix-input/prompt.md"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs prompt --workflow "$WORKFLOW" --job "$JOB" --logs "$RUNNER_TEMP/auto-fix-input" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --out "$RUNNER_TEMP/auto-fix-input/prompt.md"
           git add -A
           git write-tree > "$RUNNER_TEMP/auto-fix-input/base-tree"
           git reset --quiet
@@ -213,7 +329,7 @@ jobs:
           MODEL: ${{ needs.plan.outputs.model }}
         run: |
           seconds="$(( $(date +%s) - $(cat "$RUNNER_TEMP/auto-fix-input/started") ))"
-          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs collect --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --transcript "$RUNNER_TEMP/auto-fix-agent/transcript.jsonl" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --plan "$RUNNER_TEMP/auto-fix-agent/measure.json" --seconds "$seconds" --model "$MODEL" --out "$RUNNER_TEMP/auto-fix-output"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs collect --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --transcript "$RUNNER_TEMP/auto-fix-agent/transcript.jsonl" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --seconds "$seconds" --model "$MODEL" --out "$RUNNER_TEMP/auto-fix-output"
       - uses: actions/upload-artifact@v4
         if: always() && steps.collect.outcome == 'success'
         with:
@@ -223,8 +339,8 @@ jobs:
           if-no-files-found: error
 
   change:
-    needs: [plan, fix]
-    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    needs: [plan, reproduction, fix]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.plan.outputs.source == 'prepared' || (needs.plan.outputs.source == 'agent' && needs.reproduction.outputs.proceed == 'true')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -244,6 +360,11 @@ jobs:
         with:
           name: auto-fix-agent-output
           path: ${{ runner.temp }}/auto-fix-agent
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.source == 'agent'
+        with:
+          name: auto-fix-reproduction
+          path: ${{ runner.temp }}/auto-fix-reproduction
       - name: Check the change and publish its digests
         id: change
         shell: bash
@@ -251,7 +372,7 @@ jobs:
           SOURCE: ${{ needs.plan.outputs.source }}
           PREPARED: ${{ needs.plan.outputs.prepared }}
           MODEL: ${{ needs.plan.outputs.model }}
-        run: node .github/actions/post-merge-auto-fix/fix.mjs change --source "$SOURCE" --prepared "$PREPARED" --model "$MODEL" --agent "$RUNNER_TEMP/auto-fix-agent" --out "$RUNNER_TEMP/auto-fix"
+        run: node .github/actions/post-merge-auto-fix/fix.mjs change --source "$SOURCE" --prepared "$PREPARED" --model "$MODEL" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --out "$RUNNER_TEMP/auto-fix"
       - uses: actions/upload-artifact@v4
         if: steps.change.outputs.change == 'ready'
         with:
@@ -270,7 +391,7 @@ jobs:
       fail-fast: false
       matrix:
         runner: [windows-2022, macos-15, macos-15-intel, ubuntu-latest]
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - name: Run only on the runner of the failed job
         id: gate
@@ -315,17 +436,16 @@ jobs:
       - name: Prepare the macOS runtime
         if: steps.gate.outputs.run == 'true' && runner.os == 'macOS'
         uses: ./.auto-fix-tools/.github/actions/setup-macos-runtime
-      - name: Repeat the command before and after the change in turn
+      - name: Repeat the test file before and after the change in turn
         if: steps.gate.outputs.run == 'true'
         shell: bash
         env:
-          STAGEKEEPER_MACOS_RUNTIME_REQUIRED: ${{ runner.os == 'macOS' && '1' || '' }}
-          STAGEKEEPER_RELEASED_READERS: required
+          RUNNER_NAME: ${{ matrix.runner }}
           PATCH_SHA: ${{ needs.change.outputs.patch_sha }}
           PLAN_SHA: ${{ needs.change.outputs.plan_sha }}
         run: |
           mkdir -p "$RUNNER_TEMP/auto-fix-result"
-          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs measure --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --cwd "$GITHUB_WORKSPACE" --minutes 40 --out "$RUNNER_TEMP/auto-fix-result/result.json"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs measure --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --cwd "$GITHUB_WORKSPACE" --runner "$RUNNER_NAME" --minutes 45 --out "$RUNNER_TEMP/auto-fix-result/result.json"
       - uses: actions/upload-artifact@v4
         if: steps.gate.outputs.run == 'true'
         with:
@@ -349,6 +469,7 @@ jobs:
       required: ${{ steps.decide.outputs.required }}
       before: ${{ steps.decide.outputs.before }}
       after: ${{ steps.decide.outputs.after }}
+      remaining: ${{ steps.decide.outputs.remaining }}
       pushed: ${{ steps.push.outputs.pushed }}
       duplicate: ${{ steps.duplicate.outputs.pr }}
     steps:
@@ -497,7 +618,7 @@ jobs:
           esac
 
   record:
-    needs: [plan, fix, change, measure, branch, full-windows, full-macos, pull-request]
+    needs: [plan, reproduce, reproduction, fix, change, measure, branch, full-windows, full-macos, pull-request]
     if: ${{ always() && needs.plan.outputs.issue != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -521,6 +642,12 @@ jobs:
         with:
           name: auto-fix-agent-output
           path: ${{ runner.temp }}/auto-fix-agent
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.source != 'prepared'
+        continue-on-error: true
+        with:
+          name: auto-fix-reproduction
+          path: ${{ runner.temp }}/auto-fix-reproduction
       - name: Write the attempt record to the issue
         shell: bash
         env:
@@ -531,6 +658,7 @@ jobs:
           REHEARSAL: ${{ needs.plan.outputs.rehearsal }}
           MODEL: ${{ needs.plan.outputs.model }}
           SOURCE: ${{ needs.change.outputs.source }}
+          REQUESTED: ${{ needs.plan.outputs.source }}
           CHANGED: ${{ needs.change.outputs.change }}
           REFUSED: ${{ needs.change.outputs.refused }}
           PATCH_SHA: ${{ needs.change.outputs.patch_sha }}
@@ -540,11 +668,12 @@ jobs:
           REQUIRED: ${{ needs.branch.outputs.required }}
           BEFORE: ${{ needs.branch.outputs.before }}
           AFTER: ${{ needs.branch.outputs.after }}
+          REMAINING: ${{ needs.branch.outputs.remaining }}
           PUSHED: ${{ needs.branch.outputs.pushed }}
           DUPLICATE: ${{ needs.branch.outputs.duplicate }}
           FULL: ${{ needs.pull-request.outputs.full_check }}
           PR: ${{ needs.pull-request.outputs.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "$SOURCE" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
+          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"

@@ -1,4 +1,8 @@
 {
-  "command": "node --test scripts/checks/auto-fix-pr-path.test.mjs",
-  "runs": 3
+  "file": "scripts/checks/auto-fix-pr-path.test.mjs",
+  "names": [],
+  "match": "any",
+  "load": false,
+  "runs": 3,
+  "kind": "prepared"
 }
