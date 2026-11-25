@@ -34,7 +34,7 @@ follow-up: []
 겹치며, 워크플로 이름이 역할을 말하지 않는다. 실제로 헷갈린 사례로 확인된 것은 첫째 하나다. 이
 문서와 같은 변경에서 [verification.md](../../architecture/verification.md)의 `check` 문단에 그 설명을
 더했다. 나머지 둘은 참고 저장소와 비교해 추론한 것이라 지금 바꾸지 않는다. 하나는 보류하고, 하나는
-`task-worktrees` 잡 분리 작업에 묶었다(Follow-up Actions). 워크플로·잡 이름·룰셋은 바꾸지 않았다.
+`check.yml`을 바꾸는 진행 중인 작업(PR #447)이 끝난 뒤로 미뤘다(Follow-up Actions). 워크플로·잡 이름·룰셋은 바꾸지 않았다.
 
 ## Problem
 
@@ -206,6 +206,8 @@ microsoft/TypeScript는 Go로 표시돼 제외했다. 위의 10곳은 워크플�
   `.github/actions/post-merge-auto-fix/fix.mjs`를 고쳤고 2026-11-25T05:37:27Z에 병합됐다.
   `verification.md`에서는 CI 범위 표의 자동 수정 행만 바꿔, 이 문서와 같은 변경의 `check` 문단과
   겹치지 않는다.
+- PR #447(`harness/windows-check-speed`, 다른 세션)이 Windows `task-worktrees` 레그를 네 개로 나누는
+  변경을 진행 중이다. `check.yml`, `verification.md`, `scripts/pr/cli-integration.test.mjs`를 고친다.
 - `harness/auto-fix-trust-ruler`(PR 없음)가 새 워크플로 `auto-fix-ruler.yml`을 더한다.
 
 #### 8. CI 관련 파일의 변경 빈도
@@ -274,16 +276,18 @@ microsoft/TypeScript는 Go로 표시돼 제외했다. 위의 10곳은 워크플�
 
 조건부로 할 것: 잡 이름 정리
 
-- [CI 운영 방식 조사](./ci-management-practices-investigation.md)가 권한 `task-worktrees` 잡 분리와 같은
-  PR에서 한다. 두 작업 모두 `check.yml`의 잡 구성, `needs`, CI 범위 표를 고치기 때문이다. 분리를 하지
-  않기로 정하면 하지 않는다.
-- 잡 표시 이름에서 `check (` 접두를 뺀다. `check (static)`은 `static`, `check (task-worktrees, <OS>)`는
-  `task-worktrees (<OS>)`, `check (server-integration)`은 `server-integration`이 된다. `check (required)`는
+- 시작 시점: PR #447(Windows `task-worktrees` 레그를 네 개로 나누는 변경)이 병합되거나 닫힌 뒤에
+  한다. 그 변경이 같은 `check.yml`의 `task-worktrees` matrix와 CI 범위 표를 바꾸므로, 먼저 하면 충돌한다.
+- 시작 조건: `check` 잡 이름이 제목에 들어간 열린 `[post-merge]` 이슈가 없고, `check.yml`을 고치는
+  다른 열린 PR이 없다. 병합 후 실패 이슈의 제목과 자동 수정 도구(`fix.mjs` 648행)가 잡 표시 이름을
+  문자열로 비교하기 때문이다. 비공개 Codex CI가 잡 이름을 참조하는지도 확인할 수 있는 범위에서
+  확인한다.
+- 잡 표시 이름에서 `check (` 접두를 뺀다. `check (static)`은 `static`, `check (task-worktrees, …)`는
+  `task-worktrees (…)`, `check (server-integration)`은 `server-integration`이 된다. `check (required)`는
   룰셋이 요구하므로 그대로 둔다.
 - matrix 잡 id `check`를 내용을 말하는 이름으로 바꾸고(후보 `common`, CI 범위 표의 분류명),
   `required`의 `needs`와 CI 범위 표 키 `check/check`를 함께 바꾼다.
-- 시작 전에 확인한다. 열린 `[post-merge]` 이슈에 옛 잡 이름이 있는지, `fix.mjs`가 잡 표시 이름을
-  비교하는 방식(648행), 비공개 Codex CI가 잡 이름을 참조하는지.
+- 이름 때문에 헷갈린 실제 사례가 없으므로 서두르지 않는다. 위 조건이 갖춰지면 작은 PR 하나로 끝난다.
 
 보류: 워크플로 역할 표
 
