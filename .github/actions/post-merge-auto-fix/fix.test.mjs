@@ -9,8 +9,10 @@ import {
   END_STATES,
   FIX_BRANCH_PREFIX,
   LABELS,
+  LOAD_MEASURE_RUNNERS,
   MAX_NOTES,
   MEASURE_FLOOR,
+  PLAIN_RUNS,
   STEP_ENVIRONMENT,
   attemptRecord,
   branchName,
@@ -20,6 +22,8 @@ import {
   combine,
   describePlan,
   digestOf,
+  droppedTests,
+  fromEveryRunner,
   endState,
   failuresInLog,
   fingerprint,
@@ -28,6 +32,8 @@ import {
   judge,
   leaks,
   measure,
+  measureRunners,
+  measureRuns,
   outcomeOf,
   prBody,
   promptText,
@@ -42,12 +48,13 @@ import {
   runBatch,
   sealTranscripts,
   stripAnsi,
+  testsInEveryRun,
   usageLine,
   verifyChange,
 } from "./fix.mjs";
 
 const namedPlan = { file: "plugin/bin/harness-watch.test.mjs", names: ["honors a longer Retry-After"], match: "named", load: true, runs: 20, kind: "load" };
-const counts = (runs, failed, original = failed, notRun = 0) => ({ runs, failed, original, notRun });
+const counts = (runs, failed, original = failed, notRun = 0, dropped = 0) => ({ runs, failed, original, notRun, dropped });
 
 const patchOf = (file, added = ["+const value = 1;"], removed = []) =>
   [`diff --git a/${file} b/${file}`, "index 1111111..2222222 100644", `--- a/${file}`, `+++ b/${file}`, "@@ -1,2 +1,2 @@", ...removed, ...added, ""].join("\n");
@@ -175,6 +182,8 @@ it("decides from the measured counts whether a pull request may open", () => {
     [counts(0, 0), counts(0, 0), loaded, { verdict: "not-measured", open: false, labels: [], required: 0 }],
     [counts(20, 2), counts(0, 0), loaded, { verdict: "not-measured", open: false, labels: [], required: 0 }],
     [counts(20, 2), counts(19, 0, 0, 1), loaded, { verdict: "not-measured", open: false, labels: [], required: 0 }],
+    [counts(20, 2), counts(30, 0, 0, 0, 1), loaded, { verdict: "tests-dropped", open: false, labels: [], required: 0 }],
+    [counts(5, 5), counts(5, 0), { testOnly: true, kind: "always", load: false }, { verdict: "verified", open: true, labels: [], required: 3 }],
   ];
   for (const [before, after, context, expected] of table) assert.deepEqual(judge({ before, after }, context), expected, JSON.stringify({ before, after, context }));
 });
@@ -218,10 +227,10 @@ it("asks for a clearer drop when the runs shared a load than when they ran alone
 });
 
 it("adds the counts of every measurement job and the tests that still failed", () => {
-  const shard = (before, after, remaining) => ({ before, after, remaining, log: [] });
-  const combined = combine([shard(counts(10, 1), counts(15, 1, 0), { "other test": 1 }), shard(counts(10, 0), counts(10, 2, 0, 1), { "other test": 1, third: 1 })]);
-  assert.deepEqual(combined, { before: counts(20, 1), after: counts(25, 3, 0, 1), remaining: { "other test": 2, third: 1 } });
-  assert.deepEqual(combine([]), { before: counts(0, 0), after: counts(0, 0), remaining: {} });
+  const shard = (before, after, remaining, missing, compared) => ({ before, after, remaining, missing, compared, log: [] });
+  const combined = combine([shard(counts(10, 1), counts(15, 1, 0, 0, 2), { "other test": 1 }, { gone: 2 }, 43), shard(counts(10, 0), counts(10, 2, 0, 1, 1), { "other test": 1, third: 1 }, { gone: 1 }, 41)]);
+  assert.deepEqual(combined, { before: counts(20, 1), after: counts(25, 3, 0, 1, 3), remaining: { "other test": 2, third: 1 }, missing: { gone: 3 }, compared: 41 });
+  assert.deepEqual(combine([]), { before: counts(0, 0), after: counts(0, 0), remaining: {}, missing: {}, compared: 0 });
 });
 
 const ranNamed = (failed, names = []) => ({ failed, timedOut: false, seconds: 60, ran: 43, names, executed: [...namedPlan.names, "another test"] });
@@ -405,6 +414,75 @@ it("counts neither a run the time limit cut off nor a run that did not run a nam
   assert.equal(judge(result, { testOnly: true, kind: "sometimes", load: false }).verdict, "not-measured");
 });
 
+it("compares only the tests that every run before the change executed, as often as each ran", () => {
+  const expected = testsInEveryRun([
+    ["checks the lease", "checks the lease", "writes /tmp/a1", "checks the retry"],
+    ["checks the lease", "checks the lease", "writes /tmp/b2", "checks the retry", "runs only sometimes"],
+  ]);
+  assert.deepEqual([...expected], [["checks the lease", 2], ["checks the retry", 1]]);
+  assert.deepEqual(droppedTests(expected, ["checks the lease", "checks the lease", "checks the retry", "a new test"]), []);
+  assert.deepEqual(droppedTests(expected, ["checks the lease", "checks the retry"]), ["checks the lease"]);
+  assert.deepEqual(droppedTests(expected, ["checks the lease", "checks the lease"]), ["checks the retry"]);
+  assert.deepEqual([...testsInEveryRun([])], []);
+});
+
+it("does not count a pass in which a test that ran before the change no longer ran", async () => {
+  const directory = mkdtempSync(path.join(realpathSync(tmpdir()), "auto-fix-dropped-"));
+  const header = 'import assert from "node:assert/strict";\nimport { it } from "node:test";\n';
+  const failing = 'it("fails before the change", () => assert.equal(1, 2));\n';
+  const fixed = 'it("fails before the change", () => assert.equal(1, 1));\n';
+  const lease = 'it("checks the lease", () => assert.equal(1, 1));\n';
+  const retry = 'it("checks the retry", () => assert.equal(2, 2));\n';
+  const table = [
+    ["keeps every test", `${fixed}${lease}${retry}`, 0, {}, "verified"],
+    ["deletes a test", `${fixed}${lease}`, 3, { "checks the retry": 3 }, "tests-dropped"],
+    ["skips a test", `${fixed}${lease}${retry.replace("it(", "it.skip(")}`, 3, { "checks the retry": 3 }, "tests-dropped"],
+    ["marks a test as to do", `${fixed}${lease}${retry.replace("it(", "it.todo(")}`, 3, { "checks the retry": 3 }, "tests-dropped"],
+    ["swaps a test for one that checks nothing", `${fixed}${lease}it("checks nothing", () => {});\n`, 3, { "checks the retry": 3 }, "tests-dropped"],
+    ["renames a test", `${fixed}${lease}${retry.replace("checks the retry", "checks the retry again")}`, 3, { "checks the retry": 3 }, "tests-dropped"],
+    ["adds a test", `${fixed}${lease}${retry}it("checks more", () => assert.equal(3, 3));\n`, 0, {}, "verified"],
+  ];
+  const plan = { file: "sample.test.mjs", names: ["fails before the change"], match: "named", load: false, runs: 1, kind: "sometimes" };
+  try {
+    for (const [label, after, dropped, missing, verdict] of table) {
+      const write = variant => writeFileSync(path.join(directory, plan.file), `${header}${variant === "after" ? after : `${failing}${lease}${retry}`}`);
+      write("before");
+      const result = await measure({ plan, patch: "unused", cwd: directory, env: {}, minutes: 10, apply: write });
+      assert.deepEqual([result.before, result.after, result.missing, result.compared], [counts(1, 1), counts(3, 0, 0, 0, dropped), missing, 3], label);
+      assert.equal(judge(result, { testOnly: true, kind: plan.kind, load: false }).verdict, verdict, label);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it("measures an always failing test five times on one runner and a load-sensitive one on three", async () => {
+  assert.deepEqual(["always", "sometimes", "load", "skipped"].map(measureRuns), [PLAIN_RUNS, MEASURE_FLOOR, MEASURE_FLOOR, MEASURE_FLOOR]);
+  assert.deepEqual([measureRunners({ load: false }), measureRunners({ load: true })], [1, LOAD_MEASURE_RUNNERS]);
+  const workflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
+  const job = workflow.slice(workflow.indexOf("\n  measure:\n"), workflow.indexOf("\n  branch:\n"));
+  assert.match(job, new RegExp(`shard: \\[${Array.from({ length: LOAD_MEASURE_RUNNERS }, (_, index) => index + 1).join(", ")}\\]`));
+  assert.match(job, /RUNNERS: \$\{\{ needs\.change\.outputs\.runners \}\}/);
+  assert.match(job, /\[ "\$SHARD" -le "\$\{RUNNERS:-3\}" \]/);
+
+  const reported = [{ before: counts(20, 6), after: counts(20, 0) }, { before: counts(20, 5), after: counts(20, 0) }];
+  assert.equal(judge(combine(fromEveryRunner(reported, { load: true })), { testOnly: true, kind: "load", load: true }).verdict, "not-measured");
+  assert.equal(judge(combine(fromEveryRunner([...reported, reported[0]], { load: true })), { testOnly: true, kind: "load", load: true }).verdict, "verified");
+  assert.equal(judge(combine(fromEveryRunner(reported.slice(0, 1), { load: false })), { testOnly: true, kind: "sometimes", load: false }).verdict, "verified");
+  assert.match(workflow, /\n  branch:\n    needs: \[plan, change, measure\]\n    if: \$\{\{ !cancelled\(\) && needs\.change\.outputs\.change == 'ready' && needs\.change\.outputs\.refused == 'false' && needs\.measure\.result != 'skipped' \}\}/);
+
+  const original = ranNamed(true, namedPlan.names);
+  const always = { ...namedPlan, load: false, runs: PLAIN_RUNS, kind: "always" };
+  const steady = scripted({ before: Array.from({ length: PLAIN_RUNS }, () => original), after: [] }, always);
+  const result = await measure({ minutes: 600, ...steady.arguments });
+  assert.deepEqual([result.before, result.after], [counts(5, 5), counts(5, 0)]);
+  assert.equal(judge(result, { testOnly: true, kind: "always", load: false }).verdict, "verified");
+
+  const misjudged = scripted({ before: [original, ranNamed(false), original], after: [] }, always);
+  const wider = await measure({ minutes: 600, ...misjudged.arguments });
+  assert.deepEqual([wider.before, wider.after], [counts(MEASURE_FLOOR, 2), counts(30, 0)]);
+});
+
 it("runs a real test file under load and leaves no load process behind", async () => {
   const directory = mkdtempSync(path.join(realpathSync(tmpdir()), "auto-fix-batch-"));
   const started = [];
@@ -458,6 +536,7 @@ it("names how an attempt ended from what the jobs produced", () => {
     [{ stats }, "unfinished"],
     [{ stats, decision: { verdict: "still-failing", open: false } }, "stillFailing"],
     [{ stats, decision: { verdict: "failing-unreproduced", open: false } }, "failingUnreproduced"],
+    [{ stats, decision: { verdict: "tests-dropped", open: false } }, "testsDropped"],
     [{ stats, decision: { verdict: "not-reproduced", open: false } }, "recordOnly"],
     [{ stats, decision: { verdict: "not-measured", open: false } }, "unfinished"],
     [{ stats, decision: verified, pushed: false }, "unfinished"],
@@ -500,6 +579,13 @@ it("writes the pull request body from numbers and fixed phrases only", () => {
   assert.doesNotMatch(body, /names of those tests are in the issue/);
   const remaining = prBody({ issue: 431, runUrl: "u", source: "agent m", measured: { before: counts(16, 9, 4), after: counts(16, 2, 0) }, decision: { verdict: "failures-remain", required: 6 }, stats: { files: 1 }, fullCheck: "passed", fullCheckWorkflow: "none" });
   assert.match(remaining, /names of those tests are in the issue/);
+  assert.doesNotMatch(body, /touches only test files|were not compared/);
+  const testOnly = prBody({ issue: 431, runUrl: "u", source: "agent m", measured: { before: counts(20, 6), after: counts(20, 0) }, decision: { verdict: "verified", required: 10 }, stats: { files: 2, testOnly: true }, fullCheck: "passed", fullCheckWorkflow: "none", otherTestFiles: ["plugin/runtime/role.test.mjs", "a`b.test.mjs"] });
+  assert.match(testOnly, /touches only test files\. The measurement does not show/);
+  assert.match(testOnly, /\| Tests compared before and after \| none: no test ran in every run before the change, so a dropped test would not be seen \|/);
+  assert.match(prBody({ issue: 431, runUrl: "u", source: "agent m", measured: { before: counts(20, 6), after: counts(20, 0) }, decision: { verdict: "verified", required: 10 }, stats: { files: 1 }, fullCheck: "passed", fullCheckWorkflow: "none", compared: 43 }), /\| Tests compared before and after \| 43, each ran in every passing run after the change \|/);
+  assert.match(testOnly, /emptied test bodies, weaker assertions and longer deadlines/);
+  assert.match(testOnly, /also touches 2 other test files, which were not compared: `plugin\/runtime\/role\.test\.mjs`, others whose names are not shown\./);
   assert.doesNotMatch(body, /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?) #\d/i);
 });
 
@@ -533,6 +619,8 @@ it("keeps the attempt record inside a code block that its own text cannot close"
     pr: null,
     measuredHow: describePlan(namedPlan),
     remaining: { [hostile]: 2 },
+    missing: { [hostile]: 3 },
+    compared: 43,
   });
   const lines = record.split("\n");
   assert.equal(lines[0], "<!-- auto-fix-attempt run=5 end=rehearsed -->");
@@ -547,6 +635,8 @@ it("keeps the attempt record inside a code block that its own text cannot close"
   assert.match(record, /Before the change: 12 failed of 40 runs, 6 in a named test/);
   assert.match(record, /Verification: 2 failed of 40 runs after the change, 0 in a named test, 10 required, failures-remain/);
   assert.match(record, /Failed after the change: 2 runs, echo/);
+  assert.match(record, /Ran before the change and not after it: 3 passing runs, echo/);
+  assert.match(record, /Tests compared before and after: 43/);
   assert.match(record, /Measured: node --test plugin\/bin\/harness-watch\.test\.mjs, 4 at once with every core busy/);
   const unreproduced = attemptRecord({ runId: 6, runUrl: "u", state: "notReproduced", source: "agent m", reproduction: { kind: "not-reproduced", file: namedPlan.file, names: namedPlan.names, plain: counts(5, 0), loaded: counts(30, 0) } });
   assert.match(unreproduced, /no agent was called/);
