@@ -16,7 +16,7 @@ test("only the pr entry and new per-OS regression gates remain in current execut
   assert.equal(manifest.scripts.pr, "node scripts/pr/index.mjs"); assert.equal(manifest.scripts.worktrees, undefined);
   assert.equal(manifest.scripts["branches:cleanup"], undefined);
   const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "check.yml"), "utf8").replace(/\r\n/g, "\n");
-  const matrix = workflow.slice(workflow.indexOf("  task-worktrees:"), workflow.indexOf("\n  check:"));
+  const matrix = workflow.slice(workflow.indexOf("  task-worktrees:"), workflow.indexOf("\n  common:"));
   assert.match(matrix, /\n {10}- os: macos-15\n/); assert.match(matrix, /fetch-depth: 0/);
   const shards = [...matrix.matchAll(/^ {10}- os: windows-2022\n {12}shard: (\d+)$/gm)].map(match => Number(match[1]));
   assert.ok(shards.length > 1); assert.deepEqual(shards, shards.map((_, index) => index + 1));
