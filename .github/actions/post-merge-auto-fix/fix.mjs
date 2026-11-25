@@ -20,6 +20,7 @@ export const LOAD_MAX_RUNS = 30;
 export const LOAD_STOP_FAILURES = 3;
 export const LOAD_PARALLEL = 4;
 export const MEASURE_FLOOR = 20;
+export const LOAD_MEASURE_RUNNERS = 3;
 export const LOAD_DESIGN_EFFECT = 1.5;
 export const CLEARLY_FEWER = 0.05;
 export const REMAINING_SHARE = 0.25;
@@ -185,7 +186,7 @@ export function outcomeOf(result, plan) {
   return plan.names.some(name => result.executed.includes(name)) ? "passed" : "not-run";
 }
 
-const emptyCounts = () => ({ runs: 0, failed: 0, original: 0, notRun: 0 });
+const emptyCounts = () => ({ runs: 0, failed: 0, original: 0, notRun: 0, dropped: 0 });
 
 function count(totals, outcome) {
   if (outcome === "cut") return;
@@ -209,7 +210,7 @@ export function readTap(output) {
     if (match[1] === "not ok") names.push(match[2].trim());
   }
   const ran = /^# tests (\d+)$/m.exec(String(output))?.[1];
-  return { names: [...new Set(names)], executed: [...new Set(executed)], ran: ran === undefined ? null : Number(ran) };
+  return { names: [...new Set(names)], executed, ran: ran === undefined ? null : Number(ran) };
 }
 
 function runTestFile(file, cwd, env, timeoutMs) {
@@ -271,11 +272,34 @@ export async function reproduce({ file, names, cwd, env, minutes, batch = runBat
   return finished(loaded.original > 0 ? "load" : "not-reproduced");
 }
 
+const timesEach = names => {
+  const times = new Map();
+  for (const name of names) times.set(name, (times.get(name) ?? 0) + 1);
+  return times;
+};
+
+export function testsInEveryRun(runs) {
+  const [first, ...rest] = runs.map(timesEach);
+  if (!first) return new Map();
+  return new Map([...first].map(([name, times]) => [name, Math.min(times, ...rest.map(run => run.get(name) ?? 0))]).filter(([, times]) => times > 0));
+}
+
+export function droppedTests(expected, executed) {
+  const times = timesEach(executed);
+  return [...expected].filter(([name, wanted]) => (times.get(name) ?? 0) < wanted).map(([name]) => name);
+}
+
+export const measureRunners = plan => (plan.load ? LOAD_MEASURE_RUNNERS : 1);
+export const measureRuns = kind => (kind === "always" ? PLAIN_RUNS : MEASURE_FLOOR);
+
 export function combine(results) {
   const sum = key => results.reduce((total, result) => Object.fromEntries(Object.keys(total).map(name => [name, total[name] + (result[key]?.[name] ?? 0)])), emptyCounts());
-  const tests = {};
-  for (const result of results) for (const [name, times] of Object.entries(result.remaining ?? {})) tests[name] = (tests[name] ?? 0) + times;
-  return { before: sum("before"), after: sum("after"), remaining: tests };
+  const merged = key => {
+    const tests = {};
+    for (const result of results) for (const [name, times] of Object.entries(result[key] ?? {})) tests[name] = (tests[name] ?? 0) + times;
+    return tests;
+  };
+  return { before: sum("before"), after: sum("after"), remaining: merged("remaining"), missing: merged("missing") };
 }
 
 const choose = (n, k) => {
@@ -299,6 +323,7 @@ export function chanceOfSoFewFailures(before, after, designEffect = 1) {
 export function judge({ before, after }, { testOnly, kind, load }) {
   const none = { open: false, labels: [], required: 0 };
   if (before.runs === 0 || after.runs === 0 || after.notRun > 0) return { verdict: "not-measured", ...none };
+  if (after.dropped > 0) return { verdict: "tests-dropped", ...none };
   if (before.original === 0) {
     if (after.failed > 0) return { verdict: "failing-unreproduced", ...none };
     return { verdict: "not-reproduced", open: kind === "skipped" && testOnly, labels: [LABELS.notReproduced], required: 0 };
@@ -321,7 +346,7 @@ export function fullCheckResult(workflow, results) {
 
 export const prTitle = issue => `fix: auto-fix attempt for #${issue}`;
 
-export function prBody({ issue, runUrl, source, measured, decision, stats, fullCheck, fullCheckWorkflow }) {
+export function prBody({ issue, runUrl, source, measured, decision, stats, fullCheck, fullCheckWorkflow, otherTestFiles = [] }) {
   return [
     `Automatic fix attempt for #${issue}. A person reviews and merges this pull request; the workflow does not merge it.`,
     "",
@@ -346,6 +371,8 @@ export function prBody({ issue, runUrl, source, measured, decision, stats, fullC
     `| Adds a skip marker | ${stats.addsSkip ? "yes" : "no"} |`,
     "",
     ...(decision.verdict === "failures-remain" ? ["Runs still failed after the change, in tests the failure logs did not name. They were clearly fewer than before. The names of those tests are in the issue; decide from them whether this change is enough.", ""] : []),
+    ...(stats.testOnly ? ["This change touches only test files. Every test that ran before it still ran after it and passed. That does not show the tests still check the same thing: read the change for emptied test bodies, weaker assertions and longer deadlines.", ""] : []),
+    ...(otherTestFiles.length ? [`The measurement repeated one test file. The change also touches ${otherTestFiles.length} other test files, which were not compared: ${[...otherTestFiles.filter(file => SAFE_PATH.test(file)).map(file => `\`${file}\``), ...(otherTestFiles.some(file => !SAFE_PATH.test(file)) ? ["others whose names are not shown"] : [])].join(", ")}.`, ""] : []),
     "The cause and what was repeated are in the issue.",
     "",
   ].join("\n");
@@ -361,6 +388,7 @@ export const END_STATES = Object.freeze({
   noOutput: "did not finish: the agent job produced no usable output",
   recordOnly: "recorded only: the change was not opened as a pull request",
   stillFailing: "recorded only: the failure remained after the change",
+  testsDropped: "recorded only: a test that ran before the change did not run after it",
   failingUnreproduced: "recorded only: the failure was not seen before the change and a run failed after it",
   fullCheckFailed: "recorded only: the full check failed on the fix branch",
   duplicate: "recorded only: an open pull request already carries the same change",
@@ -379,6 +407,7 @@ export function endState({ request, reproduction, stats, change, decision, pushe
   if (duplicateOf) return "duplicate";
   if (!decision) return "unfinished";
   if (decision.verdict === "still-failing") return "stillFailing";
+  if (decision.verdict === "tests-dropped") return "testsDropped";
   if (decision.verdict === "failing-unreproduced") return "failingUnreproduced";
   if (!decision.open) return decision.verdict === "not-measured" ? "unfinished" : "recordOnly";
   if (request?.rehearsal) return "rehearsed";
@@ -417,7 +446,7 @@ export function reproductionLines(reproduction) {
   return lines;
 }
 
-export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, duplicateOf, agent, notes }) {
+export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, duplicateOf, agent, notes }) {
   const lines = [
     `Attempt: run ${runId}`,
     `Run: ${runUrl}`,
@@ -427,6 +456,7 @@ export function attemptRecord({ runId, runUrl, state, source, reproduction, meas
     `Before the change: ${measured ? `${measured.before.failed} failed of ${measured.before.runs} runs, ${measured.before.original} in a named test` : "not measured"}`,
     `Verification: ${measured && decision ? `${measured.after.failed} failed of ${measured.after.runs} runs after the change, ${measured.after.original} in a named test, ${decision.required} required, ${decision.verdict}` : "not measured"}`,
     ...Object.entries(remaining ?? {}).map(([name, times]) => `Failed after the change: ${times} runs, ${inert(name)}`),
+    ...Object.entries(missing ?? {}).map(([name, times]) => `Ran before the change and not after it: ${times} passing runs, ${inert(name)}`),
     `Full check: ${fullCheckWorkflow && fullCheckWorkflow !== "none" ? `${fullCheckWorkflow}: ${fullCheck ?? "not run"}` : "not run"}`,
     `Pull request: ${pr ? `#${pr}` : duplicateOf ? `none, same change as #${duplicateOf}` : "none"}`,
     `Usage: ${usageLine(agent)}`,
@@ -518,8 +548,11 @@ export async function measure({ plan, patch, cwd, env, minutes, batch = runBatch
   let applied = false;
   let batches = 0;
   const done = variant => totals[variant].runs + totals[variant].notRun;
-  const wanted = variant => (variant === "before" || totals.before.failed === 0 ? plan.runs : Math.max(plan.runs, requiredPasses(totals.before.runs, totals.before.failed)));
-  const due = variant => done(variant) < wanted(variant) && !(variant === "after" && totals.after.failed > 0 && done("after") >= plan.runs);
+  const floor = () => (plan.kind === "always" && totals.before.failed < totals.before.runs ? Math.max(plan.runs, MEASURE_FLOOR) : plan.runs);
+  const wanted = variant => (variant === "before" || totals.before.failed === 0 ? floor() : Math.max(floor(), requiredPasses(totals.before.runs, totals.before.failed)));
+  const due = variant => done(variant) < wanted(variant) && !(variant === "after" && totals.after.failed > 0 && done("after") >= floor());
+  const executedBefore = [];
+  const executedInPasses = [];
   try {
     for (let round = 1; now() < deadline && (due("before") || due("after")); round++) {
       for (const variant of round % 2 ? ["before", "after"] : ["after", "before"]) {
@@ -533,6 +566,8 @@ export async function measure({ plan, patch, cwd, env, minutes, batch = runBatch
           const outcome = outcomeOf(result, plan);
           count(totals[variant], outcome);
           if (variant === "after" && result.failed && outcome !== "cut") for (const name of result.names) remaining[name] = (remaining[name] ?? 0) + 1;
+          if (variant === "before" && outcome !== "cut") executedBefore.push(result.executed);
+          if (variant === "after" && outcome === "passed") executedInPasses.push(result.executed);
           log.push({ round, batch: batches, variant, outcome, seconds: result.seconds, ran: result.ran, ...(result.names.length ? { tests: result.names.slice(0, 10) } : {}) });
         }
       }
@@ -540,7 +575,14 @@ export async function measure({ plan, patch, cwd, env, minutes, batch = runBatch
   } finally {
     if (applied) apply("before");
   }
-  return { ...totals, remaining, log };
+  const expected = testsInEveryRun(executedBefore);
+  const missing = {};
+  for (const executed of executedInPasses) {
+    const dropped = droppedTests(expected, executed);
+    if (dropped.length) totals.after.dropped += 1;
+    for (const name of dropped) missing[name] = (missing[name] ?? 0) + 1;
+  }
+  return { ...totals, remaining, missing, compared: expected.size, log };
 }
 
 export const digestOf = text => createHash("sha256").update(text).digest("hex");
@@ -599,7 +641,7 @@ function publishChange(out, patch, plan, source) {
   mkdirSync(out, { recursive: true });
   writeFileSync(path.join(out, "change.patch"), patch);
   writeFileSync(path.join(out, "measure.json"), planText);
-  output({ change: "ready", refused: stats.forbidden.length > 0, source, patch_sha: digestOf(patch), plan_sha: digestOf(planText) });
+  output({ change: "ready", refused: stats.forbidden.length > 0, source, patch_sha: digestOf(patch), plan_sha: digestOf(planText), runners: measureRunners(plan) });
 }
 
 const commands = {
@@ -690,7 +732,7 @@ const commands = {
       }
     }
     const reproduction = { kind: result.kind, ...described, plain: result.plain, loaded: result.loaded, others: shortNames(result.others), cutShort: result.cutShort, revertFirst };
-    publish(reproduction, RUNNABLE_KINDS.includes(result.kind) ? { file: print.file, names: print.names, match: "named", load: result.load, runs: MEASURE_FLOOR, kind: result.kind } : null);
+    publish(reproduction, RUNNABLE_KINDS.includes(result.kind) ? { file: print.file, names: print.names, match: "named", load: result.load, runs: measureRuns(result.kind), kind: result.kind } : null);
   },
   reproduction(args) {
     let kind = "none";
@@ -754,7 +796,7 @@ const commands = {
     execFileSync("git", ["apply", "--check", patch], { cwd: args.cwd });
     const result = await measure({ plan, patch, cwd: args.cwd, env: STEP_ENVIRONMENT[args.runner]?.env ?? {}, minutes: Number(args.minutes) });
     writeFileSync(args.out, `${JSON.stringify(result)}\n`);
-    console.log(JSON.stringify({ before: result.before, after: result.after }));
+    console.log(JSON.stringify({ before: result.before, after: result.after, compared: result.compared, missing: result.missing }));
     for (const entry of result.log) console.log(JSON.stringify(entry));
   },
   decide(args) {
@@ -771,13 +813,15 @@ const commands = {
       before: counts(measured.before),
       after: counts(measured.after),
       remaining: JSON.stringify(shortNames(measured.remaining)),
+      missing: JSON.stringify(shortNames(measured.missing)),
     });
   },
   body(args) {
-    const { patch } = readVerified(args);
+    const { patch, plan } = readVerified(args);
     const judged = readJudged(args);
     if (!judged) throw new Error("the measured counts are missing");
-    writeFileSync(args.out, prBody({ issue: Number(args.issue), runUrl: args["run-url"], source: args.source, ...judged, stats: changeStats(patch), fullCheck: args["full-check"], fullCheckWorkflow: args.workflow }));
+    const otherTestFiles = changedFiles(patch).filter(file => isTestFile(file) && file !== plan.file);
+    writeFileSync(args.out, prBody({ issue: Number(args.issue), runUrl: args["run-url"], source: args.source, ...judged, stats: changeStats(patch), fullCheck: args["full-check"], fullCheckWorkflow: args.workflow, otherTestFiles }));
     output({ title: prTitle(Number(args.issue)) });
   },
   record(args) {
@@ -799,6 +843,12 @@ const commands = {
       remaining = shortNames(JSON.parse(args.remaining || "{}"));
     } catch {
       remaining = {};
+    }
+    let missing = {};
+    try {
+      missing = shortNames(JSON.parse(args.missing || "{}"));
+    } catch {
+      missing = {};
     }
     let agent = null;
     let notes = "";
@@ -827,7 +877,7 @@ const commands = {
       fullCheck,
       pr,
     });
-    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, duplicateOf, agent, notes }));
+    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, duplicateOf, agent, notes }));
     output({ state });
   },
 };

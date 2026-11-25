@@ -349,6 +349,7 @@ jobs:
       source: ${{ steps.change.outputs.source }}
       patch_sha: ${{ steps.change.outputs.patch_sha }}
       plan_sha: ${{ steps.change.outputs.plan_sha }}
+      runners: ${{ steps.change.outputs.runners }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -393,13 +394,15 @@ jobs:
         runner: [windows-2022, macos-15, macos-15-intel, ubuntu-latest]
         shard: [1, 2, 3]
     steps:
-      - name: Run only on the runner of the failed job
+      - name: Run only on the runner of the failed job, on as many runners as the kind of failure needs
         id: gate
         shell: bash
         env:
           WANTED: ${{ needs.plan.outputs.runner }}
           THIS: ${{ matrix.runner }}
-        run: echo "run=$([ "$WANTED" = "$THIS" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          SHARD: ${{ matrix.shard }}
+          RUNNERS: ${{ needs.change.outputs.runners }}
+        run: echo "run=$([ "$WANTED" = "$THIS" ] && [ "$SHARD" -le "${RUNNERS:-3}" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v5
         if: steps.gate.outputs.run == 'true'
         with:
@@ -470,6 +473,7 @@ jobs:
       before: ${{ steps.decide.outputs.before }}
       after: ${{ steps.decide.outputs.after }}
       remaining: ${{ steps.decide.outputs.remaining }}
+      missing: ${{ steps.decide.outputs.missing }}
       pushed: ${{ steps.push.outputs.pushed }}
       duplicate: ${{ steps.duplicate.outputs.pr }}
     steps:
@@ -669,11 +673,12 @@ jobs:
           BEFORE: ${{ needs.branch.outputs.before }}
           AFTER: ${{ needs.branch.outputs.after }}
           REMAINING: ${{ needs.branch.outputs.remaining }}
+          MISSING: ${{ needs.branch.outputs.missing }}
           PUSHED: ${{ needs.branch.outputs.pushed }}
           DUPLICATE: ${{ needs.branch.outputs.duplicate }}
           FULL: ${{ needs.pull-request.outputs.full_check }}
           PR: ${{ needs.pull-request.outputs.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
+          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"
