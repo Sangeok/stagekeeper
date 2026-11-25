@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { SiteHeader } from "@/fsd/widgets/site-header";
 import { statusLabel } from "@/fsd/entities/board-item";
-import { gateActionLabel, gateActionHint } from "@/fsd/entities/pipeline";
+import { ACCEPTANCE_CHECK_LABELS, gateActionLabel, gateActionHint, nodeLabel } from "@/fsd/entities/pipeline";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { PROJECT_TABS } from "@/fsd/shared/routes/project";
 import { docsPath } from "@/fsd/shared/routes/docs";
@@ -24,14 +24,45 @@ const CYCLE: { n: number; label: string; you?: true }[] = [
   { n: 7, label: "Accepted" },
 ];
 
-const FACTS = [
+const STEPS = ["plan", "implement", "accept"];
+
+const GATE_SETUPS: { title: string; plans: string; gates: string[]; body: string }[] = [
   {
-    title: "Agents can't approve themselves.",
-    body: "Review plans and open approval gates in the Inbox. Work agents cannot open gates or change the pipeline.",
+    title: "Two gates",
+    plans: "Default on every plan",
+    gates: ["before-plan", "before-implement"],
+    body: "The pipeline waits for you before planning and before implementation.",
   },
+  {
+    title: "One gate",
+    plans: "Pro and Max",
+    gates: ["before-implement"],
+    body: "Planning starts without you. You read the plan and approve before code changes.",
+  },
+  {
+    title: "No gates",
+    plans: "Pro and Max",
+    gates: [],
+    body: "Planning and implementation start without your approval. Acceptance still runs.",
+  },
+];
+
+const ACCEPTANCE_CHECK_MEANINGS: Readonly<Record<string, string>> = {
+  1: "The changed files match the plan's list.",
+  2: "The change matches the plan's implementation sketch.",
+  3: "The verify command runs again and passes.",
+  4: "The backlog entry is gone.",
+  5: "The report record points to a committed file.",
+};
+
+const FACTS = [
   {
     title: "No pass without a record.",
     body: "Follow each item's plans, approvals, and reports. Verified and Accepted appear only when their supporting records exist.",
+  },
+  {
+    title: "Agents can't approve themselves.",
+    body: "Where a gate exists, you open it. Work agents cannot open gates or change the pipeline.",
   },
   {
     title: "Runs in your repository.",
@@ -59,7 +90,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
       <main className="mx-auto w-full max-w-[1040px] px-4 pb-[72px] md:px-6">
         <section className="grid items-start gap-10 py-16 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-14 md:py-[88px]">
           <div>
-            <p className="mb-4 text-sm font-medium text-quiet">Approval gates for Claude Code</p>
+            <p className="mb-4 text-sm font-medium text-quiet">A pipeline for Claude Code</p>
             <h1 className="text-[clamp(34px,4.2vw,54px)] leading-[1.02] font-semibold tracking-[-0.03em] text-balance">
               {HEADLINE.agents}
               <br />
@@ -117,8 +148,63 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
               </li>
             ))}
           </ol>
-          <p className="mt-[26px] text-[15px]">By default, the pipeline waits for you before planning and implementation.</p>
-          <p className="mt-2 max-w-[80ch] text-sm leading-[21px] text-quiet">Free uses a fixed pipeline. Pro and Max add independent plan verification and let you change steps and approval gates.</p>
+          <p className="mt-[26px] max-w-[80ch] text-sm leading-[21px] text-quiet">Verified is an independent plan verification, on Pro and Max. Accepted is the acceptance record.</p>
+        </section>
+
+        <section className="border-t border-rule py-11">
+          <h2 className="mb-2 text-[11px] font-medium uppercase leading-4 tracking-[0.06em] text-quiet">Where the pipeline waits</h2>
+          <p className="max-w-[80ch] text-[15px]">A gate is a place where the pipeline waits for your approval. Two gates are the default, not a requirement.</p>
+          <p className="mt-2 max-w-[80ch] text-sm leading-[21px] text-quiet">Free uses a fixed pipeline. Pro and Max let you change steps and gates.</p>
+          <div className="mt-[22px] grid gap-4 md:grid-cols-3">
+            {GATE_SETUPS.map((setup) => (
+              <div key={setup.title} className="flex min-w-0 flex-col gap-3 rounded-[10px] border border-rule bg-ground p-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <h3 className="text-[17px] leading-6 font-semibold tracking-[-0.015em]">{setup.title}</h3>
+                  <span className="text-xs text-quiet">{setup.plans}</span>
+                </div>
+                <ol className="flex flex-col gap-1.5">
+                  {STEPS.map((step) => (
+                    <li key={step} className="flex flex-col gap-1.5">
+                      {setup.gates.includes(`before-${step}`) ? (
+                        <span className="flex items-center gap-2 text-xs font-medium text-mine">
+                          <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-mine" />
+                          You: {gateActionLabel(`before-${step}`)}
+                        </span>
+                      ) : null}
+                      <span className="rounded-md bg-field px-2.5 py-1.5 font-mono text-xs">{nodeLabel(step)}</span>
+                    </li>
+                  ))}
+                </ol>
+                <p className="text-sm leading-[21px] text-quiet">{setup.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="grid gap-8 border-t border-rule py-11 md:grid-cols-2 md:gap-14">
+          <div>
+            <h2 className="mb-2 text-[17px] leading-6 font-semibold tracking-[-0.015em]">Acceptance is always required.</h2>
+            <p className="max-w-[48ch] text-sm leading-[21px] text-quiet">Removing gates does not remove acceptance. The session reproduces five checks and records the result. A failed check waits for you.</p>
+            <ol className="mt-4 flex flex-col gap-2.5">
+              {Object.entries(ACCEPTANCE_CHECK_LABELS).map(([number, name]) => (
+                <li key={number} className="flex items-baseline gap-3 text-sm">
+                  <span aria-hidden="true" className="font-mono text-xs text-quiet">{number}</span>
+                  <span>
+                    <span className="font-medium">{name}</span>
+                    <span className="block leading-[21px] text-quiet">{ACCEPTANCE_CHECK_MEANINGS[number]}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <h2 className="mb-2 text-[17px] leading-6 font-semibold tracking-[-0.015em]">Keep the session running.</h2>
+            <p className="max-w-[48ch] text-sm leading-[21px] text-quiet">
+              <span className="font-mono text-ink">/harness:watch</span> watches for the next available work and lets your Claude Code session continue through steps that do not need you. It does not open gates or push commits for you.
+            </p>
+            <p className="mt-3 max-w-[48ch] text-sm leading-[21px] text-quiet">The session waits at a gate and at a failed check. An item waiting at a gate does not block other ready work.</p>
+            <p className="mt-3 max-w-[48ch] text-sm leading-[21px] text-quiet">Pro and Max add a background runner.</p>
+          </div>
         </section>
 
         <section className="grid gap-7 border-t border-rule pt-11 md:grid-cols-3 md:gap-8">

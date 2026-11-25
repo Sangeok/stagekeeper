@@ -1091,7 +1091,7 @@ fixture의 refresh double은 실제 RSC state 보존의 증거가 아니므로, 
 | `turn-banner-runner`·`-reasons`·`-signin`·`-short`·`-none`·`-free` | §5 Runner line | `src/fsd/widgets/turn-banner/model/runner.test.ts`, `ui/turn-banner.test.ts`, `ui/next-step.test.mjs` | 실행기 줄 틀·정지 이유·로그온 시작 거부 이유·짧은 형태·버전 줄·Free 줄의 글자 일치(model 상수). 렌더 시험이 값을 채운 줄, host의 mono, 살아 있는 실행기의 watch 줄 숨김, Board·Inbox에만 Pause/Resume, 상주 실행기 working에만 편집 경고, 행 없음·Free에만 Free 줄을 본다 |
 | `landing-demo` | §16 Landing (데모 카드) | `src/fsd/pages/landing/ui/landing-page.test.ts` | `LandingPage`의 데모 카드 제품 문장 셋과 Pro/Max 예시 설명 |
 | `landing-meta` | §16 Landing (탭·검색·공유) | 같은 파일 | 문서 제목·설명(`LANDING_TITLE`·`LANDING_DESCRIPTION`, 글자 일치). 본문과 독립적으로 검사 |
-| `landing-intro`·`landing-workflow` | §16 Landing (본문·흐름) | 같은 파일 | 제품 소개·설치 전제·기본 흐름과 플랜 조건, 로그인별 CTA·머리/꼬리 Docs 링크·설치 안내 링크 목적지 |
+| `landing-intro`·`landing-workflow` | §16 Landing (본문·흐름) | 같은 파일 | 제품 소개·설치 전제·기본 흐름과 플랜 조건, 게이트 구성 셋과 플랜 표시·인수 확인 다섯 이름·watch 설명, 로그인별 CTA·머리/꼬리 Docs 링크·설치 안내 링크 목적지 |
 | `docs-meta` | §20 Docs | `src/fsd/pages/docs/ui/docs-copy.test.ts` | 다섯 페이지 제목·설명 10개 단위의 순서와 글자 일치 |
 | `docs-shell` | §20 Docs (탐색·공통 버튼) | 같은 파일 | 다섯 실제 페이지 렌더의 공통 탐색·CTA·건너뛰기, 현재 항목·이전/다음 경계와 문서 금지어 검사 |
 | `history-tab` | §19 History tab | `src/fsd/pages/project-history/ui/project-history-page.test.ts` | Items 빈 상태·상태별 행·펼친/빈 상세, Events key/all 빈 상태와 중간 페이지. 독립 커서·보기 전환·링크 목적지 검사 |
