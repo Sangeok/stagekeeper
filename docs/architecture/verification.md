@@ -324,13 +324,13 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 <!-- ci-coverage:start -->
 | 검사 | 분류 | Windows | macOS | Linux | 미충족 | 이유 또는 확인 문자열 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
+| 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/common` | | |
 | 기본 검사의 집계 | 공통 | | | `check/required` | | |
-| 작업 worktree·브랜치 정리 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/pr/lifecycle.test.mjs`, `scripts/pr/merge.test.mjs`, `scripts/pr/cleanup.test.mjs`, `scripts/pr/recovery.test.mjs`, `scripts/pr/migration.test.mjs`, `scripts/pr/preservation.test.mjs`, `scripts/pr/sweep.test.mjs`, `scripts/pr/cli-integration.test.mjs`를 파일별 필수 step으로 실행. Windows는 각 step을 네 matrix 묶음 중 정확히 하나에서 실행. 실제 Git/파일/OS, GitHub 대역. Windows는 미지원 보존·수동 인수, qualified 자동 제거 positive는 별도 로컬 gate |
-| worktree 사용 관측 후보 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | 양 OS에서 `scripts/pr/process-usage/`의 `process-usage.test.mjs` runtime/`process-usage-probe.test.mjs` 경계 필수. macOS는 `process-usage-qualification.test.mjs`의 `STAGEKEEPER_USAGE_QUALIFICATION: "macos"` native 평가, Windows는 `windows-directory-usage.test.mjs`의 실제 누락 반례를 필수 실행한다. Windows 자동 삭제 미지원 결정으로 기존 정상 cwd 자격 평가는 명시적 `all` 모드로 분리하며 과거 FAIL은 유지한다. Linux는 공통 계약만 검증 |
-| 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
-| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음. 출시 이력을 읽는 시험이 건너뛰지 않도록 `fetch-depth: 0`과 `STAGEKEEPER_RELEASED_READERS: required`도 있어야 한다 |
-| smoke 서버 소유권·생명주기 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `node --test scripts/rehearsals/support/smoke-server.test.mjs`로 실제 자식·IPC·loopback·종료를 검증한다 |
+| 작업 worktree·브랜치 정리 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/common` | | `scripts/pr/lifecycle.test.mjs`, `scripts/pr/merge.test.mjs`, `scripts/pr/cleanup.test.mjs`, `scripts/pr/recovery.test.mjs`, `scripts/pr/migration.test.mjs`, `scripts/pr/preservation.test.mjs`, `scripts/pr/sweep.test.mjs`, `scripts/pr/cli-integration.test.mjs`를 파일별 필수 step으로 실행. Windows는 각 step을 네 matrix 묶음 중 정확히 하나에서 실행. 실제 Git/파일/OS, GitHub 대역. Windows는 미지원 보존·수동 인수, qualified 자동 제거 positive는 별도 로컬 gate |
+| worktree 사용 관측 후보 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/common` | | 양 OS에서 `scripts/pr/process-usage/`의 `process-usage.test.mjs` runtime/`process-usage-probe.test.mjs` 경계 필수. macOS는 `process-usage-qualification.test.mjs`의 `STAGEKEEPER_USAGE_QUALIFICATION: "macos"` native 평가, Windows는 `windows-directory-usage.test.mjs`의 실제 누락 반례를 필수 실행한다. Windows 자동 삭제 미지원 결정으로 기존 정상 cwd 자격 평가는 명시적 `all` 모드로 분리하며 과거 FAIL은 유지한다. Linux는 공통 계약만 검증 |
+| 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/common`, `check/server-integration` | | |
+| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/common` | | `npm test`의 대상 묶음. 출시 이력을 읽는 시험이 건너뛰지 않도록 `fetch-depth: 0`과 `STAGEKEEPER_RELEASED_READERS: required`도 있어야 한다 |
+| smoke 서버 소유권·생명주기 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/common` | | `node --test scripts/rehearsals/support/smoke-server.test.mjs`로 실제 자식·IPC·loopback·종료를 검증한다 |
 | Windows 역할 런타임 | 단일 OS | `windows-role-runtime/native-runtime` | | | | Windows에만 있는 구현이다(전용 Node 빌드, 격리된 역할 명령) |
 | macOS 런타임 계약 | 단일 OS | | `macos-runtime-contracts/contracts` | | | macOS에만 있는 구현이다(Seatbelt, launchd, 후손 프로세스 추적) |
 | 설치와 init | OS별 | `client-init-smoke/claude` | `client-init-smoke/claude` | | | `scripts/rehearsals/rehearse-client-init-smoke.ts` |
@@ -340,8 +340,8 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | 병합 후 실패 기록 | 공통 | | | `post-merge-failure-record/record` | | |
 | 병합 후 실패 자동 수정 | 공통 | `post-merge-auto-fix/reproduce`, `post-merge-auto-fix/fix`, `post-merge-auto-fix/measure`, `post-merge-auto-fix/full-windows` | `post-merge-auto-fix/reproduce`, `post-merge-auto-fix/fix`, `post-merge-auto-fix/measure`, `post-merge-auto-fix/full-macos` | `post-merge-auto-fix/plan`, `post-merge-auto-fix/reproduce`, `post-merge-auto-fix/reproduction`, `post-merge-auto-fix/fix`, `post-merge-auto-fix/change`, `post-merge-auto-fix/measure`, `post-merge-auto-fix/branch`, `post-merge-auto-fix/pull-request`, `post-merge-auto-fix/record` | | 손으로 실행한다. 재현과 측정은 실패한 잡과 같은 종류의 러너에서만 돌고, `full-windows`와 `full-macos`는 그 OS의 검사 workflow를 수정 브랜치의 코드로 부른다 |
 | 템플릿 release 운영 | 공통 | | | `template-release/validate`, `template-release/deploy` | | |
-| 이동한 정책 계약 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm run test:policy-contracts`로 기존 core/GitHub의 서버·FSD 이동 사례를 실행. Linux는 test-web/server에서 같은 파일을 발견 |
-| 공유 모듈 배포와 경계 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `scripts/plugin-lib.test.mjs`, `scripts/lib/shared-module-graph.test.mjs`, `scripts/checks/verify-shared-boundaries.test.mjs`, `scripts/macos/package-plugin.test.mjs`, `scripts/windows/package-windows-plugin.test.mjs`. native package 사례는 해당 OS 결과를 구분 |
+| 이동한 정책 계약 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/common` | | `npm run test:policy-contracts`로 기존 core/GitHub의 서버·FSD 이동 사례를 실행. Linux는 test-web/server에서 같은 파일을 발견 |
+| 공유 모듈 배포와 경계 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/common` | | `scripts/plugin-lib.test.mjs`, `scripts/lib/shared-module-graph.test.mjs`, `scripts/checks/verify-shared-boundaries.test.mjs`, `scripts/macos/package-plugin.test.mjs`, `scripts/windows/package-windows-plugin.test.mjs`. native package 사례는 해당 OS 결과를 구분 |
 | 공유 배포 실물 설치·서버 호환성 | OS별 | `shared-distribution-acceptance/acceptance` | `shared-distribution-acceptance/acceptance` | | | `scripts/rehearsals/rehearse-shared-distribution.mjs`: GitHub-hosted runner의 실제 Codex bundle 신규/update·캐시 inventory·이전 서버 교체·pin·pending·정리. private template 입력 step과 summary가 실제 PASS인 경우에만 인수 증거로 사용; 모델 호출 없음. 승격 필수 검사이며 PR이 아닌 실행은 template 입력이 없으면 실패 |
 <!-- ci-coverage:end -->
 

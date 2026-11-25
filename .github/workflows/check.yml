@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   task-worktrees:
-    name: check (task-worktrees, ${{ matrix.os }}${{ matrix.shard && format(', {0}/4', matrix.shard) || '' }})
+    name: task worktree tests (${{ matrix.os }}${{ matrix.shard && format(', {0}/4', matrix.shard) || '' }})
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -74,22 +74,27 @@ jobs:
         if: runner.os == 'macOS' || matrix.shard == 1
         run: npm exec --call "node --test scripts/pr/cli-integration.test.mjs"
 
-  check:
-    name: check (${{ matrix.part }})
+  common:
+    name: ${{ matrix.label }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - part: static
+            label: static checks and tool tests
             command: npm run check
           - part: test
+            label: package and plugin tests
             command: npm test
           - part: test-web
+            label: web tests
             command: npm run test:web
           - part: server
+            label: server tests
             command: npm run test:server
           - part: build
+            label: build
             command: npm run build
     steps:
       - uses: actions/checkout@v5
@@ -116,7 +121,7 @@ jobs:
           --test --test-name-pattern='\bfresh\b' "tests/server/*.test.ts"
 
   server-integration:
-    name: check (server-integration)
+    name: server integration tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -146,7 +151,7 @@ jobs:
 
   required:
     name: check (required)
-    needs: [task-worktrees, check, server-integration]
+    needs: [task-worktrees, common, server-integration]
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
