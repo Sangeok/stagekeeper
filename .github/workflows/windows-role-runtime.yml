@@ -28,7 +28,6 @@ on:
       - scripts/macos/package-plugin.mjs
       - scripts/macos/package-plugin.test.mjs
       - src/server/tokens/api.ts
-      - scripts/checks/verify-ci-coverage.test.mjs
       - scripts/plugin-lib.mjs
       - scripts/plugin-lib.test.mjs
       - scripts/lib/shared-module-graph.mjs
@@ -63,7 +62,6 @@ on:
       - scripts/windows/windows-role-readlink.test.mjs
       - scripts/windows/windows-role-spawn-diagnostics.cjs
       - scripts/windows/windows-role-spawn-diagnostics.test.mjs
-      - package.json
       - package-lock.json
       - prisma.config.ts
       - prisma/schema.prisma

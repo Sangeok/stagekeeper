@@ -32,7 +32,6 @@ on:
       - scripts/macos/package-plugin.mjs
       - scripts/macos/package-plugin.test.mjs
       - src/server/tokens/api.ts
-      - scripts/checks/verify-ci-coverage.test.mjs
       - scripts/plugin-lib.mjs
       - scripts/plugin-lib.test.mjs
       - scripts/lib/shared-module-graph.mjs
@@ -61,7 +60,6 @@ on:
       - tests/server/runbook-stale.test.ts
       - plugin/.claude-plugin/plugin.json
       - plugin/.codex-plugin/plugin.json
-      - package.json
       - package-lock.json
   workflow_dispatch:
   workflow_call:
