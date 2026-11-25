@@ -876,9 +876,11 @@ Webpack 성공이 기본 build 명령의 성공을 뜻하지 않는다.
 
 `windows-role-runtime`은 `dev` push와, 이 job이 시험하는 제품 코드(`packages/shared`·`packages/app-core`·
 `plugin/bin`·`plugin/runtime`·`plugin/lib`)·Windows runtime 빌드 도구·오프라인 빌드
-입력(`package.json`·lock·`next.config.*`·Prisma 설정·`scripts/build.mjs`·
+입력(`package-lock.json`·`next.config.*`·Prisma 설정·`scripts/build.mjs`·
 `src/app/layout.tsx`·`src/app/_fonts/**`)을 바꾼 PR에서 실행한다. 제품 코드의 PR 경로는 macOS runtime
-contracts와 같다. 그 밖의 애플리케이션
+contracts와 같다. `package.json`만 바꾼 PR에서는 두 workflow 모두 실행하지 않는다. 의존성 변경은
+lock이 함께 바뀌어 선택되고, 두 workflow가 쓰는 npm 스크립트(`build`·`db:generate`·
+`test:policy-contracts`) 정의의 회귀는 `dev` push에서 드러난다. 그 밖의 애플리케이션
 source만 바꾼 PR에서는 실행하지 않는다. 그런 변경의 LPAC 전용 회귀는 병합 후 경로를
 제한하지 않는 `dev` push의 전체 인수에서 드러나고, `main`은 `dev`에서 통과한 커밋만
 받는다. `dev` 실행이
