@@ -1,4 +1,5 @@
 name: post-merge-auto-fix
+run-name: "auto-fix #${{ inputs.issue }} · ${{ inputs.source }} · ${{ inputs.runner }}"
 
 on:
   workflow_dispatch:
@@ -184,7 +185,7 @@ jobs:
         with:
           name: auto-fix-reproduction
           path: ${{ runner.temp }}/auto-fix-reproduction
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
 
   reproduction:
@@ -335,7 +336,7 @@ jobs:
         with:
           name: auto-fix-agent-output
           path: ${{ runner.temp }}/auto-fix-output
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
 
   change:
@@ -379,7 +380,7 @@ jobs:
         with:
           name: auto-fix-change
           path: ${{ runner.temp }}/auto-fix
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
 
   measure:
@@ -454,7 +455,7 @@ jobs:
         with:
           name: auto-fix-measure-${{ matrix.runner }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/auto-fix-result
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
 
   branch:
@@ -625,10 +626,12 @@ jobs:
 
   record:
     needs: [plan, reproduce, reproduction, fix, change, measure, branch, full-windows, full-macos, pull-request]
-    if: ${{ always() && needs.plan.outputs.issue != '' }}
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: read
+      checks: read
       contents: read
       issues: write
     steps:
@@ -654,11 +657,17 @@ jobs:
         with:
           name: auto-fix-reproduction
           path: ${{ runner.temp }}/auto-fix-reproduction
+      - name: Read which jobs stopped and the reason GitHub gave
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/actions/post-merge-auto-fix/fix.mjs stops --repository "$GITHUB_REPOSITORY" --run "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --out "$RUNNER_TEMP/stops.json"
       - name: Write the attempt record to the issue
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE: ${{ needs.plan.outputs.issue }}
+          ISSUE: ${{ needs.plan.outputs.issue || inputs.issue }}
           WORKFLOW: ${{ needs.plan.outputs.workflow }}
           OPEN_PR: ${{ needs.plan.outputs.open_pr }}
           REHEARSAL: ${{ needs.plan.outputs.rehearsal }}
@@ -683,5 +692,6 @@ jobs:
           PR: ${{ needs.pull-request.outputs.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          node .github/actions/post-merge-auto-fix/fix.mjs record --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
+          [[ "$ISSUE" =~ ^[1-9][0-9]*$ ]] || { echo "the issue to write to is not a number"; exit 1; }
+          node .github/actions/post-merge-auto-fix/fix.mjs record --stops "$RUNNER_TEMP/stops.json" --attempt "$GITHUB_RUN_ATTEMPT" --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"
