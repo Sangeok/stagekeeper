@@ -32,6 +32,10 @@ export const STEP_ENVIRONMENT = Object.freeze({
   "windows-2022": { workflow: "windows-role-runtime", env: { STAGEKEEPER_RELEASED_READERS: "required" } },
   "ubuntu-latest": { workflow: null, env: {} },
 });
+export const MAX_STEP_VALUES = 8;
+const WORKFLOW_FILE = /^\.github\/workflows\/[\w.-]{1,80}\.ya?ml$/;
+const STEP_NAME = /^STAGEKEEPER_[A-Z0-9_]{1,60}$/;
+const STEP_VALUE = /^[A-Za-z0-9._-]{1,40}$/;
 export const MODELS = Object.freeze(["claude-sonnet-5-5", "claude-opus-5-5"]);
 export const SOURCES = Object.freeze(["prepared", "agent", "reproduce-only"]);
 export const MAX_RUNS = 200;
@@ -129,15 +133,68 @@ export function readMeasurePlan(raw) {
   if (typeof raw.load !== "boolean") throw new Error("load must be true or false");
   if (!Number.isInteger(raw.runs) || raw.runs < 1 || raw.runs > MAX_RUNS) throw new Error(`runs must be between 1 and ${MAX_RUNS}`);
   if (!RUNNABLE_KINDS.includes(raw.kind)) throw new Error(`kind must be one of ${RUNNABLE_KINDS.join(", ")}`);
-  return { file: raw.file, names: [...raw.names], match: raw.match, load: raw.load, runs: raw.runs, kind: raw.kind };
+  const env = readStepValues(raw.env);
+  return { file: raw.file, names: [...raw.names], match: raw.match, load: raw.load, runs: raw.runs, kind: raw.kind, ...(Object.keys(env).length ? { env } : {}) };
 }
 
-export const describePlan = plan => `node --test ${plan.file}${plan.load ? `, ${LOAD_PARALLEL} at once with every core busy` : ", one at a time without load"}`;
+export function readStepValues(raw) {
+  if (raw === undefined || raw === null) return {};
+  const entries = typeof raw === "object" && !Array.isArray(raw) ? Object.entries(raw) : null;
+  if (!entries || entries.length > MAX_STEP_VALUES || entries.some(([name, value]) => !STEP_NAME.test(name) || typeof value !== "string" || !STEP_VALUE.test(value))) throw new Error("the environment of the failed step must be a few plain STAGEKEEPER_ values");
+  return Object.fromEntries(entries.sort(([left], [right]) => left.localeCompare(right)));
+}
+
+export const runEnvironment = (plan, runner) => ({ ...(plan?.env ?? {}), ...(STEP_ENVIRONMENT[runner]?.env ?? {}) });
+const stepValuesText = env => Object.entries(env ?? {}).map(([name, value]) => `${name}=${value}`).join(" ");
+
+export const describePlan = plan => `${plan.env ? `${stepValuesText(plan.env)} ` : ""}node --test ${plan.file}${plan.load ? `, ${LOAD_PARALLEL} at once with every core busy` : ", one at a time without load"}`;
 
 export const requiredPasses = (runs, failed) => (failed > 0 ? Math.ceil((PASSES_PER_FAILURE * runs) / failed) : runs);
 export const branchName = (issue, runId) => `${FIX_BRANCH_PREFIX}${issue}-${runId}`;
 
 const cleanLine = line => line.replace(/^\uFEFF?\d{4}-\d\d-\d\dT[\d:.]+Z /, "");
+
+const unquoted = value => value.trim().replace(/^(["'])(.*)\1$/, "$2");
+
+export function valuesOfFailedStep(text) {
+  let values = {};
+  let listing = false;
+  for (const line of stripAnsi(text).split(/\r?\n/).map(cleanLine)) {
+    if (/^##\[group\]Run /.test(line)) {
+      values = {};
+      listing = false;
+    } else if (/^##\[endgroup\]/.test(line)) listing = false;
+    else if (/^env:\s*$/.test(line)) listing = true;
+    else if (listing) {
+      const match = /^ {2}([A-Za-z0-9_]+): (.*)$/.exec(line);
+      if (match) values[match[1]] = match[2].trim();
+    } else if (/^\s*not ok \d+ - /.test(line)) return values;
+  }
+  return {};
+}
+
+export function valuesSetInWorkflow(text) {
+  const values = new Map();
+  for (const line of String(text).split(/\r?\n/)) {
+    const match = /^\s+(STAGEKEEPER_[A-Z0-9_]+):\s*(\S.*)$/.exec(line);
+    if (!match) continue;
+    const set = values.get(match[1]) ?? new Set();
+    set.add(unquoted(match[2]));
+    values.set(match[1], set);
+  }
+  return values;
+}
+
+export function stepEnvironment({ logs, workflows, known = {} }) {
+  const seen = logs.map(valuesOfFailedStep);
+  const set = workflows.map(valuesSetInWorkflow);
+  const [first] = seen;
+  const kept = Object.entries(first ?? {}).filter(
+    ([name, value]) =>
+      STEP_NAME.test(name) && STEP_VALUE.test(value) && !(name in known) && seen.every(values => values[name] === value) && set.some(values => values.get(name)?.has(value)),
+  );
+  return Object.fromEntries(kept.sort(([left], [right]) => left.localeCompare(right)).slice(0, MAX_STEP_VALUES));
+}
 
 export function failuresInLog(text) {
   const lines = stripAnsi(text).split(/\r?\n/).map(cleanLine);
@@ -536,6 +593,7 @@ export function reproductionLines(reproduction) {
   if (!reproduction) return ["Reproduction: none"];
   const lines = [`Reproduction: ${reproduction.kind}`];
   if (reproduction.file) lines.push(`Test file: ${inert(reproduction.file)}`);
+  if (reproduction.env && Object.keys(reproduction.env).length) lines.push(`Set as in the failed step: ${inert(stepValuesText(reproduction.env))}`);
   for (const name of reproduction.names ?? []) lines.push(`Named in the logs: ${inert(name)}`);
   if (reproduction.plain?.runs || reproduction.plain?.notRun) lines.push(`Without load: ${countsLine(reproduction.plain)}`);
   if (reproduction.loaded?.runs || reproduction.loaded?.notRun) lines.push(`Under load: ${countsLine(reproduction.loaded)}`);
@@ -894,9 +952,14 @@ const commands = {
     mkdirSync(args.out, { recursive: true });
     const written = [];
     const commits = [];
+    const workflows = new Set();
     for (const run of args.runs.split(",")) {
       const described = await fetch(`${api}/actions/runs/${run}`, { headers });
-      if (described.ok) commits.push((await described.json()).head_sha);
+      if (described.ok) {
+        const read = await described.json();
+        commits.push(read.head_sha);
+        if (WORKFLOW_FILE.test(String(read.path))) workflows.add(read.path);
+      }
       const listed = await fetch(`${api}/actions/runs/${run}/jobs?filter=all&per_page=100`, { headers });
       if (!listed.ok) throw new Error(`run ${run}: the jobs could not be listed (${listed.status})`);
       const failed = (await listed.json()).jobs.filter(job => job.name === args.job && job.conclusion === "failure");
@@ -911,28 +974,33 @@ const commands = {
     if (written.length === 0) throw new Error("no failed job of that name was found in the given runs");
     writeFileSync(path.join(args.out, "logs.txt"), `${written.join("\n")}\n`);
     writeFileSync(path.join(args.out, "commits.txt"), `${commits.filter(commit => /^[0-9a-f]{40}$/.test(String(commit))).join("\n")}\n`);
+    writeFileSync(path.join(args.out, "workflows.txt"), `${[...workflows].join("\n")}\n`);
     console.log(`${written.length} failure logs`);
   },
   async reproduce(args) {
     const logs = readFileSync(path.join(args.logs, "logs.txt"), "utf8").trim().split("\n").filter(Boolean);
     const tracked = execFileSync("git", ["ls-files"], { cwd: args.cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n").filter(Boolean);
-    const print = fingerprint(logs.map(file => readFileSync(file, "utf8")), tracked);
+    const texts = logs.map(file => readFileSync(file, "utf8"));
+    const print = fingerprint(texts, tracked);
+    const workflows = readText(path.join(args.logs, "workflows.txt")).split("\n").filter(name => WORKFLOW_FILE.test(name) && tracked.includes(name)).map(name => readText(path.join(args.cwd, name)));
+    const env = stepEnvironment({ logs: texts, workflows, known: STEP_ENVIRONMENT[args.runner]?.env ?? {} });
+    const withEnv = Object.keys(env).length ? { env } : {};
     mkdirSync(args.out, { recursive: true });
     const publish = (reproduction, plan) => {
       writeFileSync(path.join(args.out, "reproduction.json"), `${JSON.stringify(reproduction)}\n`);
       if (plan) writeFileSync(path.join(args.out, "measure.json"), `${JSON.stringify(plan)}\n`);
       console.log(JSON.stringify({ kind: reproduction.kind, file: reproduction.file, names: reproduction.names, plain: reproduction.plain, loaded: reproduction.loaded }));
     };
-    const described = { file: print.file, names: print.names, errors: print.errors, otherFiles: print.otherFiles };
+    const described = { file: print.file, names: print.names, errors: print.errors, otherFiles: print.otherFiles, ...withEnv };
     if (!print.file) {
       publish({ kind: "unhandled", ...described });
       return;
     }
     if (args.skip === "true") {
-      publish({ kind: "skipped", ...described }, { file: print.file, names: print.names, match: "named", load: false, runs: MEASURE_FLOOR, kind: "skipped" });
+      publish({ kind: "skipped", ...described }, { file: print.file, names: print.names, match: "named", load: false, runs: MEASURE_FLOOR, kind: "skipped", ...withEnv });
       return;
     }
-    const result = await reproduce({ file: print.file, names: print.names, cwd: args.cwd, env: STEP_ENVIRONMENT[args.runner]?.env ?? {}, minutes: Number(args.minutes) });
+    const result = await reproduce({ file: print.file, names: print.names, cwd: args.cwd, env: runEnvironment({ env }, args.runner), minutes: Number(args.minutes) });
     for (const entry of result.log) console.log(JSON.stringify(entry));
     let revertFirst = false;
     if (result.kind === "always") {
@@ -944,7 +1012,7 @@ const commands = {
       }
     }
     const reproduction = { kind: result.kind, ...described, plain: result.plain, loaded: result.loaded, others: shortNames(result.others), cutShort: result.cutShort, revertFirst };
-    publish(reproduction, RUNNABLE_KINDS.includes(result.kind) ? { file: print.file, names: print.names, match: "named", load: result.load, runs: measureRuns(result.kind), kind: result.kind } : null);
+    publish(reproduction, RUNNABLE_KINDS.includes(result.kind) ? { file: print.file, names: print.names, match: "named", load: result.load, runs: measureRuns(result.kind), kind: result.kind, ...withEnv } : null);
   },
   reproduction(args) {
     let kind = "none";
@@ -979,7 +1047,7 @@ const commands = {
       output({ again: false, session: "" });
       return;
     }
-    const check = await checkChange({ plan, cwd: args.cwd, env: STEP_ENVIRONMENT[args.runner]?.env ?? {}, minutes: Number(args.minutes) });
+    const check = await checkChange({ plan, cwd: args.cwd, env: runEnvironment(plan, args.runner), minutes: Number(args.minutes) });
     writeFileSync(log, `${JSON.stringify([...earlier, { round, runs: check.runs, failed: check.failed, notRun: check.notRun, cut: check.cut, failing: shortNames(check.failing) }])}\n`);
     console.log(JSON.stringify({ round, ...check }));
     const session = sessionOf(readText(path.join(args.agent, `transcript-${round}.jsonl`)));
@@ -1032,7 +1100,7 @@ const commands = {
     const { plan } = readVerified(args);
     const patch = path.join(args.change, "change.patch");
     execFileSync("git", ["apply", "--check", patch], { cwd: args.cwd });
-    const result = await measure({ plan, patch, cwd: args.cwd, env: STEP_ENVIRONMENT[args.runner]?.env ?? {}, minutes: Number(args.minutes) });
+    const result = await measure({ plan, patch, cwd: args.cwd, env: runEnvironment(plan, args.runner), minutes: Number(args.minutes) });
     writeFileSync(args.out, `${JSON.stringify(result)}\n`);
     console.log(JSON.stringify({ before: result.before, after: result.after, compared: result.compared, missing: result.missing }));
     for (const entry of result.log) console.log(JSON.stringify(entry));
