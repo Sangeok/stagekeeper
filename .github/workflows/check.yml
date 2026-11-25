@@ -12,15 +12,23 @@ concurrency:
 
 jobs:
   task-worktrees:
-    name: check (task-worktrees, ${{ matrix.os }}, temp-${{ matrix.temp }})
+    name: check (task-worktrees, ${{ matrix.os }}${{ matrix.shard && format(', {0}/4', matrix.shard) || '' }})
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-15]
-        temp: [default, runner]
+        include:
+          - os: windows-2022
+            shard: 1
+          - os: windows-2022
+            shard: 2
+          - os: windows-2022
+            shard: 3
+          - os: windows-2022
+            shard: 4
+          - os: macos-15
     steps:
       - uses: actions/checkout@v5
         with:
@@ -28,19 +36,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Use the runner temp directory for TEMP and TMP
-        if: runner.os == 'Windows' && matrix.temp == 'runner'
-        shell: bash
-        run: |
-          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
-          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
-      - name: Report the temp directory and its volume
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          node -p "require('os').tmpdir()"
-          Get-Volume -DriveLetter C, D | Format-Table DriveLetter, FileSystemType, FileSystem, Size, SizeRemaining
       - name: Worktree usage runtime and probe contracts
+        if: runner.os == 'macOS' || matrix.shard == 1
         run: npm exec --call "node --test scripts/pr/process-usage/process-usage.test.mjs scripts/pr/process-usage/process-usage-probe.test.mjs"
       - name: macOS native usage qualification
         if: runner.os == 'macOS'
@@ -48,25 +45,33 @@ jobs:
         env:
           STAGEKEEPER_USAGE_QUALIFICATION: "macos"
       - name: Windows directory observation counterexamples
-        if: runner.os == 'Windows'
+        if: matrix.shard == 4
         run: npm exec --call "node --test scripts/pr/process-usage/windows-directory-usage.test.mjs"
         env:
           STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1"
       - name: PR closeout lifecycle
+        if: runner.os == 'macOS' || matrix.shard == 3
         run: npm exec --call "node --test scripts/pr/lifecycle.test.mjs"
       - name: PR merge contracts
+        if: runner.os == 'macOS' || matrix.shard == 4
         run: npm exec --call "node --test scripts/pr/merge.test.mjs"
       - name: Conditional cleanup and native cache links
+        if: runner.os == 'macOS' || matrix.shard == 2
         run: npm exec --call "node --test scripts/pr/cleanup.test.mjs"
       - name: PR state and recovery
+        if: runner.os == 'macOS' || matrix.shard == 2
         run: npm exec --call "node --test scripts/pr/recovery.test.mjs"
       - name: Legacy migration and fence
+        if: runner.os == 'macOS' || matrix.shard == 3
         run: npm exec --call "node --test scripts/pr/migration.test.mjs"
       - name: File and branch preservation
+        if: runner.os == 'macOS' || matrix.shard == 4
         run: npm exec --call "node --test scripts/pr/preservation.test.mjs"
       - name: Merged task sweep
+        if: runner.os == 'macOS' || matrix.shard == 1
         run: npm exec --call "node --test scripts/pr/sweep.test.mjs"
       - name: Retired writers and CLI boundary
+        if: runner.os == 'macOS' || matrix.shard == 1
         run: npm exec --call "node --test scripts/pr/cli-integration.test.mjs"
 
   check:

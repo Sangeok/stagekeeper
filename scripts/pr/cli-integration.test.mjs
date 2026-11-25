@@ -17,8 +17,22 @@ test("only the pr entry and new per-OS regression gates remain in current execut
   assert.equal(manifest.scripts["branches:cleanup"], undefined);
   const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "check.yml"), "utf8");
   const matrix = workflow.slice(workflow.indexOf("  task-worktrees:"), workflow.indexOf("\n  check:"));
-  assert.match(matrix, /os: \[windows-2022, macos-15\]/); assert.match(matrix, /fetch-depth: 0/);
-  for (const name of ["lifecycle", "merge", "cleanup", "recovery", "migration", "preservation", "sweep", "cli-integration"]) assert.ok(matrix.includes("node --test scripts/pr/" + name + ".test.mjs"));
+  assert.match(matrix, /\n {10}- os: macos-15\n/); assert.match(matrix, /fetch-depth: 0/);
+  const shards = [...matrix.matchAll(/^ {10}- os: windows-2022\n {12}shard: (\d+)$/gm)].map(match => Number(match[1]));
+  assert.ok(shards.length > 1); assert.deepEqual(shards, shards.map((_, index) => index + 1));
+  assert.ok(matrix.includes(`format(', {0}/${shards.length}', matrix.shard)`));
+  const steps = matrix.split("\n      - ").filter(step => step.includes("node --test scripts/pr/"));
+  const used = new Set();
+  for (const step of steps) {
+    const condition = /\n {8}if: (.+)/.exec(step)?.[1] ?? "";
+    if (condition === "runner.os == 'macOS'") continue;
+    const shard = Number(/^(?:runner\.os == 'macOS' \|\| )?matrix\.shard == (\d+)$/.exec(condition)?.[1]);
+    assert.ok(shards.includes(shard), step); used.add(shard);
+  }
+  assert.equal(used.size, shards.length);
+  for (const name of ["lifecycle", "merge", "cleanup", "recovery", "migration", "preservation", "sweep", "cli-integration"]) {
+    assert.match(steps.find(step => step.includes("node --test scripts/pr/" + name + ".test.mjs")) ?? "", /\n {8}if: runner\.os == 'macOS' \|\| matrix\.shard == \d+\n/);
+  }
   for (const file of ["index.mjs", "task-state.mjs", "git-workspace.mjs", "filesystem-inventory.mjs", "github-merge.mjs", "legacy-migration.mjs", "merged-sweep.mjs"]) {
     const source = fs.readFileSync(path.join(root, "scripts", "pr", file), "utf8");
     assert.doesNotMatch(source, /manage-task-worktrees\.mjs|cleanup-task-branches\.mjs|from\s+["'][^"']*testing\//);
