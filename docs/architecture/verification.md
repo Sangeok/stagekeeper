@@ -106,6 +106,16 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
 대기 실행을 대체하지 않는다. build 작업은 `npm run build` 내부에서 Prisma Client를
 생성하므로 공통 `db:generate` 단계를 생략한다.
 
+`dev`로 가는 PR의 병합 여부는 `check (required)` 잡 하나가 판정한다. matrix가 있는 잡은 워크플로가
+시작될 때 실행 여러 개로 펼쳐지고, 각 실행의 결과는 잡 결과 하나로 합쳐진다. `check (required)`는
+`needs`에 적힌 잡이 모두 끝난 뒤 시작해 잡 결과만 받고, 하나라도 `success`가 아니면(`failure`,
+`cancelled`, `skipped` 포함) 실패한다. 그래서 PR 체크 목록에 보이는 실행 수와 `needs`의 잡 수는 같은
+검사를 다른 단위로 센 것이다. 이 잡은 `if: always()`로 항상 실행한다. 조건 때문에 건너뛴 필수 체크를
+GitHub이 통과로 처리하므로, 의존한 잡이 실패했을 때 이 잡이 건너뛰어지면 실패한 PR이 병합될 수 있기
+때문이다. 룰셋 `Require check on dev`는 이 잡 하나만 요구하므로 다른 잡의 이름은 룰셋과 무관하다. 이
+잡은 PR에서만 돌고 `dev`·`main` push에서는 건너뛴다. 어떤 잡과 실행이 있는지는 아래
+[CI 검사의 OS 범위](#ci-검사의-os-범위) 표가 기준이다.
+
 - `npm run test:web`: `src/**/*.test.ts`와 `src/**/*.test.mjs`를 실행하며 `check` workflow에
   연결되어 있다. `.test.tsx`는 현재 포함하지 않는다. 해당 확장자 도입 시 실행 패턴과
   환경을 같은 변경에서 보완한다.
