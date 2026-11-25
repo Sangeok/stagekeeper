@@ -1,0 +1,13 @@
+{
+  "file": "plugin/bin/harness-watch.test.mjs",
+  "names": [
+    "a web pause holds new work without calling pipeline_next or counting toward stuck",
+    "honors a longer Retry-After, and a healthy overview restarts failure counting",
+    "tells the server once when a poll ends stuck or in error, and keeps the event when that fails",
+    "with a lease a poll signals before pipeline_next and reports working before it hands out work"
+  ],
+  "match": "named",
+  "load": true,
+  "runs": 20,
+  "kind": "prepared"
+}

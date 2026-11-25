@@ -89,6 +89,13 @@ it("accepts the repository's prepared change as a test-only change outside the f
   const plan = readMeasurePlan(JSON.parse(readFileSync(new URL("./prepared/pr-path/measure.json", import.meta.url), "utf8")));
   assert.equal(plan.match, "any");
   assert.equal(plan.kind, "prepared");
+
+  const known = new URL("./prepared/harness-watch-final/", import.meta.url);
+  const knownStats = changeStats(readFileSync(new URL("change.patch", known), "utf8"));
+  const knownPlan = readMeasurePlan(JSON.parse(readFileSync(new URL("measure.json", known), "utf8")));
+  assert.equal(knownStats.testOnly, true);
+  assert.deepEqual(knownStats.forbidden, []);
+  assert.deepEqual([knownPlan.file, knownPlan.match, knownPlan.load, knownPlan.runs], ["plugin/bin/harness-watch.test.mjs", "named", true, MEASURE_FLOOR]);
 });
 
 it("refuses a request or a measurement plan outside the allowed values", () => {
