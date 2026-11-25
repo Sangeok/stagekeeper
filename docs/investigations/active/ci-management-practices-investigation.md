@@ -773,7 +773,9 @@ GitHub이 강제하지 않는 지금의 병합 조건이 실제로 지켜졌는�
   - 처음에는 임시 태그가 필요할 수 있다고 보고 자기 제안서로 다루려 했으나, 고칠 것이
     설치 함수의 한 줄이어서 PR 하나로 했다.
 - `task-worktrees` 잡을 별도 워크플로로 옮기는 일을 작업 마무리 스크립트 작업과
-  맞춘다. 3번 전에 끝낸다.
+  맞춘다. 3번 전에 끝낸다. 옮길 때 `check` 워크플로의 잡 이름 정리를 같은 PR에서 한다. 같은
+  `check.yml`의 잡 구성과 CI 범위 표를 고치기 때문이다. 내용은
+  [CI 구조 조사](./ci-structure-discoverability-investigation.md)의 Follow-up Actions에 있다.
 - 승격 워크플로를 설계할 때 운영 DB 접속 정보를 승인 Environment로 옮길지
   정한다.
 

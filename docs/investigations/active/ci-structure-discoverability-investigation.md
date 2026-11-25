@@ -4,7 +4,7 @@ created-at: "2026-11-25"
 completed-at: null
 owners: []
 related:
-  - "docs/proposals/active/ci-structure-map-and-job-names.md"
+  - "docs/architecture/verification.md"
   - "docs/investigations/active/ci-management-practices-investigation.md"
   - "docs/ADR/0004-organize-repository-scripts.md"
   - "docs/proposals/active/ci-verification-code-organization.md"
@@ -16,8 +16,7 @@ observed-environments:
   - "GitHub 언어 표시가 TypeScript인 공개 저장소 15곳의 기본 브랜치(2026-11-25), gh api로 scripts/·.github/·워크플로 파일 확인"
   - "이 저장소 origin/dev a291fec의 워크플로 10개, scripts/, 룰셋 3개, check 워크플로 실행 45530700803·45532552036·45349007598"
 conclusion-summary: null
-follow-up:
-  - "docs/proposals/active/ci-structure-map-and-job-names.md"
+follow-up: []
 ---
 
 # CI 구조를 알아보기 어려운 원인과 참고 저장소의 구성 방식
@@ -30,10 +29,12 @@ follow-up:
 폴더를 나누는 곳은 없었다. 이들은 scripts를 하는 일로 나누고, CI 구조는 워크플로 파일,
 집계 잡 이름, 지도 문서로 드러낸다.
 
-이 저장소의 scripts 배치(ADR-0004)는 참고 저장소와 같은 방식이다. 알아보기 어려운 원인은
-세 가지로 좁혀졌다. "check"라는 이름이 다섯 곳에 겹치고, 워크플로 이름이 역할을 말하지
-않으며, 흐름을 한곳에 보여 주는 지도가 없다. 개선안은
-[제안서](../../proposals/active/ci-structure-map-and-job-names.md)로 옮겼다. 이 문서는 조사 기록이고, 코드·워크플로·룰셋은 바꾸지 않았다.
+이 저장소의 scripts 배치(ADR-0004)는 참고 저장소와 같은 방식이다. 원인 후보는 세 가지로
+좁혀졌다. `check` 게이트가 어떻게 갈라지고 모이는지 설명한 곳이 없고, "check"라는 이름이 다섯 곳에
+겹치며, 워크플로 이름이 역할을 말하지 않는다. 실제로 헷갈린 사례로 확인된 것은 첫째 하나다. 이
+문서와 같은 변경에서 [verification.md](../../architecture/verification.md)의 `check` 문단에 그 설명을
+더했다. 나머지 둘은 참고 저장소와 비교해 추론한 것이라 지금 바꾸지 않는다. 하나는 보류하고, 하나는
+`task-worktrees` 잡 분리 작업에 묶었다(Follow-up Actions). 워크플로·잡 이름·룰셋은 바꾸지 않았다.
 
 ## Problem
 
@@ -172,6 +173,9 @@ microsoft/TypeScript는 Go로 표시돼 제외했다. 위의 10곳은 워크플�
   범위" 절의 표는 워크플로와 기계 대조되지만 OS 분류가 목적이다. 같은 문서 앞부분에 `check`의
   병렬 실행과 취소 규칙 설명이 있다. 트리거 → 잡 → 집계 → 룰셋, 병합 후 기록, 승격 전 게이트를
   한 흐름으로 보여 주는 절은 없다.
+- `check (required)`가 무엇을 판정하는지는 AGENTS.md의 한 문장("다른 잡이 모두 통과해야 성공한다")
+  뿐이다. matrix 잡이 실행 여러 개로 펼쳐지고, 그 결과가 잡 결과로 합쳐진 뒤 집계된다는 설명은 이
+  문서와 같은 변경 전까지 저장소 문서 어디에도 없었다.
 
 #### 6. 이름을 바꿀 때 영향받는 곳
 
@@ -189,7 +193,7 @@ microsoft/TypeScript는 Go로 표시돼 제외했다. 위의 10곳은 워크플�
   (`.github/actions/post-merge-failure-record/record.mjs` 43행, `<워크플로>/<잡 표시 이름>: <step>`)과
   `[gate]` 이슈 제목도 이름을 쓴다.
 - 잡 표시 이름은 룰셋이 `check (required)` 하나만 요구한다. 그 밖에는 `[post-merge]` 이슈 제목과,
-  그 이슈를 읽는 `.github/actions/post-merge-auto-fix/fix.mjs` 417행(`job.name === args.job`)이 쓴다.
+  그 이슈를 읽는 `.github/actions/post-merge-auto-fix/fix.mjs` 648행(`job.name === args.job`, PR #445 병합 뒤 `dev` b2f20f9 기준)이 쓴다.
   2026-11-25 기준 열린 `[post-merge]` 이슈는 0건이다.
 - matrix 잡 id `check`는 `required`의 needs, CI 범위 표 키 `check/check`(verification.md 8행),
   `verify-ci-coverage.test.mjs`의 시험 입력 문자열, 활성 문서 두 곳의 서술에 나온다.
@@ -198,9 +202,22 @@ microsoft/TypeScript는 Go로 표시돼 제외했다. 위의 10곳은 워크플�
 
 #### 7. 진행 중인 겹치는 작업 (2026-11-25)
 
-- PR #445(`harness/auto-fix-trust`)가 `verification.md`, `post-merge-auto-fix.yml`,
-  `.github/actions/post-merge-auto-fix/fix.mjs`를 고친다.
+- PR #445(`harness/auto-fix-trust`)는 `verification.md`, `post-merge-auto-fix.yml`,
+  `.github/actions/post-merge-auto-fix/fix.mjs`를 고쳤고 2026-11-25T05:37:27Z에 병합됐다.
+  `verification.md`에서는 CI 범위 표의 자동 수정 행만 바꿔, 이 문서와 같은 변경의 `check` 문단과
+  겹치지 않는다.
 - `harness/auto-fix-trust-ruler`(PR 없음)가 새 워크플로 `auto-fix-ruler.yml`을 더한다.
+
+#### 8. CI 관련 파일의 변경 빈도
+
+2026-10-26부터 2026-11-25까지 `origin/dev`의 기록이다.
+
+- `.github/workflows/`를 바꾼 커밋은 83건이다. 워크플로 파일의 추가·삭제·이름 변경은 11건으로, 약
+  3일에 한 번이다.
+- `on:` 블록이나 트리거의 `paths:`를 바꾼 커밋은 약 17건이다. diff에서 트리거 키가 바뀐 커밋을 센
+  추정치다.
+- AGENTS.md를 바꾼 커밋은 35건이다. AGENTS.md는 승격 게이트, 병합 후 기록, `check (required)`를
+  17행에서 언급한다.
 
 ### Unknowns
 
@@ -215,11 +232,12 @@ microsoft/TypeScript는 Go로 표시돼 제외했다. 위의 10곳은 워크플�
 | ID | 가설 | 근거 | 확인 방법 | 현재 판단 |
 | --- | --- | --- | --- | --- |
 | H1 | scripts 폴더 배치가 알아보기 어려운 주원인이다 | 소유자의 첫 의심 | PR 게이트 구성이 정의된 위치 확인, 참고 저장소의 scripts 배치 비교 | ruled-out |
-| H2 | "check"가 워크플로·matrix 잡 id·npm 스크립트·폴더·집계 잡에 겹쳐 구조를 잘못 읽게 한다 | 체크 목록의 `check / check (static)`, 소유자의 "총 11개" 질문 | 이름 목록 대조, 참고 저장소의 잡·집계 잡 이름 비교 | likely |
+| H2 | "check"가 워크플로·matrix 잡 id·npm 스크립트·폴더·집계 잡에 겹쳐 구조를 잘못 읽게 한다 | 체크 목록의 `check / check (static)`. 다만 소유자의 "총 11개" 질문은 체크 목록이 아니라 정리 페이지의 "잡 3개 · 실행 8개" 표기에서 나왔다 | 이름 목록 대조, 참고 저장소의 잡·집계 잡 이름 비교 | unverified |
 | H3 | 워크플로 이름이 역할을 말하지 않고, 한 워크플로가 여러 역할을 겸해 접두사로는 분류할 수 없다 | 워크플로 10개의 `on:`과 AGENTS.md의 게이트 목록 | 트리거 표 작성 | confirmed |
-| H4 | 트리거부터 룰셋까지 흐름을 한곳에 보여 주는 지도가 없다 | verification.md의 절 구성 | 절 목록과 CI 관련 서술 확인 | likely |
+| H4 | `check` 게이트가 어떻게 갈라지고 모이는지 설명한 곳이 없다 | 소유자의 두 질문이 모두 이 부분을 잘못 읽은 데서 나왔다 | verification.md와 AGENTS.md의 `check` 관련 서술 확인 | confirmed |
 | H5 | 참고 저장소의 워크플로 이름 접두사 방식은 이 저장소에서 비용 대비 효과가 낮다 | 규모 차이, 다중 역할, 이름 참조 | 참조 수 집계, 실행 이력·구독·이슈 제목 결합 확인 | likely |
 | H6 | 손으로 쓴 긴 지도는 낡기 쉬워, 이 저장소에는 기계 대조가 있는 표가 맞다 | n8n 문서에 대조 시험이 보이지 않음, 이 저장소의 `verify:ci-coverage` 선례 | n8n 문서의 커밋 이력 분석 | unverified |
+| H7 | 워크플로 전체 흐름도는 이 저장소에서 유지 비용이 이득보다 크다 | 흐름도에 담을 순서와 절차는 AGENTS.md가, 트리거는 각 워크플로가 이미 가진다. 워크플로 목록이 자주 바뀐다 | 변경 빈도 집계, 흐름도 내용의 기존 위치 대조 | likely |
 
 ## Verification
 
@@ -227,26 +245,64 @@ microsoft/TypeScript는 Go로 표시돼 제외했다. 위의 10곳은 워크플�
 | --- | --- | --- | --- | --- | --- |
 | PR 게이트 구성의 정의 위치 | H1 | `check.yml`, `verify-ci-coverage.test.mjs`, `github-merge.mjs` 읽기 | 갈라짐과 모임이 scripts에 정의돼 있으면 H1 지지 | matrix, needs, 판정이 모두 `check.yml`에 있다 | scripts 배치를 바꿔도 이 구조는 드러나지 않는다. H1 배제 |
 | 참고 저장소의 scripts 기준 | H1 | gh api로 15곳의 `scripts/`·`.github/` 목록 | CI 단계별 폴더가 흔하면 H1 지지 | 10곳 중 0곳. 폴더가 곧 CI 구조인 곳은 코드 생성 2곳 | H1 배제 |
-| 이름 겹침 | H2 | `check.yml`, `package.json`, 폴더, 실행 45530700803의 체크 목록 | 같은 이름이 다른 단위를 가리키면 지지 | 다섯 곳. 체크 목록에 `check / check (…)` | 지지 |
+| 이름 겹침 | H2 | `check.yml`, `package.json`, 폴더, 실행 45530700803의 체크 목록 | 같은 이름이 다른 단위를 가리키면 지지 | 다섯 곳. 체크 목록에 `check / check (…)` | 겹침은 사실이다. 그 때문에 헷갈린 사례는 관찰되지 않아 판단을 보류한다 |
 | 참고 저장소의 잡·집계 잡 이름 | H2 | n8n·vscode·vite·astro·prisma·twenty 워크플로 원본 | 잡 이름에 워크플로 이름을 반복하지 않으면 지지 | 반복하는 곳 없음. 집계 잡 6곳이 역할 이름 | 지지 |
 | 워크플로 트리거 | H3 | 10개 파일의 `on:` | 한 워크플로가 여러 트리거·역할을 가지면 지지 | 8개가 트리거 둘 이상, 게이트 2개가 PR 검사 겸용 | H3 확인 |
-| 지도 유무 | H4 | `verification.md` 절 목록 | 흐름을 다루는 절이 없으면 지지 | OS 범위 표와 부분 서술만 있다 | 지지 |
+| `check` 동작 설명 유무 | H4 | `verification.md`, AGENTS.md의 `check` 관련 서술 | 갈라짐과 모임의 설명이 없으면 지지 | verification.md는 "병렬 실행한다"까지, AGENTS.md는 판정 규칙 한 문장뿐 | H4 확인 |
 | 이름 변경 영향 | H5 | rg 참조 수, `workflow_run` 구독, 이슈 제목 형식, AGENTS.md 승격 절차 | 참조와 결합이 많으면 지지 | Known Facts 6 | 지지 |
 | 수기 지도의 낡음 | H6 | n8n `.github/WORKFLOWS.md` 커밋 이력 | 워크플로 변경 뒤 문서 갱신이 빠진 빈도 | Not verified yet | 판단 보류 |
+| 흐름도의 유지 비용 | H7 | 30일 커밋 이력, AGENTS.md의 언급 행 | 담을 내용이 이미 다른 곳에 있고 목록이 자주 바뀌면 지지 | Known Facts 8 | 지지 |
 
 ## Conclusion
 
-- Current conclusion: 원인은 scripts 폴더가 아니라 이름(H2, H3)과 지도의 부재(H4)다. 참고
-  저장소의 방법 중 잡 이름을 내용으로 짓는 방식은 그대로 쓸 수 있다. 워크플로 이름 접두사와
-  손으로 쓴 전체 지도는 이 저장소의 규모와 다중 역할 워크플로, 기존 이름 결합에 맞지 않는다.
-  대신 기존 `verify:ci-coverage`에 역할 표 대조를 더하는 방식을 제안서에 담았다.
-- Remaining uncertainty: Unknowns의 세 항목. H6은 판단을 보류했다.
+- Current conclusion: 원인은 scripts 폴더가 아니다(H1 배제). 확인된 원인은 `check` 게이트가 갈라지고
+  모이는 원리를 설명한 곳이 없다는 것이다(H4). 이 문서와 같은 변경에서
+  [verification.md](../../architecture/verification.md)의 `check` 문단에 그 설명을 더했다. 잡의 개수와
+  이름은 적지 않고 CI 범위 표를 가리키게 해서, 잡을 더하거나 나눠도 설명이 낡지 않게 했다. 이름
+  겹침(H2)과 워크플로 이름(H3)은 사실이지만 그 때문에 헷갈린 사례가 없어 지금 바꾸지 않는다.
+  워크플로 전체 흐름도는 담을 내용이 이미 AGENTS.md와 각 워크플로에 있고 목록이 자주 바뀌어 만들지
+  않는다(H7).
+- Remaining uncertainty: "실제로 헷갈렸는가"의 근거가 2026-11-25 대화 한 번뿐이다. Unknowns의 세
+  항목과 H6도 남아 있다.
 
 ## Follow-up Actions
 
-- [CI 흐름 지도와 check 워크플로 잡 이름 정리](../../proposals/active/ci-structure-map-and-job-names.md)
-- 집계 잡 이름을 바꾸게 되면 vscode처럼 룰셋을 저장소 파일로 두고 대조하는 방식을 먼저 검토한다.
-- 워크플로가 수십 개로 늘거나 한 워크플로가 한 역할만 맡게 되면 이름 접두사 방식을 다시 검토한다.
+한 것:
+
+- [verification.md](../../architecture/verification.md)의 `check` 문단에 동작 원리를 더했다(이 문서와
+  같은 변경).
+
+조건부로 할 것: 잡 이름 정리
+
+- [CI 운영 방식 조사](./ci-management-practices-investigation.md)가 권한 `task-worktrees` 잡 분리와 같은
+  PR에서 한다. 두 작업 모두 `check.yml`의 잡 구성, `needs`, CI 범위 표를 고치기 때문이다. 분리를 하지
+  않기로 정하면 하지 않는다.
+- 잡 표시 이름에서 `check (` 접두를 뺀다. `check (static)`은 `static`, `check (task-worktrees, <OS>)`는
+  `task-worktrees (<OS>)`, `check (server-integration)`은 `server-integration`이 된다. `check (required)`는
+  룰셋이 요구하므로 그대로 둔다.
+- matrix 잡 id `check`를 내용을 말하는 이름으로 바꾸고(후보 `common`, CI 범위 표의 분류명),
+  `required`의 `needs`와 CI 범위 표 키 `check/check`를 함께 바꾼다.
+- 시작 전에 확인한다. 열린 `[post-merge]` 이슈에 옛 잡 이름이 있는지, `fix.mjs`가 잡 표시 이름을
+  비교하는 방식(648행), 비공개 Codex CI가 잡 이름을 참조하는지.
+
+보류: 워크플로 역할 표
+
+- 워크플로마다 PR·push·수동·정기·호출 트리거와 병합을 막는지를 한 표로 두고, `verify:ci-coverage`가
+  각 워크플로의 `on:`과 대조하는 안이다. Known Facts 5의 표가 초안이다.
+- 워크플로의 역할이나 트리거를 잘못 읽은 실제 사례가 나오거나, 워크플로 수가 지금(10개)의 두 배
+  이상으로 늘면 다시 본다. 유지 비용은 트리거를 바꿀 때마다 표를 함께 고치는 것이다(최근 30일 약
+  17건).
+
+하지 않기로 한 것:
+
+| 안 | 이유 | 다시 볼 조건 |
+| --- | --- | --- |
+| 워크플로 전체 흐름도 | H7. 순서와 절차는 AGENTS.md, 트리거는 각 워크플로가 기준이다. 사본은 어긋난다 | 없음 |
+| `.github/workflows/README.md` 안내 | 워크플로 폴더에서 설명을 찾지 못한 사례가 없다 | 그런 사례가 나올 때 |
+| 워크플로 파일 이름·`name:` 접두사(n8n, twenty) | 파일 이름 참조가 수십 곳이고, 실행 이력이 파일에 묶여 승격 절차의 기존 실행 조회가 끊긴다. `workflow_run` 구독과 이슈 제목이 이름을 쓴다. 다중 역할 워크플로는 접두사 하나로 분류되지 않는다 | 워크플로가 수십 개로 늘고 한 워크플로가 한 역할을 맡게 될 때 |
+| 집계 잡 이름 변경(`PR gate` 등) | 룰셋, AGENTS.md, 드리프트 시험이 이 이름에 결합돼 있다. "required"가 이미 역할을 말한다 | 집계 잡을 둘 이상 둘 때. 그때는 vscode처럼 룰셋을 저장소 파일로 두고 대조하는 방식을 먼저 도입한다 |
+| `npm run check`·`scripts/checks/` 이름 변경 | 정적 검사를 check로 부르는 것은 관례다(kibana, n8n, prisma) | 없음 |
+| scripts 폴더 재배치 | H1. ADR-0004가 실행 종류별 분리를 기각했다 | ADR-0004를 다시 검토할 때 |
 
 ## Review Checklist
 
