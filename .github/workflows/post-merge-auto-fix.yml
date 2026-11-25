@@ -216,7 +216,7 @@ jobs:
     if: ${{ !cancelled() && needs.plan.outputs.source == 'agent' && needs.reproduction.outputs.proceed == 'true' }}
     name: fix ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
+    timeout-minutes: 200
     permissions:
       contents: read
       actions: read
@@ -307,7 +307,7 @@ jobs:
           git write-tree > "$RUNNER_TEMP/auto-fix-input/base-tree"
           git reset --quiet
       - name: Run the agent
-        id: agent
+        id: agent1
         if: steps.gate.outputs.run == 'true'
         continue-on-error: true
         timeout-minutes: 60
@@ -318,19 +318,85 @@ jobs:
           MODEL: ${{ needs.plan.outputs.model }}
         run: |
           claude --version
-          date +%s > "$RUNNER_TEMP/auto-fix-input/started"
-          claude --print --model "$MODEL" --effort medium --permission-mode dontAsk --allowedTools Bash Read Edit Write Glob Grep --disallowedTools WebFetch WebSearch --output-format stream-json --verbose --no-session-persistence < "$RUNNER_TEMP/auto-fix-input/prompt.md" > "$RUNNER_TEMP/auto-fix-agent/transcript.jsonl"
+          started="$(date +%s)"
+          code=0
+          claude --print --model "$MODEL" --effort medium --permission-mode dontAsk --allowedTools Bash Read Edit Write Glob Grep --disallowedTools WebFetch WebSearch --output-format stream-json --verbose < "$RUNNER_TEMP/auto-fix-input/prompt.md" > "$RUNNER_TEMP/auto-fix-agent/transcript-1.jsonl" || code=$?
+          echo "$(( $(date +%s) - started ))" >> "$RUNNER_TEMP/auto-fix-agent/seconds"
+          exit "$code"
+      - name: Repeat the test file with the agent's change (check 1)
+        id: check1
+        if: steps.agent1.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 20
+        shell: bash
+        env:
+          RUNNER_NAME: ${{ matrix.runner }}
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 1 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
+      - name: Give the agent what the check saw and let it continue (round 2)
+        id: agent2
+        if: steps.check1.outputs.again == 'true'
+        continue-on-error: true
+        timeout-minutes: 30
+        shell: bash
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+          MODEL: ${{ needs.plan.outputs.model }}
+          SESSION: ${{ steps.check1.outputs.session }}
+        run: |
+          claude --version
+          started="$(date +%s)"
+          code=0
+          claude --print --resume "$SESSION" --model "$MODEL" --effort medium --permission-mode dontAsk --allowedTools Bash Read Edit Write Glob Grep --disallowedTools WebFetch WebSearch --output-format stream-json --verbose < "$RUNNER_TEMP/auto-fix-agent/round-2.md" > "$RUNNER_TEMP/auto-fix-agent/transcript-2.jsonl" || code=$?
+          echo "$(( $(date +%s) - started ))" >> "$RUNNER_TEMP/auto-fix-agent/seconds"
+          exit "$code"
+      - name: Repeat the test file with the agent's change (check 2)
+        id: check2
+        if: steps.agent2.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 20
+        shell: bash
+        env:
+          RUNNER_NAME: ${{ matrix.runner }}
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 2 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
+      - name: Give the agent what the check saw and let it continue (round 3)
+        id: agent3
+        if: steps.check2.outputs.again == 'true'
+        continue-on-error: true
+        timeout-minutes: 30
+        shell: bash
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+          MODEL: ${{ needs.plan.outputs.model }}
+          SESSION: ${{ steps.check2.outputs.session }}
+        run: |
+          claude --version
+          started="$(date +%s)"
+          code=0
+          claude --print --resume "$SESSION" --model "$MODEL" --effort medium --permission-mode dontAsk --allowedTools Bash Read Edit Write Glob Grep --disallowedTools WebFetch WebSearch --output-format stream-json --verbose < "$RUNNER_TEMP/auto-fix-agent/round-3.md" > "$RUNNER_TEMP/auto-fix-agent/transcript-3.jsonl" || code=$?
+          echo "$(( $(date +%s) - started ))" >> "$RUNNER_TEMP/auto-fix-agent/seconds"
+          exit "$code"
+      - name: Repeat the test file with the agent's change (check 3)
+        id: check3
+        if: steps.agent3.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 20
+        shell: bash
+        env:
+          RUNNER_NAME: ${{ matrix.runner }}
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 3 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
       - name: Collect the output and stop when a secret is in it
         id: collect
-        if: always() && steps.gate.outputs.run == 'true' && steps.agent.outcome != 'skipped'
+        if: always() && steps.gate.outputs.run == 'true' && steps.agent1.outcome != 'skipped'
         shell: bash
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
           TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
           MODEL: ${{ needs.plan.outputs.model }}
         run: |
-          seconds="$(( $(date +%s) - $(cat "$RUNNER_TEMP/auto-fix-input/started") ))"
-          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs collect --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --transcript "$RUNNER_TEMP/auto-fix-agent/transcript.jsonl" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --seconds "$seconds" --model "$MODEL" --out "$RUNNER_TEMP/auto-fix-output"
+          seconds="$(awk '{ total += $1 } END { print total + 0 }' "$RUNNER_TEMP/auto-fix-agent/seconds" 2>/dev/null || echo 0)"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs collect --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --transcripts "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --seconds "$seconds" --model "$MODEL" --out "$RUNNER_TEMP/auto-fix-output"
       - uses: actions/upload-artifact@v4
         if: always() && steps.collect.outcome == 'success'
         with:
