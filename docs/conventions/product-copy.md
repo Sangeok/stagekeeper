@@ -1415,11 +1415,13 @@ with the owner on 2026-10-27.
 - After the owner confirms that session is closed, the skill stops and releases it. When release answers quiescence-required with `processLeft:false`, it asks once: "No Codex process is left for that session, but its last turn did not finish cleanly. Release this checkout so work can start here again?" Only an explicit yes runs `release --session {session} --abandoned yes`.
 - After a release: "Released this checkout." and, only when git status shows changes, "Check uncommitted changes from its last turn before you continue."
 
-## 16. Landing — public `/` (landing-v2, content updated 2026-11-10)
+## 16. Landing — public `/` (landing-v2, content updated 2026-11-25)
 
 - Headline: **Your agents build. You set the rules.** (one line each — a longer second line
   wraps to three and strands a fragment)
-- 첫 화면은 제품 종류와 작업 진행·승인·기록 추적의 가치를 아래 `landing-intro` 문구로 설명한다.
+- 첫 화면은 제품 종류와 작업 진행·기록 추적의 가치를 아래 `landing-intro` 문구로 설명한다.
+  제품을 승인 게이트로 정의하지 않는다(2026-11-25). 게이트는 기본 구성이고 Pro/Max에서 옮기거나
+  없앨 수 있으며, 모든 실행 가능한 파이프라인에 남는 것은 인수와 그 기록이다.
 - CTA: **Continue with GitHub** (signed in: **Open projects**). 두 상태 모두 옆에
   **View setup guide**를 두고 `/docs/getting-started`로 연결한다. 아래 한 줄은 저장소와
   플러그인 연결이 필요함을 알린다. 명령어와 토큰 절차는 설치 문서와 연결 화면에 둔다.
@@ -1437,7 +1439,7 @@ with the owner on 2026-10-27.
 <!-- /copy-lock -->
 
 - Off the page — browser tab, search result, link preview (added 2026-10-13):
-  - Title: **Stagekeeper — Automate Claude Code with approval gates**.
+  - Title: **Stagekeeper — Pipeline and records for Claude Code**.
   - Description: 검색 설명은 아래 문구를 사용한다. 제품의 사용 가치를 요약하고 플랜에 따라
     달라지는 단계·게이트 구성을 모든 사용자의 기본 기능으로 약속하지 않는다.
   - Share card (1200×630): the headline as on the page (second line `--mine`), the S monogram with
@@ -1445,33 +1447,60 @@ with the owner on 2026-10-27.
   - App icon: a white S on a `--mine` square — the colour the product gives only to your turn.
 
 <!-- copy-lock:landing-meta -->
-> Stagekeeper — Automate Claude Code with approval gates
-> Manage your Claude Code workflow with approval gates, progress tracking, and records linked to your repository.
+> Stagekeeper — Pipeline and records for Claude Code
+> Take Claude Code work from backlog to acceptance through a pipeline, with progress tracking and records linked to your repository.
 <!-- /copy-lock -->
 
 <!-- copy-lock:landing-intro -->
-> Approval gates for Claude Code
-> Move work from backlog to implementation with clear approval points. Claude Code works in your repository; Stagekeeper tracks progress and keeps the decision history.
+> A pipeline for Claude Code
+> Move work from backlog to acceptance through planning, implementation, and checks. Claude Code works in your repository; Stagekeeper tracks progress and keeps the decision history.
 > View setup guide
 > Connect a GitHub repository and install the Claude Code plugin to start.
 <!-- /copy-lock -->
 
 - 흐름은 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved ·
   6 Implemented · 7 Accepted를 유지하고 2와 5에만 `you`를 표시한다. 모든 플랜의 고정 절차가
-  아닌 예시이며, 아래 문구로 기본 승인 지점과 플랜 차이를 설명한다. Verified는 독립 검증 기록,
+  아닌 예시이며, 기본 승인 지점과 플랜 차이는 바로 아래 "Where the pipeline waits"가 한 번만 설명한다
+  (2026-11-25, 같은 문장이 두 구역에 반복되지 않게 함). Verified는 독립 검증 기록,
   Accepted는 인수 기록을 뜻한다. 구현 완료와 인수 완료를 합치지 않는다.
 
 <!-- copy-lock:landing-workflow -->
 > An example workflow
-> By default, the pipeline waits for you before planning and implementation.
-> Free uses a fixed pipeline. Pro and Max add independent plan verification and let you change steps and approval gates.
+> Verified is an independent plan verification, on Pro and Max. Accepted is the acceptance record.
+> Where the pipeline waits
+> A gate is a place where the pipeline waits for your approval. Two gates are the default, not a requirement.
+> Free uses a fixed pipeline. Pro and Max let you change steps and gates.
+> Two gates · Default on every plan
+> The pipeline waits for you before planning and before implementation.
+> One gate · Pro and Max
+> Planning starts without you. You read the plan and approve before code changes.
+> No gates
+> Planning and implementation start without your approval. Acceptance still runs.
+> You: Request plan · You: Approve implementation
+> Acceptance is always required.
+> Removing gates does not remove acceptance. The session reproduces five checks and records the result. A failed check waits for you.
+> Changed files · Diff vs sketch · Verify command · Backlog entry · Report record
+> The changed files match the plan's list.
+> The change matches the plan's implementation sketch.
+> The verify command runs again and passes.
+> The backlog entry is gone.
+> The report record points to a committed file.
+> Keep the session running.
+> /harness:watch watches for the next available work and lets your Claude Code session continue through steps that do not need you. It does not open gates or push commits for you.
+> The session waits at a gate and at a failed check. An item waiting at a gate does not block other ready work.
+> Pro and Max add a background runner.
 <!-- /copy-lock -->
 
+- 게이트 구성 셋(둘·하나·없음)은 Plan · Implement · Accept 단계 이름(§18)과 게이트 버튼 이름(§7)을
+  제품 코드에서 가져와 그린다. 기본 구성에만 "Default on every plan"을, 나머지 둘에는
+  "Pro and Max"를 붙인다. 인수 확인 다섯 이름은 §14의 acceptance checks와 같은 값이고,
+  이름 아래 한 줄 설명은 §14의 정의를 방문자용으로 줄인 것이다.
+
 - Three facts (not slogans):
-  - **Agents can't approve themselves.** Review plans and open approval gates in the Inbox.
-    Work agents cannot open gates or change the pipeline.
   - **No pass without a record.** Follow each item's plans, approvals, and reports.
     Verified and Accepted appear only when their supporting records exist.
+  - **Agents can't approve themselves.** Where a gate exists, you open it.
+    Work agents cannot open gates or change the pipeline.
   - **Runs in your repository.** Claude Code runs the agents in your repository. Plans and
     reports are committed alongside your code; Stagekeeper keeps their references.
 
@@ -1484,6 +1513,8 @@ with the owner on 2026-10-27.
 - Stagekeeper가 사용자 대신 클라이언트를 호스팅하거나 에이전트를 직접 실행한다고 설명하지 않는다.
 - 기존 헤드라인·Inbox 예시·검증과 인수 흐름을 유지한다. 랜딩에 전체 기능 목록·요금표·설치 명령을
   추가하지 않고, 시작에 필요한 안내는 설치 문서로 연결한다.
+- 게이트를 줄이거나 없앤 구성은 Pro/Max 표시와 함께만 보여 준다. watch가 게이트를 열거나
+  푸시한다고 쓰지 않는다. 백그라운드 러너는 Pro/Max 기능으로만 언급한다.
 
 ---
 
