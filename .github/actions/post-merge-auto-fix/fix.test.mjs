@@ -23,6 +23,7 @@ import {
   describePlan,
   digestOf,
   droppedTests,
+  fromEveryRunner,
   endState,
   failuresInLog,
   fingerprint,
@@ -463,6 +464,12 @@ it("measures an always failing test five times on one runner and a load-sensitiv
   assert.match(job, new RegExp(`shard: \\[${Array.from({ length: LOAD_MEASURE_RUNNERS }, (_, index) => index + 1).join(", ")}\\]`));
   assert.match(job, /RUNNERS: \$\{\{ needs\.change\.outputs\.runners \}\}/);
   assert.match(job, /\[ "\$SHARD" -le "\$\{RUNNERS:-3\}" \]/);
+
+  const reported = [{ before: counts(20, 6), after: counts(20, 0) }, { before: counts(20, 5), after: counts(20, 0) }];
+  assert.equal(judge(combine(fromEveryRunner(reported, { load: true })), { testOnly: true, kind: "load", load: true }).verdict, "not-measured");
+  assert.equal(judge(combine(fromEveryRunner([...reported, reported[0]], { load: true })), { testOnly: true, kind: "load", load: true }).verdict, "verified");
+  assert.equal(judge(combine(fromEveryRunner(reported.slice(0, 1), { load: false })), { testOnly: true, kind: "sometimes", load: false }).verdict, "verified");
+  assert.match(workflow, /\n  branch:\n    needs: \[plan, change, measure\]\n    if: \$\{\{ !cancelled\(\) && needs\.change\.outputs\.change == 'ready' && needs\.change\.outputs\.refused == 'false' && needs\.measure\.result != 'skipped' \}\}/);
 
   const original = ranNamed(true, namedPlan.names);
   const always = { ...namedPlan, load: false, runs: PLAIN_RUNS, kind: "always" };

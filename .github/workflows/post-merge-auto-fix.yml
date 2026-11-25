@@ -459,7 +459,7 @@ jobs:
 
   branch:
     needs: [plan, change, measure]
-    if: ${{ !cancelled() && needs.measure.result == 'success' }}
+    if: ${{ !cancelled() && needs.change.outputs.change == 'ready' && needs.change.outputs.refused == 'false' && needs.measure.result != 'skipped' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

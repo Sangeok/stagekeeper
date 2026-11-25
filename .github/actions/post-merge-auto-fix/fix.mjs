@@ -290,6 +290,7 @@ export function droppedTests(expected, executed) {
 }
 
 export const measureRunners = plan => (plan.load ? LOAD_MEASURE_RUNNERS : 1);
+export const fromEveryRunner = (results, plan) => (results.length >= measureRunners(plan) ? results : []);
 export const measureRuns = kind => (kind === "always" ? PLAIN_RUNS : MEASURE_FLOOR);
 
 export function combine(results) {
@@ -807,7 +808,7 @@ const commands = {
   decide(args) {
     const { patch, plan } = readVerified(args);
     const files = existsSync(args.results) ? readdirSync(args.results, { recursive: true }).filter(name => String(name).endsWith(".json")) : [];
-    const measured = combine(files.map(name => readJson(path.join(args.results, String(name)))));
+    const measured = combine(fromEveryRunner(files.map(name => readJson(path.join(args.results, String(name)))), plan));
     const decision = judge(measured, { testOnly: changeStats(patch).testOnly, kind: plan.kind, load: plan.load });
     const counts = totals => `${totals.runs},${totals.failed},${totals.original}`;
     output({
