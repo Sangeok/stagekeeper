@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-11-26"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "user"
+approved-at: "2026-11-26"
+approval-scope: "Execution Plan의 1단계부터 3단계(0단계, 가 단계, 나 단계)의 구현. 대화에서 승인받았다. 구현 PR의 병합, 모델을 쓰는 실행, AUTO_FIX_MODE를 바꾸는 일은 그때마다 따로 승인받는다."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -354,7 +354,7 @@ PR이 병합됨)은 켜는 조건에서 뺀다. 그 기준은 에이전트의 �
 
 승인 메모:
 
-- 승인 전. 설계의 값은 주인이 2026-11-26에 대화에서 정했다. 한 이슈에 세 번, 첫
+- 설계의 값은 주인이 2026-11-26에 대화에서 정했다. 한 이슈에 세 번, 첫
   시도부터 Opus, 다시 실행해 통과한 실패는 3건에서 시작, 켜는 조건 셋(8절)과 기다리는
   기간 없음, 제품 코드를 고친 PR의 표시, 스스로 멈추는 조건, 변수는 주인의 말로
   에이전트가 바꾸는 것이다. 이 값들을 정한 것은 구현의 승인이 아니다.
@@ -442,7 +442,7 @@ PR이 병합됨)은 켜는 조건에서 뺀다. 그 기준은 에이전트의 �
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
-- [x] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다. (승인 전이다)
+- [x] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
 - [x] `proposal-size`는 `small` 또는 `standard`만 사용했고, standard 강제 조건에 해당하는 작업을 small로 낮추지 않았다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
