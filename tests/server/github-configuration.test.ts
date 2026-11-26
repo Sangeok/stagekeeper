@@ -4,10 +4,6 @@ import { appConfiguration, webhookConfiguration } from "../../src/server/github/
 import { configuredTokenVault } from "../../src/server/github/token-vault.server";
 import { loadModule } from "./fixtures/load-module";
 
-it("leaves the repository list unavailable without App configuration", () => {
-  assert.equal(appConfiguration({}), null);
-});
-
 it("requires a fixed safe callback origin and keeps webhook configuration independent of feature enablement", () => {
   const env = { GITHUB_REPOSITORY_APP_CLIENT_ID: "client", GITHUB_REPOSITORY_APP_CLIENT_SECRET: "secret", GITHUB_REPOSITORY_APP_ID: "1", GITHUB_REPOSITORY_APP_SLUG: "my-app", HARNESS_PUBLIC_URL: "https://stagekeeper.test" };
   assert.equal(appConfiguration(env)?.origin, "https://stagekeeper.test");

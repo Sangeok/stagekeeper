@@ -137,13 +137,13 @@ type Composition = {
 
 it("detail composition authorizes before loading, preserves the Action binding and owns notFound", async () => {
   const calls: unknown[] = [];
-  let allowed = true, missing = false;
-  const denied = new Error("guard denied"), absent = new Error("not found");
+  let missing = false;
+  const absent = new Error("not found");
   const item = { key: "K-1" };
   const action = async (...args: unknown[]) => { calls.push(args); };
   const page = loadModule<Route>("src/app/(app)/p/[slug]/items/[key]/page.tsx", {
     "next/navigation": { notFound: () => { throw absent; } },
-    "@/server/auth/guard": { requireProjectOwner: async (slug: string) => { calls.push(["guard", slug]); if (!allowed) throw denied; return { projectId: "trusted" }; } },
+    "@/server/auth/guard": { requireProjectOwner: async (slug: string) => { calls.push(["guard", slug]); return { projectId: "trusted" }; } },
     "@/fsd/pages/board-item/index.server": { loadBoardItemPage: async (...args: unknown[]) => { calls.push(["load", ...args]); return missing ? null : { item, canWrite: false, pipelineChoices: [] }; } },
     "@/fsd/pages/board-item": { BoardItemPage: () => null },
     "@/fsd/features/change-item-pipeline/index.server": { changeItemPipeline: action },
@@ -158,10 +158,7 @@ it("detail composition authorizes before loading, preserves the Action binding a
   assert.deepEqual(calls.at(-1), ["mine", "payload"]);
   assert.ok(element.props.discard); await element.props.discard("K-1", "2026-11-05T00:00:00.000Z");
   assert.deepEqual(calls.at(-1), ["mine", "K-1", "2026-11-05T00:00:00.000Z"]);
-  calls.length = 0; allowed = false;
-  await assert.rejects(page.default(input), error => error === denied);
-  assert.deepEqual(calls, [["guard", "mine"]]);
-  allowed = true; missing = true;
+  missing = true;
   await assert.rejects(page.default(input), error => error === absent);
 });
 

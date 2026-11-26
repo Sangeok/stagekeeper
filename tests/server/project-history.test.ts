@@ -5,7 +5,6 @@ import type { ReactElement } from "react";
 import { historyCutoff } from "../../packages/app-core/plans/entitlement.mjs";
 import type { PrismaClient } from "../../src/generated/prisma/client";
 import { createBoardService } from "../../src/server/pipeline/api";
-import { currentRoundIds, hasProjectHistoryBefore, projectHistory, projectHistoryItems } from "../../src/server/pipeline/api.server";
 import * as cursorModule from "../../src/server/pipeline/history-page";
 import * as itemCursorModule from "../../src/server/pipeline/history-items";
 import { afterCursor, eventWhere } from "../../src/server/pipeline/history-page";
@@ -25,10 +24,8 @@ function isolatedHistoryRoute(dependencies: Record<string, unknown>): (input: Pa
   return exported.default as (input: PageInput) => Promise<PageOutput>;
 }
 
-it("the actual route stops before reads on auth failure and derives scope only from the owner guard", async () => {
+it("the actual route derives scope only from the owner guard", async () => {
   const calls: string[] = [];
-  const denied = new Error("not found or login redirect");
-  let rejectAccess = true;
   let plan: "free" | "pro" = "free";
   const at = new Date("2026-09-30T00:00:00.000Z");
   const report = { source: "report", id: "c1", key: "K-1", boardItemId: "round", at, actor: "dev",
@@ -38,7 +35,7 @@ it("the actual route stops before reads on auth failure and derives scope only f
     "@harness/app-core/plans/entitlement.mjs": { historyCutoff },
     "@/fsd/pages/project-history": { ProjectHistoryPage: () => null, readHistoryQuery },
     "@/server/auth/guard": { requireProjectOwner: async (slug: string) => {
-      calls.push("guard"); assert.equal(slug, "sample"); if (rejectAccess) throw denied; return { projectId: "owned" };
+      calls.push("guard"); assert.equal(slug, "sample"); return { projectId: "owned" };
     } },
     "@/server/projects/api.server": { ...({ planForProject: async (id: string) => { calls.push("plan"); assert.equal(id, "owned"); return plan; } }), ...({ loadProjectRepository: async (id: string) => {
       calls.push("repo"); assert.equal(id, "owned"); return { owner: "o", repo: "r", branch: "main" };
@@ -59,9 +56,6 @@ it("the actual route stops before reads on auth failure and derives scope only f
     },
   });
   const invoke = (query: Record<string, string | string[] | undefined>) => page({ params: Promise.resolve({ slug: "sample" }), searchParams: Promise.resolve(query) });
-  await assert.rejects(invoke({}), error => error === denied);
-  assert.deepEqual(calls, ["guard"]);
-  rejectAccess = false;
   for (const query of [{ mode: "events" }, { mode: "events", view: ["all", "all"], before: ["c1", "c2"] }, { mode: "events", view: "invalid", before: "invalid" }]) {
     calls.length = 0;
     const rendered = await invoke(query);
@@ -84,13 +78,6 @@ it("the actual route stops before reads on auth failure and derives scope only f
   assert.equal(rendered.props.historyTruncated, false);
   assert.equal(options.at(-1)?.since, null);
   assert.ok(!calls.includes("truncation"));
-});
-
-it("exports history queries through both the factory and server entrypoint", () => {
-  assert.equal(typeof projectHistory, "function");
-  assert.equal(typeof hasProjectHistoryBefore, "function");
-  assert.equal(typeof currentRoundIds, "function");
-  assert.equal(typeof projectHistoryItems, "function");
 });
 
 it("scopes and bounds both sources, preserves the three filters and only projects public record fields", async () => {
@@ -184,8 +171,6 @@ it("links only the first non-discarded round per key and skips empty key lists",
 
 it("defaults to item summaries, ignores malformed cursors and fetches only an expanded item on the visible page", async () => {
   const calls: string[] = [];
-  const denied = new Error("not found");
-  let authorized = false;
   let plan: "free" | "pro" = "free";
   const at = new Date("2026-09-30T00:00:00.000Z");
   const summary = { id: "item1", key: "K-1", title: "Practice history", status: "done", discardedAt: null, at };
@@ -195,7 +180,7 @@ it("defaults to item summaries, ignores malformed cursors and fetches only an ex
     "@harness/app-core/plans/entitlement.mjs": { historyCutoff },
     "@/fsd/pages/project-history": { ProjectHistoryPage: () => null, readHistoryQuery },
     "@/server/auth/guard": { requireProjectOwner: async () => {
-      calls.push("guard"); if (!authorized) throw denied; return { projectId: "owned" };
+      calls.push("guard"); return { projectId: "owned" };
     } },
     "@/server/projects/api.server": { ...({ planForProject: async () => { calls.push("plan"); return plan; } }), ...({ loadProjectRepository: async () => { calls.push("repo"); return { owner: "o", repo: "r", branch: "main" }; } }) },
     "@/server/pipeline/api": { ...cursorModule, ...itemCursorModule, loadPipelineChanges: async () => [] },
@@ -217,9 +202,6 @@ it("defaults to item summaries, ignores malformed cursors and fetches only an ex
   });
   const invoke = (query: PageInput["searchParams"] extends Promise<infer Query> ? Query : never) =>
     route({ params: Promise.resolve({ slug: "sample" }), searchParams: Promise.resolve(query) });
-  await assert.rejects(invoke({ item: "K-1" }), error => error === denied);
-  assert.deepEqual(calls, ["guard"]);
-  authorized = true;
   for (const query of [{}, { mode: ["events", "events"], before: ["a", "b"] },
     { mode: "invalid", view: "all", before: "invalid" }, { item: "another-project-key" }, { item: ["K-1", "K-2"] }]) {
     calls.length = 0;

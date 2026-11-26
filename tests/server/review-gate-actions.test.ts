@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { success, failure } from "../../src/fsd/shared/api/result";
 import * as routes from "../../src/fsd/shared/routes/project";
-import type { approveGate as ApproveGate, retryAcceptance as RetryAcceptance } from "@/fsd/features/review-gate/index.server";
 import { loadModule } from "./fixtures/load-module";
 import type { ActionResult } from "../../src/fsd/shared/api/result";
 
@@ -23,7 +22,7 @@ for (const target of actions) {
     ? [slug, (input as { key?: unknown } | null)?.key, (input as { expectedUpdatedAt?: unknown } | null)?.expectedUpdatedAt] : [slug, input];
   const error = target.name === "proposeItem" ? "Couldn't put it on the board. Try again." : reviewError;
   const setup = (outcome = "success") => {
-    let guards = 0; let writes = 0; let revalidations = 0;
+    let guards = 0; let writes = 0; let revalidations = 0; let advice = 0;
     const exception = new Error(outcome);
     const serviceArgs: unknown[][] = [];
     const loaded = loadModule<Record<string, TransportAction>>(target.file, {
@@ -38,9 +37,9 @@ for (const target of actions) {
         writes++; serviceArgs.push(values);
         if (outcome === "precommit" || outcome === "commit-unknown") throw exception;
         return outcome === "stale" || outcome === "business" ? { ok: false, reason: outcome } : { ok: true, item: null };
-      } },
+      }, nextFor: () => { advice++; throw new Error("web must not read advice"); } },
     });
-    return { call: loaded[target.name], exception, serviceArgs, counts: () => ({ guards, writes, revalidations }) };
+    return { call: loaded[target.name], exception, serviceArgs, counts: () => ({ guards, writes, revalidations }), advice: () => advice };
   };
   it(`${target.name} rejects malformed slug/payload without a service or revalidation call`, async () => {
     for (const slug of [null, undefined, 0, {}, [], ""]) {
@@ -67,12 +66,13 @@ for (const target of actions) {
       if (["guest", "foreign", "precommit", "commit-unknown", "revalidation"].includes(outcome)) await assert.rejects(result, caught => caught === fixture.exception);
       else assert.deepEqual(await result, outcome === "success" ? success() : failure(outcome === "read-only" ? "locked" : outcome === "stale" && target.name !== "proposeItem" ? reviewError : outcome));
       assert.deepEqual(fixture.counts(), { guards: 1, writes: ["guest", "foreign", "read-only"].includes(outcome) ? 0 : 1, revalidations: outcome === "success" ? target.name === "discardItem" ? 2 : target.name === "proposeItem" ? 1 : 3 : outcome === "revalidation" ? 1 : 0 });
+      assert.equal(fixture.advice(), 0);
       for (const values of fixture.serviceArgs) {
         assert.equal(values[0], "owned");
         const submitted = values[1] as Record<string, unknown>;
         assert.equal(submitted.key, "KEY");
         for (const name of ["actor", "actorRef", "projectId"]) assert.equal(submitted[name], undefined);
-        if (target.name === "retryAcceptance" || target.name === "discardItem") assert.equal(submitted.userId, "owner");
+        if (target.name === "retryAcceptance" || target.name === "discardItem") { assert.equal(submitted.userId, "owner"); assert.equal((submitted.expectedUpdatedAt as Date).getTime(), 0); }
         else { const caller = values[2] as Record<string, unknown>; assert.equal(caller.actorRef, "owner"); assert.equal(caller.actor, "human"); }
       }
     }
@@ -92,51 +92,3 @@ for (const target of actions) {
     }
   });
 }
-
-it("retry checks access/date first, revalidates three paths only after success and propagates uncertain commits", async () => {
-  for (const outcome of ["success", "refused", "invalid-date", "unavailable", "foreign", "guest", "precommit", "commit-unknown", "revalidate-failure"] as const) {
-    const revalidated: string[] = []; let writes = 0; const original = new Error(outcome);
-    const deps: Record<string, unknown> = {
-      "next/cache": { revalidatePath: (path: string) => { if (outcome === "revalidate-failure") throw original; revalidated.push(path); } },
-      "@/fsd/shared/api/result": { success, failure }, "@/fsd/shared/routes/project": routes,
-      "@/server/auth/guard": { requireProjectWrite: async () => {
-        if (outcome === "foreign" || outcome === "guest") throw original;
-        return outcome === "unavailable" ? { ok: false, reason: "locked" } : { ok: true, userId: "owner", projectId: "p" };
-      } },
-      "@/server/pipeline/api.server": { retryAcceptance: async (projectId: string, input: { key: string; userId: string; expectedUpdatedAt: Date }) => {
-        writes++; assert.equal(projectId, "p"); assert.equal(input.userId, "owner"); assert.equal(input.expectedUpdatedAt.getTime(), 0);
-        if (outcome === "refused") return { ok: false, reason: "stale" };
-        if (outcome === "precommit" || outcome === "commit-unknown") throw original;
-        return { ok: true, item: null };
-      } },
-    };
-    const loaded = loadModule<{ retryAcceptance: typeof RetryAcceptance }>(reviewFile, deps);
-    const result = loaded.retryAcceptance("sample", { key: "KEY", expectedUpdatedAt: outcome === "invalid-date" ? "invalid" : new Date(0).toISOString() });
-    if (["foreign", "guest", "precommit", "commit-unknown", "revalidate-failure"].includes(outcome)) await assert.rejects(result, error => error === original);
-    else if (outcome === "success") assert.deepEqual(await result, success());
-    else assert.equal((await result).success, false);
-    assert.equal(writes, ["invalid-date", "unavailable", "foreign", "guest"].includes(outcome) ? 0 : 1);
-    assert.deepEqual(revalidated, outcome === "success" ? ["/p/sample", "/p/sample/inbox", "/p/sample/items/KEY"] : []);
-  }
-});
-
-it("web approval revalidates exactly three paths only after confirmed success, and never reads advice", async () => {
-  for (const outcome of ["success", "refused", "precommit", "commit-unknown", "revalidate-failure"] as const) {
-    const revalidated: string[] = []; let writes = 0; let advice = 0; const original = new Error(outcome);
-    const deps: Record<string, unknown> = {
-      "next/cache": { revalidatePath: (path: string) => { if (outcome === "revalidate-failure") throw original; revalidated.push(path); } },
-      "@/fsd/shared/api/result": { success, failure }, "@/fsd/shared/routes/project": routes,
-      "@/server/auth/guard": { requireProjectWrite: async () => ({ ok: true, userId: "owner", projectId: "p" }) },
-      "@/server/pipeline/api.server": { gate: async () => { writes++; if (outcome === "refused") return { ok: false, reason: "stale" };
-        if (outcome === "precommit" || outcome === "commit-unknown") throw original;
-        return { ok: true, item: { id: "written" } }; }, nextFor: () => { advice++; throw new Error("web must not read advice"); } },
-    };
-    const loaded = loadModule<{ approveGate: typeof ApproveGate }>(reviewFile, deps);
-    const result = loaded.approveGate("sample", { key: "KEY", gate: "before-accept", expectedUpdatedAt: new Date(0).toISOString() });
-    if (outcome === "success") assert.deepEqual(await result, success());
-    else if (outcome === "refused") assert.deepEqual(await result, failure("The board changed. Refresh and try again."));
-    else await assert.rejects(result, error => error === original);
-    assert.equal(writes, 1); assert.equal(advice, 0);
-    assert.deepEqual(revalidated, outcome === "success" ? ["/p/sample", "/p/sample/inbox", "/p/sample/items/KEY"] : []);
-  }
-});
