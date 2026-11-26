@@ -1202,3 +1202,25 @@ it("shows the counts of each runner beside the sum, so a failure on one runner i
   assert.match(workflow, /\n      per_runner: \$\{\{ steps\.decide\.outputs\.per_runner \}\}\n/);
   assert.equal(workflow.match(/--per-runner "\$\{PER_RUNNER:-none\}"/g).length, 2);
 });
+
+it("gives a pull request from a fix branch no private templates in the workflows that check them out", () => {
+  const workflows = new URL("../../workflows/", import.meta.url);
+  const names = ["check.yml", "windows-role-runtime.yml", "macos-runtime-contracts.yml", "client-init-smoke.yml", "shared-distribution-acceptance.yml"];
+  const texts = Object.fromEntries(names.map(name => [name, readFileSync(new URL(name, workflows), "utf8")]));
+  const onPullRequests = names.filter(name => /^  pull_request:/m.test(texts[name]));
+  assert.deepEqual(onPullRequests, names);
+  assert.deepEqual(onPullRequests.filter(name => /secrets\./.test(texts[name])), ["client-init-smoke.yml", "shared-distribution-acceptance.yml"]);
+
+  const shared = texts["shared-distribution-acceptance.yml"];
+  assert.match(shared, /TRUSTED_HEAD: \$\{\{ github\.event_name != 'pull_request' \|\| \(github\.event\.pull_request\.head\.repo\.full_name == github\.repository && !startsWith\(github\.head_ref, 'harness\/auto-fix-'\)\) \}\}/);
+  const client = texts["client-init-smoke.yml"];
+  assert.match(client, /FIX_BRANCH: \$\{\{ github\.event_name == 'pull_request' && startsWith\(github\.head_ref, 'harness\/auto-fix-'\) \}\}\n        run: \|\n          if \[ "\$FIX_BRANCH" = "true" \]; then\n[^\n]*\n {12}echo "ready=false"/);
+  for (const [text, gate] of [[shared, "steps.shared-inputs.outputs.ready == 'true'"], [client, "steps.gate.outputs.ready == 'true'"]]) {
+    const steps = text.split("\n      - ").slice(1);
+    const withSecret = steps.filter(step => /secrets\./.test(step) && !/id: (gate|shared-inputs)\n/.test(step));
+    assert.ok(withSecret.length > 0);
+    for (const step of withSecret) assert.ok(step.includes(gate), step.slice(0, 80));
+  }
+  assert.equal(FIX_BRANCH_PREFIX, "harness/auto-fix-");
+});
+

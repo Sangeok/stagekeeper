@@ -82,8 +82,12 @@ jobs:
         shell: bash
         env:
           TEMPLATES_TOKEN: ${{ secrets.E2E_TEMPLATES_TOKEN }}
+          FIX_BRANCH: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'harness/auto-fix-') }}
         run: |
-          if [ -z "$TEMPLATES_TOKEN" ]; then
+          if [ "$FIX_BRANCH" = "true" ]; then
+            echo "::notice::A pull request from an automatic fix branch does not receive the private templates, so the client smoke is skipped"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$TEMPLATES_TOKEN" ]; then
             echo "::notice::E2E_TEMPLATES_TOKEN is not available to this run, so the client smoke is skipped"
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else

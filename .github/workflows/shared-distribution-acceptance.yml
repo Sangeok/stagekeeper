@@ -76,7 +76,7 @@ jobs:
         shell: bash
         env:
           TEMPLATES_TOKEN: ${{ secrets.E2E_TEMPLATES_TOKEN }}
-          TRUSTED_HEAD: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          TRUSTED_HEAD: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !startsWith(github.head_ref, 'harness/auto-fix-')) }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$TRUSTED_HEAD" = "true" ] && [ -n "$TEMPLATES_TOKEN" ]; then
