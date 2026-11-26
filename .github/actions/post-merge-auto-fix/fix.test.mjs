@@ -10,6 +10,7 @@ import {
   FIX_BRANCH_PREFIX,
   LABELS,
   LOAD_MEASURE_RUNNERS,
+  MAX_STEP_VALUES,
   MAX_ACTIONS,
   MAX_NOTES,
   MAX_RECORD,
@@ -48,11 +49,17 @@ import {
   readAgentOutput,
   readCounts,
   readMeasurePlan,
+  readStepValues,
+  runEnvironment,
+  stepEnvironment,
+  valuesOfFailedStep,
+  valuesSetInWorkflow,
   readRequest,
   readRounds,
   readTap,
   readTranscript,
   reproduce,
+  reproductionLines,
   requiredPasses,
   runBatch,
   sealTranscripts,
@@ -912,4 +919,102 @@ it("fills every placeholder of the repository's prompt and gives the agent no wa
   assert.doesNotMatch(template, /measure\.json|\{\{plan\}\}|create the load/);
   assert.throws(() => promptText("{{unknown}}", {}), /unknown value unknown/);
   assert.equal(stripAnsi("\u001b[36;1mnot ok 3\u001b[0m"), "not ok 3");
+});
+
+const stamped = lines => lines.map((line, index) => `2026-11-25T12:59:${String(10 + index).padStart(2, "0")}.0000000Z ${line}`).join("\n");
+const failedStepLog = (values, { before = [] } = {}) =>
+  stamped([
+    "##[group]Run actions/setup-node@v5",
+    "with:",
+    "  node-version: 22",
+    "  token: ***",
+    "env:",
+    "  STAGEKEEPER_RELEASED_READERS: required",
+    "##[endgroup]",
+    ...before,
+    '##[group]Run npm exec --call "node --test scripts/pr/process-usage/windows-directory-usage.test.mjs"',
+    '\u001b[36;1mnpm exec --call "node --test scripts/pr/process-usage/windows-directory-usage.test.mjs"\u001b[0m',
+    "shell: C:\\Program Files\\PowerShell\\7\\pwsh.EXE -command \". '{0}'\"",
+    "env:",
+    ...values.map(value => `  ${value}`),
+    "##[endgroup]",
+    "TAP version 13",
+    "# Subtest: Windows directory observation candidate",
+    "    not ok 1 - compares empty, target cwd, and cwd departure using native APIs",
+    "  STAGEKEEPER_PRINTED_BY_THE_TEST: 1",
+    "##[group]Run a later step",
+    "env:",
+    "  STAGEKEEPER_LATER_STEP: 1",
+    "##[endgroup]",
+  ]);
+const checkWorkflow = readFileSync(new URL("../../workflows/check.yml", import.meta.url), "utf8");
+
+it("reads the values of the step in which the first test failed and of no other step", () => {
+  assert.deepEqual(valuesOfFailedStep(failedStepLog(["STAGEKEEPER_USAGE_NATIVE_REQUIRED: 1", "STAGEKEEPER_WINDOWS_RUNTIME_VERIFIED: true", "TOKEN: ***"])), {
+    STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1",
+    STAGEKEEPER_WINDOWS_RUNTIME_VERIFIED: "true",
+    TOKEN: "***",
+  });
+  assert.deepEqual(valuesOfFailedStep(stamped(["##[group]Run npm test", "env:", "  STAGEKEEPER_USAGE_NATIVE_REQUIRED: 1", "##[endgroup]", "ok 1 - passes"])), {});
+  assert.deepEqual(valuesOfFailedStep(stamped(["##[group]Run npm test", "##[endgroup]", "not ok 1 - fails"])), {});
+});
+
+it("reads what a workflow file sets by name, with or without quotes", () => {
+  const set = valuesSetInWorkflow('    env:\n      STAGEKEEPER_A: "1"\n      STAGEKEEPER_B: required\n      OTHER: 1\n    steps:\n      - env:\n          STAGEKEEPER_A: \'2\'\n');
+  assert.deepEqual([...set].map(([name, values]) => [name, [...values]]), [["STAGEKEEPER_A", ["1", "2"]], ["STAGEKEEPER_B", ["required"]]]);
+  assert.equal(valuesSetInWorkflow(checkWorkflow).get("STAGEKEEPER_USAGE_NATIVE_REQUIRED").has("1"), true);
+});
+
+it("takes a value of the failed step only when the workflow file of that run sets it", () => {
+  const real = failedStepLog(["STAGEKEEPER_USAGE_NATIVE_REQUIRED: 1", "STAGEKEEPER_WINDOWS_RUNTIME_VERIFIED: true", "STAGEKEEPER_RELEASED_READERS: required", "TEST_DATABASE_URL: postgresql://localhost/test"]);
+  const known = { STAGEKEEPER_RELEASED_READERS: "required" };
+  assert.deepEqual(stepEnvironment({ logs: [real], workflows: [checkWorkflow], known }), { STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1" });
+  assert.deepEqual(stepEnvironment({ logs: [real, real], workflows: [checkWorkflow], known }), { STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1" });
+  const refused = [
+    ["no workflow file was read", { logs: [real], workflows: [] }],
+    ["the file sets another value", { logs: [real], workflows: ['      STAGEKEEPER_USAGE_NATIVE_REQUIRED: "0"\n'] }],
+    ["the file sets it through an expression", { logs: [real], workflows: ["      STAGEKEEPER_USAGE_NATIVE_REQUIRED: ${{ matrix.native }}\n"] }],
+    ["another log has another value", { logs: [real, failedStepLog(["STAGEKEEPER_USAGE_NATIVE_REQUIRED: 0"])], workflows: [checkWorkflow] }],
+    ["another log lacks it", { logs: [real, failedStepLog([])], workflows: [checkWorkflow] }],
+    ["the runner already has a value of that name", { logs: [real], workflows: [checkWorkflow], known: { ...known, STAGEKEEPER_USAGE_NATIVE_REQUIRED: "0" } }],
+  ];
+  for (const [label, input] of refused) assert.deepEqual(stepEnvironment({ known, ...input }), {}, label);
+  const shapes = ["STAGEKEEPER_PATH: D:\\a\\runtime", "STAGEKEEPER_HIDDEN: ***", "STAGEKEEPER_SPACED: a b", "stagekeeper_lower: 1"];
+  const permissive = shapes.map(line => `      ${line}`).join("\n");
+  assert.deepEqual(stepEnvironment({ logs: [failedStepLog(shapes)], workflows: [permissive] }), {});
+  const many = Array.from({ length: MAX_STEP_VALUES + 3 }, (_, index) => `STAGEKEEPER_N${index}: 1`);
+  assert.equal(Object.keys(stepEnvironment({ logs: [failedStepLog(many)], workflows: [many.map(line => `      ${line}`).join("\n")] })).length, MAX_STEP_VALUES);
+});
+
+it("carries the values in the plan, names them where the run is described and keeps the runner's own values", () => {
+  const env = { STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1" };
+  assert.deepEqual(readMeasurePlan({ ...namedPlan, env }), { ...namedPlan, env });
+  assert.deepEqual(readMeasurePlan({ ...namedPlan, env: {} }), namedPlan);
+  assert.deepEqual(readStepValues(undefined), {});
+  const bad = [[], "X=1", { OTHER: "1" }, { STAGEKEEPER_A: 1 }, { STAGEKEEPER_A: "a b" }, { STAGEKEEPER_A: "$(id)" }, Object.fromEntries(Array.from({ length: MAX_STEP_VALUES + 1 }, (_, index) => [`STAGEKEEPER_N${index}`, "1"]))];
+  for (const value of bad) assert.throws(() => readMeasurePlan({ ...namedPlan, env: value }), JSON.stringify(value));
+  assert.equal(describePlan({ ...namedPlan, load: false, env }), "STAGEKEEPER_USAGE_NATIVE_REQUIRED=1 node --test plugin/bin/harness-watch.test.mjs, one at a time without load");
+  assert.deepEqual(runEnvironment({ env: { ...env, STAGEKEEPER_RELEASED_READERS: "off" } }, "windows-2022"), { ...env, STAGEKEEPER_RELEASED_READERS: "required" });
+  assert.deepEqual(runEnvironment(namedPlan, "ubuntu-latest"), {});
+  assert.equal(reproductionLines({ kind: "always", file: namedPlan.file, env }).includes("Set as in the failed step: STAGEKEEPER_USAGE_NATIVE_REQUIRED=1"), true);
+  assert.equal(reproductionLines({ kind: "always", file: namedPlan.file }).some(line => line.startsWith("Set as in the failed step")), false);
+});
+
+it("runs a test that is skipped without the failed step's value once that value is passed", async () => {
+  const directory = mkdtempSync(path.join(realpathSync(tmpdir()), "auto-fix-step-values-"));
+  const file = "gated.test.mjs";
+  const names = ["fails when it runs"];
+  writeFileSync(
+    path.join(directory, file),
+    'import assert from "node:assert/strict";\nimport { describe, it } from "node:test";\ndescribe("gated", { skip: process.env.STAGEKEEPER_USAGE_NATIVE_REQUIRED === "1" ? false : "gate only" }, () => {\n  it("fails when it runs", () => assert.equal(1, 2));\n});\n',
+  );
+  try {
+    const without = await reproduce({ file, names, cwd: directory, env: runEnvironment({}, "windows-2022"), minutes: 5 });
+    assert.deepEqual([without.kind, without.plain.runs, without.plain.notRun], ["unhandled", 0, 5]);
+    const env = stepEnvironment({ logs: [failedStepLog(["STAGEKEEPER_USAGE_NATIVE_REQUIRED: 1"])], workflows: [checkWorkflow], known: runEnvironment({}, "windows-2022") });
+    const withValue = await reproduce({ file, names, cwd: directory, env: runEnvironment({ env }, "windows-2022"), minutes: 5 });
+    assert.deepEqual([withValue.kind, withValue.plain.original, withValue.plain.notRun], ["always", 5, 0]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
