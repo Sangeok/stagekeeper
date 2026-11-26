@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { it } from "node:test";
-import { runInNewContext } from "node:vm";
 import { isValidElement } from "react";
 import type * as Detail from "@/fsd/pages/board-item/index.server";
 import type * as Backlog from "@/fsd/pages/project-backlog/index.server";
 import { readBacklogQuery } from "@/fsd/shared/routes/project";
 import { loadModule } from "./fixtures/load-module";
 import { manifestEntries } from "./fixtures/action-manifest";
+import { readClientManifests } from "./fixtures/client-manifest";
 
 const detailPath = "src/fsd/pages/board-item/api/board-item-page.server.ts";
 const backlogPath = "src/fsd/pages/project-backlog/api/project-backlog-page.server.ts";
@@ -192,22 +191,6 @@ if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh page loaders and
   for (const entry of manifestEntries()) for (const path of forbidden) assert.ok(!entry.filename?.replaceAll("\\", "/").endsWith(path));
   const routes: Record<string, string> = JSON.parse(readFileSync(".next/server/app-paths-manifest.json", "utf8"));
   for (const route of ["/(app)/p/[slug]/items/[key]/page", "/(app)/p/[slug]/backlog/page", "/(app)/p/[slug]/pipeline/page"]) assert.equal(typeof routes[route], "string");
-  const files: string[] = [];
-  function walk(directory: string): void {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) walk(path);
-      else if (entry.name === "page_client-reference-manifest.js") files.push(path);
-    }
-  }
-  walk(".next/server/app"); assert.ok(files.length > 0);
-  for (const file of files) {
-    const context = { globalThis: {} as { __RSC_MANIFEST?: Record<string, { clientModules: Record<string, unknown> }> } };
-    runInNewContext(readFileSync(file, "utf8"), context);
-    assert.ok(context.globalThis.__RSC_MANIFEST);
-    for (const manifest of Object.values(context.globalThis.__RSC_MANIFEST)) {
-      assert.ok(manifest.clientModules && typeof manifest.clientModules === "object");
-      for (const name of Object.keys(manifest.clientModules)) for (const path of forbidden) assert.ok(!name.replaceAll("\\", "/").includes(path));
-    }
-  }
+  const manifests = readClientManifests(); assert.ok(manifests.length > 0);
+  for (const name of manifests.flatMap(manifest => manifest.modules)) for (const path of forbidden) assert.ok(!name.replaceAll("\\", "/").includes(path));
 });

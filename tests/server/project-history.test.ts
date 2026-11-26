@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { it } from "node:test";
-import { runInNewContext } from "node:vm";
-import ts from "typescript";
-import { loadModule } from "./fixtures/load-module";
+import { loadIsolatedModule, loadModule } from "./fixtures/load-module";
 import type { ReactElement } from "react";
 import { historyCutoff } from "../../packages/app-core/plans/entitlement.mjs";
 import type { PrismaClient } from "../../src/generated/prisma/client";
@@ -23,17 +19,8 @@ type PageOutput = ReactElement<{
 }>;
 
 function isolatedHistoryRoute(dependencies: Record<string, unknown>): (input: PageInput) => Promise<PageOutput> {
-  const source = readFileSync(new URL("../../src/app/(app)/p/[slug]/history/page.tsx", import.meta.url), "utf8");
-  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  const exported: { default?: unknown } = {};
-  const require = createRequire(import.meta.url);
   const loader = loadModule<typeof import("../../src/fsd/pages/project-history/api/project-history.server")>("src/fsd/pages/project-history/api/project-history.server.ts", { ...dependencies, "../model/history-navigation": { readHistoryQuery } });
-  dependencies["@/fsd/pages/project-history/index.server"] = loader;
-  runInNewContext(code, { exports: exported, Date, require: (specifier: string) => {
-    if (specifier in dependencies) return dependencies[specifier];
-    if (specifier === "react/jsx-runtime") return require(specifier);
-    throw new Error(`Unexpected route dependency: ${specifier}`);
-  } });
+  const exported = loadIsolatedModule<{ default?: unknown }>("src/app/(app)/p/[slug]/history/page.tsx", { ...dependencies, "@/fsd/pages/project-history/index.server": loader });
   assert.equal(typeof exported.default, "function");
   return exported.default as (input: PageInput) => Promise<PageOutput>;
 }

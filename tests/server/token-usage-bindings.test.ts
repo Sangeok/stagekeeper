@@ -1,10 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { resolve } from "node:path";
 import { it } from "node:test";
-import { runInNewContext } from "node:vm";
-import ts from "typescript";
 import { newToken } from "../../src/server/tokens/api";
 import * as auth from "../../src/server/mcp/auth";
 import * as templatesQuery from "../../src/server/rest/templates-handler";
@@ -18,13 +13,13 @@ import { findUserTokenByHash } from "../../src/server/tokens/api";
 import { registerRepositoryProject } from "../../src/server/projects/api";
 import { restFailureResponse } from "../../src/server/rest/api";
 import { Prisma } from "../../src/generated/prisma/client";
+import { loadModule } from "./fixtures/load-module";
 
 type Handler = (request: Request) => Promise<Response>;
 type Verifier = ReturnType<typeof auth.makeVerifyToken>;
 const plainObject = (value: unknown) => JSON.parse(JSON.stringify(value));
 
 function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: boolean; recordFailure?: boolean; lookupFailure?: boolean; expired?: boolean } = {}) {
-  const require = createRequire(import.meta.url);
   const usage: { kind: string; args: unknown }[] = [];
   const reads: unknown[] = [];
   const tokens = { agent: newToken(), owner: newToken("owner"), user: newToken("user") };
@@ -75,18 +70,7 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
     },
   };
   function load<T>(path: string): T {
-    const exported = {};
-    runInNewContext(ts.transpileModule(readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText, {
-      exports: exported, Request, Response, URL, Date, console,
-      require: (name: string) => {
-        if (Object.hasOwn(common, name)) return common[name];
-        if (name.startsWith("@harness/shared/")) return require(resolve("packages/shared", name.slice("@harness/shared/".length)));
-        if (name.startsWith("@harness/app-core/")) return require(resolve("packages/app-core", name.slice("@harness/app-core/".length)));
-        if (name.startsWith(".")) return require(resolve(path, "..", name));
-        return require(name);
-      },
-    });
-    return exported as T;
+    return loadModule<T>(path, common, { Request, Response, URL });
   }
   const binder = load<{ recordTokenUsage: usageQuery.TokenUsageRecorder }>("src/server/tokens/usage.ts");
   common["@/server/tokens/api.server"] = { ...binder as object, findUserTokenByHash: (hash: string) => findUserTokenByHash(hash, prisma as never) };

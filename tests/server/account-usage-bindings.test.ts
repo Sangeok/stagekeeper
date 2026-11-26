@@ -1,15 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { it } from "node:test";
-import { runInNewContext } from "node:vm";
 import type { ReactElement } from "react";
-import ts from "typescript";
 import type { AccountUsageSnapshot } from "../../src/server/usage/account-usage-query";
+import { loadModule } from "./fixtures/load-module";
 
 function loadPage(options: { userId?: string; authFailure?: boolean; headerFailure?: boolean; snapshotFailure?: boolean }) {
   const calls: string[] = [], diagnostics: unknown[] = [];
-  const require = createRequire(import.meta.url);
   const imports: Record<string, unknown> = {
     "@/fsd/pages/billing": { BillingPage: () => null }, "@/fsd/widgets/app-header": { AppHeader: () => null },
     "@/server/auth/guard": { requireUser: async () => { if (options.authFailure) throw new Error("Login redirect"); return { userId: options.userId ?? "first" }; } },
@@ -19,11 +15,7 @@ function loadPage(options: { userId?: string; authFailure?: boolean; headerFailu
       return { plan: "free", usage: { kind: "limited", percent: userId === "first" ? 95 : 25, resetAt: null } };
     } },
   };
-  const exported: { default?: () => Promise<ReactElement<{ children: ReactElement[] }>> } = {};
-  runInNewContext(ts.transpileModule(readFileSync("src/app/(app)/billing/page.tsx", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText, {
-    exports: exported, console: { error: (...args: unknown[]) => diagnostics.push(args) },
-    require: (name: string) => Object.hasOwn(imports, name) ? imports[name] : require(name),
-  });
+  const exported = loadModule<{ default?: () => Promise<ReactElement<{ children: ReactElement[] }>> }>("src/app/(app)/billing/page.tsx", imports, { console: { error: (...args: unknown[]) => diagnostics.push(args) } });
   assert.ok(exported.default); return { page: exported.default, calls, diagnostics };
 }
 

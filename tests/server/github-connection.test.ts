@@ -1,16 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { runInNewContext } from "node:vm";
 import { it } from "node:test";
-import ts from "typescript";
+import { loadModule } from "./fixtures/load-module";
 
 function load<T>(path: string, dependencies: Record<string, unknown>): T {
-  const exports = {}, require = createRequire(import.meta.url);
-  const code = ts.transpileModule(readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-  runInNewContext(code, { exports, Date, Response, Request, URL, Buffer, console, process: { env: { NODE_ENV: "test" } }, require: (name: string) => name === "server-only" ? {} : name in dependencies ? dependencies[name] : require(name) });
-  return exports as T;
+  return loadModule<T>(path, dependencies, { Response, Request, URL, Buffer, process: { env: { NODE_ENV: "test" } } });
 }
 
 function fixture() {

@@ -181,7 +181,6 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 | `tests/server/owner-gate.test.ts` | mcp | 공개하지 않는 정책·조회·원장 구현의 회귀 검증 (owner-gate) |
 | `tests/server/project-connection-bindings.test.ts` | mcp | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (tools, owner-tools) |
 | `tests/server/project-connection-bindings.test.ts` | projects | 제품 API에 공개하지 않는 접근 오류·메시지를 회귀 시험에서 검증한다. |
-| `tests/server/project-connection-bindings.test.ts` | rest | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (project-registration) |
 | `tests/server/project-history.test.ts` | pipeline | 공개하지 않는 정책·조회·원장 구현의 회귀 검증 (history-page, history-items) |
 | `tests/server/project-registration.test.ts` | projects | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (slug-rule, access-query, registration-service) |
 | `tests/server/project-registration.test.ts` | rest | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (project-registration) |
