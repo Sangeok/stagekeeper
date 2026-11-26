@@ -1,34 +1,16 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { resolve } from "node:path";
 import { it } from "node:test";
-import { runInNewContext } from "node:vm";
-import ts from "typescript";
 import type { ReactElement } from "react";
 import { hashToken, newToken } from "../../src/server/tokens/api";
 import * as result from "../../src/fsd/shared/api/result";
 import { registerWebProject } from "../../src/server/projects/registration-service";
 import * as management from "../../src/server/tokens/rename-token";
 import { Prisma } from "../../src/generated/prisma/client";
+import { loadModule } from "./fixtures/load-module";
 
 const plainObject = (value: unknown) => JSON.parse(JSON.stringify(value));
 function loader(imports: Record<string, unknown>) {
-  const require = createRequire(import.meta.url);
-  return <T>(path: string): T => {
-    const exported = {};
-    runInNewContext(ts.transpileModule(readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText, {
-      exports: exported, Date, FormData, console,
-      require: (name: string) => {
-        if (Object.hasOwn(imports, name)) return imports[name];
-        if (name.startsWith("@harness/shared/")) return require(resolve("packages/shared", name.slice("@harness/shared/".length)));
-        if (name.startsWith("@harness/app-core/")) return require(resolve("packages/app-core", name.slice("@harness/app-core/".length)));
-        if (name.startsWith(".")) return require(resolve(path, "..", name));
-        return require(name);
-      },
-    });
-    return exported as T;
-  };
+  return <T>(path: string): T => loadModule<T>(path, imports);
 }
 
 it("actual user issuance and revocation preserve session scope, name defaults and hash-only storage", async () => {

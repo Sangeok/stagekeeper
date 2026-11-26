@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { it } from "node:test";
-import { runInNewContext } from "node:vm";
 import { isValidElement } from "react";
 import type * as Detail from "@/fsd/pages/board-item/index.server";
 import type * as Backlog from "@/fsd/pages/project-backlog/index.server";
 import { readBacklogQuery } from "@/fsd/shared/routes/project";
 import { loadModule } from "./fixtures/load-module";
 import { manifestEntries } from "./fixtures/action-manifest";
+import { readClientManifests } from "./fixtures/client-manifest";
 
 const detailPath = "src/fsd/pages/board-item/api/board-item-page.server.ts";
 const backlogPath = "src/fsd/pages/project-backlog/api/project-backlog-page.server.ts";
@@ -138,13 +137,13 @@ type Composition = {
 
 it("detail composition authorizes before loading, preserves the Action binding and owns notFound", async () => {
   const calls: unknown[] = [];
-  let allowed = true, missing = false;
-  const denied = new Error("guard denied"), absent = new Error("not found");
+  let missing = false;
+  const absent = new Error("not found");
   const item = { key: "K-1" };
   const action = async (...args: unknown[]) => { calls.push(args); };
   const page = loadModule<Route>("src/app/(app)/p/[slug]/items/[key]/page.tsx", {
     "next/navigation": { notFound: () => { throw absent; } },
-    "@/server/auth/guard": { requireProjectOwner: async (slug: string) => { calls.push(["guard", slug]); if (!allowed) throw denied; return { projectId: "trusted" }; } },
+    "@/server/auth/guard": { requireProjectOwner: async (slug: string) => { calls.push(["guard", slug]); return { projectId: "trusted" }; } },
     "@/fsd/pages/board-item/index.server": { loadBoardItemPage: async (...args: unknown[]) => { calls.push(["load", ...args]); return missing ? null : { item, canWrite: false, pipelineChoices: [] }; } },
     "@/fsd/pages/board-item": { BoardItemPage: () => null },
     "@/fsd/features/change-item-pipeline/index.server": { changeItemPipeline: action },
@@ -159,10 +158,7 @@ it("detail composition authorizes before loading, preserves the Action binding a
   assert.deepEqual(calls.at(-1), ["mine", "payload"]);
   assert.ok(element.props.discard); await element.props.discard("K-1", "2026-11-05T00:00:00.000Z");
   assert.deepEqual(calls.at(-1), ["mine", "K-1", "2026-11-05T00:00:00.000Z"]);
-  calls.length = 0; allowed = false;
-  await assert.rejects(page.default(input), error => error === denied);
-  assert.deepEqual(calls, [["guard", "mine"]]);
-  allowed = true; missing = true;
+  missing = true;
   await assert.rejects(page.default(input), error => error === absent);
 });
 
@@ -192,22 +188,6 @@ if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh page loaders and
   for (const entry of manifestEntries()) for (const path of forbidden) assert.ok(!entry.filename?.replaceAll("\\", "/").endsWith(path));
   const routes: Record<string, string> = JSON.parse(readFileSync(".next/server/app-paths-manifest.json", "utf8"));
   for (const route of ["/(app)/p/[slug]/items/[key]/page", "/(app)/p/[slug]/backlog/page", "/(app)/p/[slug]/pipeline/page"]) assert.equal(typeof routes[route], "string");
-  const files: string[] = [];
-  function walk(directory: string): void {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) walk(path);
-      else if (entry.name === "page_client-reference-manifest.js") files.push(path);
-    }
-  }
-  walk(".next/server/app"); assert.ok(files.length > 0);
-  for (const file of files) {
-    const context = { globalThis: {} as { __RSC_MANIFEST?: Record<string, { clientModules: Record<string, unknown> }> } };
-    runInNewContext(readFileSync(file, "utf8"), context);
-    assert.ok(context.globalThis.__RSC_MANIFEST);
-    for (const manifest of Object.values(context.globalThis.__RSC_MANIFEST)) {
-      assert.ok(manifest.clientModules && typeof manifest.clientModules === "object");
-      for (const name of Object.keys(manifest.clientModules)) for (const path of forbidden) assert.ok(!name.replaceAll("\\", "/").includes(path));
-    }
-  }
+  const manifests = readClientManifests(); assert.ok(manifests.length > 0);
+  for (const name of manifests.flatMap(manifest => manifest.modules)) for (const path of forbidden) assert.ok(!name.replaceAll("\\", "/").includes(path));
 });

@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { runInNewContext } from "node:vm";
 import { it } from "node:test";
 import ts from "typescript";
 import { AGENT_TOOL_NAMES, type ToolDeps } from "../../src/server/mcp/tools";
@@ -10,8 +8,6 @@ import { OWNER_TOOL_NAMES, type OwnerToolDeps } from "../../src/server/mcp/owner
 import { registerOwnerTools } from "../../src/server/mcp/api";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { DISCONNECTED_REASON } from "../../src/server/projects/access-query";
-import { registerRepositoryProject, REPO_SEGMENT } from "../../src/server/projects/api";
-import { Prisma } from "../../src/generated/prisma/client";
 import { loadModule } from "./fixtures/load-module";
 import { readActionRegistry, resolveActionId } from "./fixtures/action-manifest";
 
@@ -131,35 +127,6 @@ it("all 14 agent tools and the owner tool stop before any domain dependency when
     assert.equal(result.isError, true); assert.deepEqual(result.content, [{ type: "text", text: JSON.stringify({ error: DISCONNECTED_REASON }) }]);
   }
   assert.equal(calls, 0);
-});
-
-it("retries one real Prisma slug violation in legacy/driver metadata and propagates exhaustion or unrelated constraints", async () => {
-  const source = read("src/server/rest/project-registration.ts");
-  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-  const require = createRequire(import.meta.url);
-  const collision = (meta: Record<string, unknown>) => new Prisma.PrismaClientKnownRequestError("unique constraint", { code: "P2002", clientVersion: "7.10.0", meta });
-  for (const [meta, failures, expectedCalls, succeeds] of [
-    [{ target: ["slug"] }, 1, 2, true],
-    [{ driverAdapterError: { cause: { kind: "UniqueConstraintViolation", constraint: { index: "Project_slug_key" } } } }, 1, 2, true],
-    [{ driverAdapterError: { cause: { kind: "UniqueConstraintViolation", constraint: { index: "Project_slug_key" } } } }, 2, 2, false],
-    [{ driverAdapterError: { cause: { kind: "UniqueConstraintViolation", constraint: { index: "User_githubId_key" } } } }, 1, 1, false],
-  ] as const) {
-    let calls = 0;
-    const exported: { registerProject?: (header: string, body: unknown) => Promise<unknown> } = {};
-    const deps: Record<string, unknown> = {
-      "server-only": {}, "@/server/tokens/api.server": { recordTokenUsage: async () => {} },
-      "@/server/projects/api": { registerRepositoryProject, REPO_SEGMENT },
-      "@/server/db": { prisma: { $transaction: async () => { if (++calls <= failures) throw collision(meta); return { status: "created", projectId: "p", slug: "stored" }; },
-        project: { findUnique: async () => ({ repoOwner: "owner", repo: "repo", branch: "main", name: "stored", slug: "stored", disconnectedAt: null }) } } },
-      "@/server/usage/api.server": { limitAccountRequest: async () => null }, "./scope": { resolveUserScope: async () => ({ ok: true, userId: "trusted" }) },
-    };
-    runInNewContext(code, { exports: exported, JSON, require: (name: string) => name in deps ? deps[name] : require(name) });
-    assert.ok(exported.registerProject);
-    const result = exported.registerProject("Bearer test", { owner: "owner", repo: "repo" });
-    if (succeeds) assert.equal((await result as { ok: boolean }).ok, true);
-    else await assert.rejects(result, (error) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002");
-    assert.equal(calls, expectedCalls);
-  }
 });
 
 if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") {

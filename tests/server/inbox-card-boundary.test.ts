@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { createRequire } from "node:module";
 import { it } from "node:test";
-import { runInNewContext } from "node:vm";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { assertActions, manifestEntries } from "./fixtures/action-manifest";
+import { readClientManifests } from "./fixtures/client-manifest";
+import { loadIsolatedModule } from "./fixtures/load-module";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const parse = (path: string) => ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true, path.endsWith("tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
@@ -100,17 +100,12 @@ it("keeps selection schema ownership separate from its only inline mutation", ()
 });
 
 it("renders the canonical neutral fallback and retries without inferring a mutation outcome", () => {
-  const source = read("src/fsd/features/review-gate/ui/inbox-card-boundary.tsx");
-  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   let fallback!: (props: { itemKey: string }, info: { retry: () => void }) => ReactElement;
-  const require = createRequire(import.meta.url);
-  runInNewContext(code, { exports: {}, require: (name: string) => {
-    if (name === "next/error") return { catchError: (render: typeof fallback) => { fallback = render; return () => null; } };
-    if (name === "@/fsd/shared/ui/card") return { cardClass: () => "card" };
-    if (name === "@/fsd/shared/ui/button") return { Button: (props: object) => createElement("button", props) };
-    if (name === "react/jsx-runtime") return require(name);
-    throw new Error(`Unexpected boundary dependency: ${name}`);
-  } });
+  loadIsolatedModule("src/fsd/features/review-gate/ui/inbox-card-boundary.tsx", {
+    "next/error": { catchError: (render: typeof fallback) => { fallback = render; return () => null; } },
+    "@/fsd/shared/ui/card": { cardClass: () => "card" },
+    "@/fsd/shared/ui/button": { Button: (props: object) => createElement("button", props) },
+  });
   let retries = 0;
   const tree = fallback({ itemKey: "K-1" }, { retry: () => { retries++; } });
   const html = renderToStaticMarkup(tree);
@@ -147,19 +142,9 @@ it("keeps the static Inbox card behind the server API and JSX below the existing
 });
 
 it("checks the fresh inbox client-reference manifest when explicitly run after build", { skip: process.env.SRC_CHECK_INBOX_MANIFEST !== "true" }, () => {
-  const files: string[] = [];
-  const walk = (dir: string) => { for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name); if (entry.isDirectory()) walk(path); else if (entry.name === "page_client-reference-manifest.js") files.push(path);
-  } };
-  walk(".next/server/app");
-  assert.ok(files.length > 0, "fresh client manifests are required");
-  const allModules: string[] = [];
-  for (const file of files) {
-    const context = { globalThis: {} as { __RSC_MANIFEST?: Record<string, { clientModules: Record<string, unknown> }> } };
-    runInNewContext(read(file), context);
-    assert.ok(context.globalThis.__RSC_MANIFEST);
-    for (const manifest of Object.values(context.globalThis.__RSC_MANIFEST)) { assert.ok(manifest.clientModules && typeof manifest.clientModules === "object"); allModules.push(...Object.keys(manifest.clientModules)); }
-  }
+  const manifests = readClientManifests();
+  assert.ok(manifests.length > 0, "fresh client manifests are required");
+  const allModules = manifests.flatMap(manifest => manifest.modules);
   assert.ok(!allModules.some(name => /[\\/](token-table|project-inbox-page|project-tokens-page|user-tokens-page)\.tsx$/.test(name)));
   assert.ok(allModules.some(name => name.includes("rename-token-form.tsx")));
   assert.ok(!allModules.some(name => name.includes("rename-user-token-form.tsx")));
@@ -168,11 +153,8 @@ it("checks the fresh inbox client-reference manifest when explicitly run after b
   const routes = JSON.parse(read(".next/server/app-paths-manifest.json"));
   for (const route of ["/page", "/(app)/p/[slug]/page", "/(app)/p/[slug]/backlog/page", "/(app)/p/[slug]/tokens/page", "/(app)/p/[slug]/inbox/page", "/(app)/p/[slug]/items/[key]/page", "/(app)/settings/tokens/page", "/(app)/p/new/page"]) { assert.equal(typeof routes[route], "string", route); assert.ok(existsSync(join(".next/server", routes[route]))); }
   assert.equal(existsSync("app"), false);
-  const path = files.find(file => file.replaceAll("\\", "/").includes("/(app)/p/[slug]/inbox/")); assert.ok(path);
-  const context = { globalThis: {} as { __RSC_MANIFEST?: Record<string, { clientModules: Record<string, unknown> }> } };
-  runInNewContext(read(path), context);
-  const manifests = context.globalThis.__RSC_MANIFEST; assert.ok(manifests);
-  const modules = Object.values(manifests).flatMap(manifest => Object.keys(manifest.clientModules));
+  const inbox = manifests.find(manifest => manifest.path.replaceAll("\\", "/").includes("/(app)/p/[slug]/inbox/")); assert.ok(inbox);
+  const modules = inbox.modules;
   assert.ok(modules.some(name => name.includes("inbox-card-controls.tsx")));
   assert.ok(modules.some(name => name.includes("inbox-card-boundary.tsx")));
   assert.ok(modules.some(name => name.includes("gate-card-lock.tsx")));

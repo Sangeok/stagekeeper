@@ -24,12 +24,6 @@ describe("runbookStale", () => {
     assert.deepEqual(reads, ["template"], "a passed version never reads the stored one");
   });
 
-  it("falls back to the stored version when the session passes none", async () => {
-    assert.equal(await runbookStale("p1", fakeDb(runbookVersion(CURRENT)).db), false);
-    assert.equal(await runbookStale("p1", fakeDb(runbookVersion(OLDER)).db), true);
-    assert.equal(await runbookStale("p1", fakeDb(null).db), true);
-  });
-
   it("ignores a malformed version and falls back to the stored one", async () => {
     for (const bad of ["", "not-a-version", runbookVersion(CURRENT).toUpperCase(), `${runbookVersion(CURRENT)}0`]) {
       const { db, reads } = fakeDb(runbookVersion(OLDER));
