@@ -52,6 +52,10 @@ on:
         description: Practice only. A full commit id to work on instead of dev. Opens no pull request and calls no full check
         required: false
         type: string
+      previous:
+        description: For an agent. The number of an earlier run of this workflow to continue from. Its change is applied first, its reproduction is reused, and the agent is told what its measurement saw
+        required: false
+        type: string
       open_pr:
         description: Open a pull request when the checks allow it
         required: false
@@ -71,6 +75,9 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
     outputs:
       issue: ${{ steps.plan.outputs.issue }}
       runner: ${{ steps.plan.outputs.runner }}
@@ -85,11 +92,22 @@ jobs:
       rehearsal: ${{ steps.plan.outputs.rehearsal }}
       reproduction: ${{ steps.plan.outputs.reproduction }}
       base: ${{ steps.plan.outputs.base }}
+      previous: ${{ steps.plan.outputs.previous }}
     steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
           sparse-checkout: .github/actions/post-merge-auto-fix
+      - name: Read the earlier run this one continues
+        if: inputs.previous != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS: ${{ inputs.previous }}
+        run: |
+          [[ "$PREVIOUS" =~ ^[1-9][0-9]{0,18}$ ]] || { echo "::error::previous must be the number of an earlier run"; exit 1; }
+          gh run download "$PREVIOUS" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/earlier-run"
+          node .github/actions/post-merge-auto-fix/fix.mjs inherit --repository "$GITHUB_REPOSITORY" --previous "$PREVIOUS" --dir "$RUNNER_TEMP/earlier-run" --reproduction-out "$RUNNER_TEMP/auto-fix-reproduction" --out "$RUNNER_TEMP/auto-fix-earlier"
       - name: Read the request
         id: plan
         shell: bash
@@ -105,14 +123,35 @@ jobs:
           INPUT_REPRODUCTION: ${{ inputs.reproduction }}
           INPUT_RUNS: ${{ inputs.runs }}
           INPUT_JOB: ${{ inputs.job }}
+          INPUT_PREVIOUS: ${{ inputs.previous }}
         run: |
           dev="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/dev | cut -f1)"
           test -n "$dev"
-          node .github/actions/post-merge-auto-fix/fix.mjs plan --run "$GITHUB_RUN_ID" --dev "$dev"
+          node .github/actions/post-merge-auto-fix/fix.mjs plan --run "$GITHUB_RUN_ID" --dev "$dev" --earlier "$RUNNER_TEMP/auto-fix-earlier" --request-out "$RUNNER_TEMP/auto-fix-request"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: auto-fix-request
+          path: ${{ runner.temp }}/auto-fix-request
+          retention-days: 90
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: steps.plan.outputs.previous != ''
+        with:
+          name: auto-fix-reproduction
+          path: ${{ runner.temp }}/auto-fix-reproduction
+          retention-days: 90
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: steps.plan.outputs.previous != ''
+        with:
+          name: auto-fix-earlier
+          path: ${{ runner.temp }}/auto-fix-earlier
+          retention-days: 90
+          if-no-files-found: error
 
   reproduce:
     needs: [plan]
-    if: needs.plan.outputs.source != 'prepared'
+    if: needs.plan.outputs.source != 'prepared' && needs.plan.outputs.previous == ''
     name: reproduce ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 75
@@ -284,6 +323,11 @@ jobs:
         with:
           name: auto-fix-reproduction
           path: ${{ runner.temp }}/auto-fix-reproduction
+      - uses: actions/download-artifact@v4
+        if: steps.gate.outputs.run == 'true' && needs.plan.outputs.previous != ''
+        with:
+          name: auto-fix-earlier
+          path: ${{ runner.temp }}/auto-fix-earlier
       - name: Install Claude Code (Windows)
         if: steps.gate.outputs.run == 'true' && runner.os == 'Windows'
         shell: pwsh
@@ -304,10 +348,18 @@ jobs:
           JOB: ${{ needs.plan.outputs.job }}
         run: |
           mkdir -p "$RUNNER_TEMP/auto-fix-agent"
-          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs prompt --workflow "$WORKFLOW" --job "$JOB" --logs "$RUNNER_TEMP/auto-fix-input" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --out "$RUNNER_TEMP/auto-fix-input/prompt.md"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs prompt --workflow "$WORKFLOW" --job "$JOB" --logs "$RUNNER_TEMP/auto-fix-input" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --earlier "$RUNNER_TEMP/auto-fix-earlier" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --out "$RUNNER_TEMP/auto-fix-input/prompt.md"
           git add -A
           git write-tree > "$RUNNER_TEMP/auto-fix-input/base-tree"
           git reset --quiet
+          if [ -f "$RUNNER_TEMP/auto-fix-earlier/change.patch" ]; then
+            git apply "$RUNNER_TEMP/auto-fix-earlier/change.patch"
+            git add -A
+            git write-tree > "$RUNNER_TEMP/auto-fix-input/start-tree"
+            git reset --quiet
+          else
+            cp "$RUNNER_TEMP/auto-fix-input/base-tree" "$RUNNER_TEMP/auto-fix-input/start-tree"
+          fi
       - name: Run the agent
         id: agent1
         if: steps.gate.outputs.run == 'true'
@@ -333,7 +385,7 @@ jobs:
         shell: bash
         env:
           RUNNER_NAME: ${{ matrix.runner }}
-        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 1 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 1 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/start-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
       - name: Give the agent what the check saw and let it continue (round 2)
         id: agent2
         if: steps.check1.outputs.again == 'true'
@@ -360,7 +412,7 @@ jobs:
         shell: bash
         env:
           RUNNER_NAME: ${{ matrix.runner }}
-        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 2 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 2 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/start-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
       - name: Give the agent what the check saw and let it continue (round 3)
         id: agent3
         if: steps.check2.outputs.again == 'true'
@@ -387,7 +439,7 @@ jobs:
         shell: bash
         env:
           RUNNER_NAME: ${{ matrix.runner }}
-        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 3 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs check --round 3 --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/start-tree")" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --agent "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --runner "$RUNNER_NAME" --minutes 15
       - name: Collect the output and stop when a secret is in it
         id: collect
         if: always() && steps.gate.outputs.run == 'true' && steps.agent1.outcome != 'skipped'
@@ -398,7 +450,7 @@ jobs:
           MODEL: ${{ needs.plan.outputs.model }}
         run: |
           seconds="$(awk '{ total += $1 } END { print total + 0 }' "$RUNNER_TEMP/auto-fix-agent/seconds" 2>/dev/null || echo 0)"
-          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs collect --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --transcripts "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --seconds "$seconds" --model "$MODEL" --out "$RUNNER_TEMP/auto-fix-output"
+          node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs collect --cwd "$GITHUB_WORKSPACE" --base "$(cat "$RUNNER_TEMP/auto-fix-input/base-tree")" --start "$(cat "$RUNNER_TEMP/auto-fix-input/start-tree")" --transcripts "$RUNNER_TEMP/auto-fix-agent" --notes "$RUNNER_TEMP/auto-fix-agent/notes.md" --seconds "$seconds" --model "$MODEL" --out "$RUNNER_TEMP/auto-fix-output"
       - uses: actions/upload-artifact@v4
         if: always() && steps.collect.outcome == 'success'
         with:
@@ -564,13 +616,18 @@ jobs:
         with:
           pattern: auto-fix-measure-*
           path: ${{ runner.temp }}/auto-fix-results
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.previous != ''
+        with:
+          name: auto-fix-earlier
+          path: ${{ runner.temp }}/auto-fix-earlier
       - name: Decide from the measured counts
         id: decide
         shell: bash
         env:
           PATCH_SHA: ${{ needs.change.outputs.patch_sha }}
           PLAN_SHA: ${{ needs.change.outputs.plan_sha }}
-        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs decide --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --results "$RUNNER_TEMP/auto-fix-results"
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs decide --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --results "$RUNNER_TEMP/auto-fix-results" --earlier "$RUNNER_TEMP/auto-fix-earlier"
       - name: Find an open pull request that carries the same change
         id: duplicate
         if: steps.decide.outputs.open == 'true' && needs.plan.outputs.rehearsal != 'true'
@@ -637,6 +694,11 @@ jobs:
         with:
           name: auto-fix-change
           path: ${{ runner.temp }}/auto-fix
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.previous != ''
+        with:
+          name: auto-fix-earlier
+          path: ${{ runner.temp }}/auto-fix-earlier
       - name: Read the result of the full check
         id: full
         shell: bash
@@ -671,9 +733,14 @@ jobs:
           AFTER: ${{ needs.branch.outputs.after }}
           LABELS: ${{ needs.branch.outputs.labels }}
           FULL: ${{ steps.full.outputs.result }}
+          PREVIOUS: ${{ needs.plan.outputs.previous }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          title="$(node .github/actions/post-merge-auto-fix/fix.mjs body --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --issue "$ISSUE" --source "$SOURCE" --workflow "$WORKFLOW" --verdict "$VERDICT" --open true --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/body.md" | sed -n 's/^title=//p')"
+          earlier_pr=0
+          if [ -n "$PREVIOUS" ]; then
+            earlier_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --state all --head "harness/auto-fix-$ISSUE-$PREVIOUS" --json number --jq '.[0].number // 0')"
+          fi
+          title="$(node .github/actions/post-merge-auto-fix/fix.mjs body --earlier "$RUNNER_TEMP/auto-fix-earlier" --earlier-pr "${earlier_pr:-0}" --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --issue "$ISSUE" --source "$SOURCE" --workflow "$WORKFLOW" --verdict "$VERDICT" --open true --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/body.md" | sed -n 's/^title=//p')"
           test -n "$title"
           arguments=(--repo "$GITHUB_REPOSITORY" --base dev --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md")
           if [ -n "$LABELS" ]; then
@@ -727,6 +794,12 @@ jobs:
         with:
           name: auto-fix-reproduction
           path: ${{ runner.temp }}/auto-fix-reproduction
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.previous != ''
+        continue-on-error: true
+        with:
+          name: auto-fix-earlier
+          path: ${{ runner.temp }}/auto-fix-earlier
       - name: Read which jobs stopped and the reason GitHub gave
         continue-on-error: true
         shell: bash
@@ -763,5 +836,5 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           [[ "$ISSUE" =~ ^[1-9][0-9]*$ ]] || { echo "the issue to write to is not a number"; exit 1; }
-          node .github/actions/post-merge-auto-fix/fix.mjs record --stops "$RUNNER_TEMP/stops.json" --attempt "$GITHUB_RUN_ATTEMPT" --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --out "$RUNNER_TEMP/record.md"
+          node .github/actions/post-merge-auto-fix/fix.mjs record --stops "$RUNNER_TEMP/stops.json" --attempt "$GITHUB_RUN_ATTEMPT" --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --earlier "$RUNNER_TEMP/auto-fix-earlier" --out "$RUNNER_TEMP/record.md"
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"

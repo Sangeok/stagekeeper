@@ -14,7 +14,7 @@ The workflow has already repeated the failing test file on this kind of runner, 
 - Test file: {{file}}
 - How it was repeated: {{repeated}}
 - What it saw:
-{{seen}}
+{{seen}}{{earlier}}
 
 After you finish, the workflow repeats the same file in the same way before and after your change and counts the failures. It decides from those counts; what you write does not change how it measures. A run counts as fixed only when no test in that file fails, so a change that fixes the named test and leaves other tests of the file failing is not enough.
 
