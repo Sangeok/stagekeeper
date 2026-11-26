@@ -1,0 +1,22 @@
+name: cache-probe-called
+on:
+  workflow_call:
+    inputs:
+      label:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - run: mkdir -p "$RUNNER_TEMP/probe" && echo probe > "$RUNNER_TEMP/probe/file"
+      - uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/probe
+          key: cache-probe-${{ inputs.label }}-${{ github.run_id }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: echo after-save-reached
