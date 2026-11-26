@@ -1,0 +1,65 @@
+name: auto-merge-probe
+on:
+  push:
+    branches: [harness/auto-merge-probe]
+permissions:
+  contents: read
+cache-mode: read
+jobs:
+  probe:
+    if: contains(github.event.head_commit.message, '[probe]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      BRANCH: harness/auto-merge-probe-pr-${{ github.run_id }}
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.AUTO_FIX_APP_ID }}
+          private-key: ${{ secrets.AUTO_FIX_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ steps.app.outputs.token }}
+      - name: Push a branch with a commit by the app and open a pull request as the app
+        id: open
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+        run: |
+          git switch --quiet -c "$BRANCH"
+          git -c user.name="${SLUG}[bot]" -c user.email="${SLUG}[bot]@users.noreply.github.com" commit --quiet --allow-empty --message "probe: a commit made by the app"
+          git push --quiet origin "HEAD:refs/heads/$BRANCH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          url="$(gh pr create --repo "$GITHUB_REPOSITORY" --base dev --head "$BRANCH" --title "[probe] does the check run by itself on a pull request the app opened" --body "A probe. It is closed by the same run and is never merged.")"
+          echo "number=${url##*/}" >> "$GITHUB_OUTPUT"
+          gh pr view "${url##*/}" --repo "$GITHUB_REPOSITORY" --json author --jq '.author.login'
+      - name: Wait for the check that the pull request started by itself
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 100); do
+            sleep 20
+            state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=${{ steps.open.outputs.sha }}&event=pull_request" --jq '.workflow_runs[] | select(.name=="check") | [.id,.status,.conclusion] | @tsv' | head -1)"
+            echo "$attempt $state"
+            case "$state" in *completed*) break ;; esac
+          done
+      - name: Read the pull request after the check
+        if: always() && steps.open.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in 1 2 3; do
+            sleep 20
+            gh pr view "${{ steps.open.outputs.number }}" --repo "$GITHUB_REPOSITORY" --json mergeable,mergeStateStatus,reviewDecision,statusCheckRollup --jq '{mergeable,mergeStateStatus,reviewDecision,required:[.statusCheckRollup[] | select(.name=="check (required)") | [.name,.status,.conclusion] | join(" ")]}'
+          done
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=${{ steps.open.outputs.sha }}" --jq '.workflow_runs[] | [.id,.name,.event,.status,.conclusion] | @tsv'
+      - name: Close the pull request and remove its branch
+        if: always() && steps.open.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          gh pr close "${{ steps.open.outputs.number }}" --repo "$GITHUB_REPOSITORY" --comment "Probe finished." || true
+          case "$BRANCH" in
+            harness/auto-merge-probe-pr-*) gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH" || true ;;
+          esac
