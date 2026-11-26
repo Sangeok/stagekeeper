@@ -340,6 +340,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | 파이프라인 전체 | OS별 | `pipeline-smoke/pipeline` | `pipeline-smoke/pipeline` | | | `scripts/rehearsals/rehearse-pipeline-smoke.ts` |
 | 게이트 실행 기록 | 공통 | | | `client-init-smoke/record`, `agent-eval/record`, `pipeline-smoke/record` | | |
 | 병합 후 실패 기록 | 공통 | | | `post-merge-failure-record/record` | | |
+| probe | 공통 | | | `auto-merge-probe/probe` | | |
 | 병합 후 실패 자동 수정 | 공통 | `post-merge-auto-fix/reproduce`, `post-merge-auto-fix/fix`, `post-merge-auto-fix/measure`, `post-merge-auto-fix/full-windows` | `post-merge-auto-fix/reproduce`, `post-merge-auto-fix/fix`, `post-merge-auto-fix/measure`, `post-merge-auto-fix/full-macos` | `post-merge-auto-fix/plan`, `post-merge-auto-fix/reproduce`, `post-merge-auto-fix/reproduction`, `post-merge-auto-fix/fix`, `post-merge-auto-fix/change`, `post-merge-auto-fix/measure`, `post-merge-auto-fix/branch`, `post-merge-auto-fix/pull-request`, `post-merge-auto-fix/record` | | 손으로 실행한다. 재현과 측정은 실패한 잡과 같은 종류의 러너에서만 돌고, `full-windows`와 `full-macos`는 그 OS의 검사 workflow를 수정 브랜치의 코드로 부른다 |
 | 템플릿 release 운영 | 공통 | | | `template-release/validate`, `template-release/deploy` | | |
 | 이동한 정책 계약 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/common` | | `npm run test:policy-contracts`로 기존 core/GitHub의 서버·FSD 이동 사례를 실행. Linux는 test-web/server에서 같은 파일을 발견 |
