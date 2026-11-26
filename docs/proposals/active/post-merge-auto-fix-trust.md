@@ -886,6 +886,9 @@ gh workflow run post-merge-auto-fix.yml --ref dev \
 
 6. 6절의 숫자를 정하고, 실제 실패를 손으로 돌려 조건을 센다.
 7. 조건이 채워지면 `post-merge-auto-fix.md`의 4-가와 4-나를 고쳐 써서 다시 정한다.
+   2026-11-26에 [post-merge-auto-fix-automatic.md](./post-merge-auto-fix-automatic.md)로
+   고쳐 썼다. 6절의 기준(실제 실패 5건)을 `report` 단계로 바꾸는 것은 그 문서의 승인에
+   들어 있다.
 
 ## Verification Plan
 
