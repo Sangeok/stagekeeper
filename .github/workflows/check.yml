@@ -1,6 +1,7 @@
 name: check
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [dev, main]
   push:
@@ -152,7 +153,7 @@ jobs:
   required:
     name: check (required)
     needs: [task-worktrees, common, server-integration]
-    if: ${{ always() && github.event_name == 'pull_request' }}
+    if: ${{ always() && github.event_name != 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

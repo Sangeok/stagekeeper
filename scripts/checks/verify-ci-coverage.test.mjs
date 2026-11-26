@@ -323,6 +323,6 @@ it("keeps every job of the check workflow behind the one job that the dev rulese
   assert.ok(required, "check.yml has no required job");
   assert.deepEqual([...required.needs].sort(), jobs.filter(job => job !== required).map(job => job.key).sort());
   assert.match(required.text, /^ {4}name: check \(required\)$/m);
-  assert.match(required.text, /^ {4}if: \$\{\{ always\(\) && github\.event_name == 'pull_request' \}\}$/m);
+  assert.match(required.text, /^ {4}if: \$\{\{ always\(\) && github\.event_name != 'push' \}\}$/m);
   assert.doesNotMatch(required.text, /continue-on-error/);
 });
