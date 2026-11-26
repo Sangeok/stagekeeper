@@ -61,6 +61,8 @@ on:
 permissions:
   contents: read
 
+cache-mode: read
+
 concurrency:
   group: post-merge-auto-fix-${{ inputs.issue }}
   cancel-in-progress: false
@@ -602,6 +604,7 @@ jobs:
     needs: [plan, branch]
     if: ${{ !cancelled() && needs.branch.outputs.pushed == 'true' && needs.plan.outputs.workflow == 'windows-role-runtime' }}
     uses: ./.github/workflows/windows-role-runtime.yml
+    cache-mode: read
     with:
       ref: ${{ needs.plan.outputs.branch }}
 
@@ -609,6 +612,7 @@ jobs:
     needs: [plan, branch]
     if: ${{ !cancelled() && needs.branch.outputs.pushed == 'true' && needs.plan.outputs.workflow == 'macos-runtime-contracts' }}
     uses: ./.github/workflows/macos-runtime-contracts.yml
+    cache-mode: read
     with:
       ref: ${{ needs.plan.outputs.branch }}
 
