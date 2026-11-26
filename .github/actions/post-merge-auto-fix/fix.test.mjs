@@ -810,6 +810,15 @@ it("records every round's check and gives the model token to the agent steps onl
   assert.doesNotMatch(workflow, /--no-session-persistence|--continue\b/);
 });
 
+it("lets no job of the workflow save a cache, the called workflows included", () => {
+  const workflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
+  assert.match(workflow, /^cache-mode: read$/m);
+  const calls = workflow.split("\n").flatMap((line, index, lines) => (/^    uses: \.\/\.github\/workflows\//.test(line) ? [lines[index + 1]] : []));
+  assert.deepEqual(calls, ["    cache-mode: read", "    cache-mode: read"]);
+  assert.deepEqual([...new Set(workflow.match(/cache-mode: .*/g))], ["cache-mode: read"]);
+  assert.doesNotMatch(workflow, /actions\/cache(\/save)?@|\n\s+cache: /);
+});
+
 it("names the job and step that stopped with the reason GitHub gave", () => {
   const jobs = [
     { id: 1, name: "plan", conclusion: "success", steps: [] },
