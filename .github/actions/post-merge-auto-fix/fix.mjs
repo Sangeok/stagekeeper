@@ -593,7 +593,7 @@ export function earlierLines(earlier, measured) {
   return lines;
 }
 
-export function prBody({ issue, runUrl, source, measured, decision, stats, fullCheck, fullCheckWorkflow, otherTestFiles = [], compared = 0, earlier = null, earlierPr = null }) {
+export function prBody({ issue, runUrl, source, measured, decision, stats, fullCheck, fullCheckWorkflow, otherTestFiles = [], compared = 0, earlier = null, earlierPr = null, perRunner = [] }) {
   return [
     `Automatic fix attempt for #${issue}. A person reviews and merges this pull request; the workflow does not merge it.`,
     "",
@@ -608,6 +608,7 @@ export function prBody({ issue, runUrl, source, measured, decision, stats, fullC
     ...(earlier && earlierPr ? [`| Pull request of that run | #${earlierPr} |`] : []),
     `| Before the change | ${measured.before.failed} failed of ${measured.before.runs} runs |`,
     `| After the change | ${measured.after.failed} failed of ${measured.after.runs} runs |`,
+    ...(perRunner.length > 1 ? [`| Failed runs on each runner, before -> after | ${perRunnerShown(perRunner)} |`] : []),
     `| Runs in which a test named in the failure logs failed | ${measured.before.original} before, ${measured.after.original} after |`,
     `| Passes required after the change | ${decision.required} |`,
     `| Tests compared before and after | ${comparedLine(compared)} |`,
@@ -750,7 +751,7 @@ function shownActions(actions) {
   return { text: shown.join("\n"), entries: lines.length };
 }
 
-export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes, attempt, stops, actions, change, checks, earlier = null }) {
+export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes, attempt, stops, actions, change, checks, earlier = null, perRunner = [] }) {
   const attemptNumber = Number.isInteger(Number(attempt)) && Number(attempt) > 0 ? Number(attempt) : 1;
   const lines = [
     `Attempt: run ${runId}, attempt ${attemptNumber}`,
@@ -762,6 +763,7 @@ export function attemptRecord({ runId, runUrl, state, source, reproduction, meas
     ...reproductionLines(reproduction),
     `Before the change: ${measured ? `${measured.before.failed} failed of ${measured.before.runs} runs, ${measured.before.original} in a named test` : "not measured"}`,
     `Verification: ${measured && decision ? `${measured.after.failed} failed of ${measured.after.runs} runs after the change, ${measured.after.original} in a named test, ${decision.required} required, ${decision.verdict}` : "not measured"}`,
+    ...(measured && perRunner.length > 1 ? [`On each runner, before -> after: ${perRunnerShown(perRunner)}`] : []),
     ...Object.entries(remaining ?? {}).map(([name, times]) => `Failed after the change: ${times} runs, ${inert(name)}`),
     ...(measured && decision ? [`Tests compared before and after: ${Number(compared) > 0 ? compared : "none"}`] : []),
     ...Object.entries(missing ?? {}).map(([name, times]) => `Ran before the change and not after it: ${times} passing runs, ${inert(name)}`),
@@ -919,6 +921,17 @@ export function verifyChange({ patch, plan }, expected) {
   if (digestOf(patch) !== expected.patchSha) throw new Error("the change is not the one that was checked");
   if (digestOf(plan) !== expected.planSha) throw new Error("the measurement plan is not the one that was checked");
 }
+
+export const perRunnerText = results => results.map(result => `${result.before.failed}/${result.before.runs}>${result.after.failed}/${result.after.runs}`).join(",");
+
+export function readPerRunner(text) {
+  const parts = String(text ?? "").split(",").filter(Boolean);
+  if (parts.length === 0 || parts.length > 12) return [];
+  const read = parts.map(part => /^(\d{1,4})\/(\d{1,4})>(\d{1,4})\/(\d{1,4})$/.exec(part));
+  return read.every(Boolean) ? read.map(match => ({ before: { failed: Number(match[1]), runs: Number(match[2]) }, after: { failed: Number(match[3]), runs: Number(match[4]) } })) : [];
+}
+
+const perRunnerShown = runners => runners.map(runner => `${runner.before.failed} of ${runner.before.runs} -> ${runner.after.failed} of ${runner.after.runs}`).join("; ");
 
 export function readCounts(text) {
   const match = /^(\d+),(\d+),(\d+)$/.exec(String(text ?? ""));
@@ -1266,7 +1279,8 @@ const commands = {
   decide(args) {
     const { patch, plan } = readVerified(args);
     const files = existsSync(args.results) ? readdirSync(args.results, { recursive: true }).filter(name => String(name).endsWith(".json")) : [];
-    const measured = combine(fromEveryRunner(files.map(name => readJson(path.join(args.results, String(name)))), plan));
+    const results = fromEveryRunner(files.map(String).sort().map(name => readJson(path.join(args.results, name))), plan);
+    const measured = combine(results);
     const decision = judge(measured, { testOnly: changeStats(patch).testOnly, kind: plan.kind, load: plan.load, earlier: readEarlierDir(args.earlier)?.after ?? null });
     const counts = totals => `${totals.runs},${totals.failed},${totals.original}`;
     output({
@@ -1279,6 +1293,7 @@ const commands = {
       remaining: JSON.stringify(shortNames(measured.remaining)),
       missing: JSON.stringify(shortNames(measured.missing)),
       compared: measured.compared,
+      per_runner: perRunnerText(results),
     });
   },
   body(args) {
@@ -1286,7 +1301,7 @@ const commands = {
     const judged = readJudged(args);
     if (!judged) throw new Error("the measured counts are missing");
     const otherTestFiles = changedFiles(patch).filter(file => isTestFile(file) && file !== plan.file);
-    writeFileSync(args.out, prBody({ issue: Number(args.issue), runUrl: args["run-url"], source: args.source, ...judged, stats: changeStats(patch), fullCheck: args["full-check"], fullCheckWorkflow: args.workflow, otherTestFiles, compared: Number(args.compared) || 0, earlier: readEarlierDir(args.earlier), earlierPr: Number(args["earlier-pr"]) || null }));
+    writeFileSync(args.out, prBody({ issue: Number(args.issue), runUrl: args["run-url"], source: args.source, ...judged, stats: changeStats(patch), fullCheck: args["full-check"], fullCheckWorkflow: args.workflow, otherTestFiles, compared: Number(args.compared) || 0, earlier: readEarlierDir(args.earlier), earlierPr: Number(args["earlier-pr"]) || null, perRunner: readPerRunner(args["per-runner"]) }));
     output({ title: prTitle(Number(args.issue)) });
   },
   record(args) {
@@ -1348,7 +1363,7 @@ const commands = {
       fullCheck,
       pr,
     });
-    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes, earlier, ...recordExtras(args, pr) }));
+    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes, earlier, perRunner: readPerRunner(args["per-runner"]), ...recordExtras(args, pr) }));
     output({ state });
   },
 };

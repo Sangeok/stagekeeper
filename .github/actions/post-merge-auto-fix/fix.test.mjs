@@ -51,11 +51,13 @@ import {
   measureRuns,
   needsAnotherRound,
   outcomeOf,
+  perRunnerText,
   prBody,
   promptText,
   readAgentOutput,
   readCounts,
   readEarlier,
+  readPerRunner,
   readMeasurePlan,
   readStepValues,
   runEnvironment,
@@ -1177,4 +1179,26 @@ it("reuses the reproduction of the earlier run and counts what the agent added f
   assert.match(fix, /fix\.mjs collect --cwd "\$GITHUB_WORKSPACE" --base "\$\(cat "\$RUNNER_TEMP\/auto-fix-input\/base-tree"\)" --start "\$\(cat "\$RUNNER_TEMP\/auto-fix-input\/start-tree"\)"/);
   assert.match(job("branch"), /fix\.mjs decide [^\n]*--earlier "\$RUNNER_TEMP\/auto-fix-earlier"/);
   assert.match(job("record"), /fix\.mjs record [^\n]*--earlier "\$RUNNER_TEMP\/auto-fix-earlier"/);
+});
+
+it("shows the counts of each runner beside the sum, so a failure on one runner is not lost in it", () => {
+  const results = [{ before: counts(20, 3), after: counts(20, 0) }, { before: counts(20, 2), after: counts(32, 3, 0) }, { before: counts(20, 6), after: counts(20, 0) }];
+  const text = perRunnerText(results);
+  assert.equal(text, "3/20>0/20,2/20>3/32,6/20>0/20");
+  const read = readPerRunner(text);
+  assert.deepEqual(read[1], { before: { failed: 2, runs: 20 }, after: { failed: 3, runs: 32 } });
+  for (const bad of ["", "none", "3/20>0/20,End: opened", "3/20>0/20\n", "1/2>3", Array.from({ length: 13 }, () => "1/2>0/2").join(",")]) assert.deepEqual(readPerRunner(bad), [], JSON.stringify(bad));
+
+  const record = attemptRecord({ runId: 13, runUrl: "u", state: "recordOnly", source: "agent m", measured: { before: counts(60, 11, 5), after: counts(72, 3, 0) }, decision: { verdict: "failures-remain", required: 300 }, perRunner: read });
+  assert.match(record, /72 runs after the change, 0 in a named test, 300 required, failures-remain\nOn each runner, before -> after: 3 of 20 -> 0 of 20; 2 of 20 -> 3 of 32; 6 of 20 -> 0 of 20\n/);
+  assert.doesNotMatch(attemptRecord({ runId: 14, runUrl: "u", state: "recordOnly", source: "agent m", measured: { before: counts(5, 5), after: counts(5, 0) }, decision: { verdict: "verified", required: 3 }, perRunner: read.slice(0, 1) }), /On each runner/);
+  assert.doesNotMatch(attemptRecord({ runId: 15, runUrl: "u", state: "unfinished", source: "agent m", perRunner: read }), /On each runner/);
+
+  const stats = { files: 1, addedLines: 6, removedLines: 4, productFiles: 0, pluginFiles: 0, addedAssertions: 0, removedAssertions: 0, addsSkip: false };
+  const body = prBody({ issue: 430, runUrl: "u", source: "agent m", measured: { before: counts(60, 11, 5), after: counts(72, 3, 0) }, decision: { verdict: "failures-remain", required: 300 }, stats, fullCheck: "passed", fullCheckWorkflow: "none", perRunner: read });
+  assert.match(body, /\| After the change \| 3 failed of 72 runs \|\n\| Failed runs on each runner, before -> after \| 3 of 20 -> 0 of 20; 2 of 20 -> 3 of 32; 6 of 20 -> 0 of 20 \|\n/);
+
+  const workflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
+  assert.match(workflow, /\n      per_runner: \$\{\{ steps\.decide\.outputs\.per_runner \}\}\n/);
+  assert.equal(workflow.match(/--per-runner "\$\{PER_RUNNER:-none\}"/g).length, 2);
 });
