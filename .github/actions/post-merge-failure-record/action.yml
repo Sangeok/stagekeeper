@@ -5,6 +5,10 @@ inputs:
     description: When true, print what would be done and write nothing.
     required: false
     default: "false"
+  auto-fix-mode:
+    description: off, report or on. report writes what the automatic fix would start; on starts it. Anything else is off.
+    required: false
+    default: "off"
 runs:
   using: composite
   steps:
@@ -13,7 +17,8 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
         RECORD_DRY_RUN: ${{ inputs.dry-run }}
+        AUTO_FIX_MODE: ${{ inputs.auto-fix-mode }}
       run: |
-        arguments=(--repository "$GITHUB_REPOSITORY")
+        arguments=(--repository "$GITHUB_REPOSITORY" --auto-fix-mode "${AUTO_FIX_MODE:-off}")
         if [ "$RECORD_DRY_RUN" = "true" ]; then arguments+=(--dry-run); fi
         node .github/actions/post-merge-failure-record/record.mjs "${arguments[@]}"

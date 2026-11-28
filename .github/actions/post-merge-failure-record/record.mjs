@@ -37,7 +37,23 @@ const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const LOOKBACK_HOURS = 72;
 const LISTED_FILES = 20;
 
-export const USAGE = "Usage: GH_TOKEN=<token> node .github/actions/post-merge-failure-record/record.mjs --repository <owner/name> [--since <ISO time>] [--until <ISO time>] [--dry-run]";
+export const FIX_MODES = Object.freeze(["off", "report", "on"]);
+export const FIX_LIMITS = Object.freeze({ tries: 3, collecting: 3, perPlan: 2, unreproduced: 3, startedHours: 6, notHeld: 2 });
+export const FIX_MODEL = "claude-opus-5-5";
+export const FIX_WORKFLOW = "post-merge-auto-fix.yml";
+export const FIX_LABEL = "auto-fix:needs-person";
+export const FIX_STOP_TITLE = "[auto-fix] stopped: fixes that merged did not hold";
+export const FIX_BRANCH_PREFIX = "harness/auto-fix-";
+const GATES = Object.freeze(["agent-eval.yml", "pipeline-smoke.yml"]);
+const ATTEMPT = /<!-- auto-fix-attempt run=(\d+)(?: attempt=\d+)? end=(\w+) -->/g;
+const START = /<!-- auto-fix-start try=(\d+) at=(\S+) -->/g;
+const FIRST_FAILURE = /<!-- post-merge-record run=(\d+) attempt=1 job=\S+(?: [a-z]+=\S+)* -->/g;
+const PRACTICE_ENDS = new Set(["rehearsed", "reproduced"]);
+const UNREPRODUCED_ENDS = new Set(["notReproduced", "unhandled"]);
+const FIX_RUNNER = /\((windows-2022|macos-15-intel|macos-15)[,)]/;
+const FULL_CHECKS = Object.freeze(["windows-role-runtime", "macos-runtime-contracts"]);
+
+export const USAGE = "Usage: GH_TOKEN=<token> node .github/actions/post-merge-failure-record/record.mjs --repository <owner/name> [--since <ISO time>] [--until <ISO time>] [--auto-fix-mode <off|report|on>] [--dry-run]";
 
 export const failed = conclusion => FAILED.has(conclusion);
 export const titleOf = (workflowName, job, step) => `${PREFIX}${workflowName}/${job}: ${step}`;
@@ -128,7 +144,82 @@ export function stateOf(title, texts, latestRuns = []) {
 
 function statusBlock(state) {
   const [status, todo] = STATES[state.name](state);
-  return `${STATUS_OPEN}\n**Status:** ${status}\n**To do:** ${todo}\n${STATUS_CLOSE}`;
+  return `${STATUS_OPEN}\n**Status:** ${status}\n**To do:** ${todo}${state.fix?.line ? `\n**Automatic fix:** ${state.fix.line}` : ""}\n${STATUS_CLOSE}`;
+}
+
+export const fixMode = value => (FIX_MODES.includes(value) ? value : "off");
+export const startMarkerOf = (attempt, at) => `<!-- auto-fix-start try=${attempt} at=${at} -->`;
+
+export function fixHistory(texts, times = []) {
+  const failures = [], starts = [], latest = new Map();
+  texts.forEach((text, index) => {
+    const at = times[index] ?? null;
+    for (const [, run] of text.matchAll(FIRST_FAILURE)) failures.push({ run: Number(run), at });
+    for (const [, attempt, started] of text.matchAll(START)) starts.push({ attempt: Number(attempt), at: started });
+    for (const [, run, end] of text.matchAll(ATTEMPT)) latest.set(run, { run, end, at });
+  });
+  return { failures, starts, records: [...latest.values()].filter(record => !PRACTICE_ENDS.has(record.end)) };
+}
+
+export function fixInputs(issue, failures, previous = null) {
+  const { workflowName, job } = partsOf(issue.title);
+  const runner = FIX_RUNNER.exec(job)?.[1] ?? (workflowName === "windows-role-runtime" ? "windows-2022" : "ubuntu-latest");
+  return {
+    issue: String(issue.number),
+    runner,
+    workflow: FULL_CHECKS.includes(workflowName) ? workflowName : "none",
+    source: "agent",
+    model: FIX_MODEL,
+    runs: [...new Set(failures.map(failure => failure.run))].sort((a, b) => b - a).slice(0, 10).join(","),
+    job,
+    open_pr: "true",
+    ...(previous ? { previous: String(previous) } : {}),
+  };
+}
+
+const after = (time, reference) => Boolean(time && reference) && Date.parse(time) > Date.parse(reference);
+
+export function fixDecision({ issue, state, branch, history, pulls = [], now, limits = FIX_LIMITS }) {
+  const none = { kind: "none" };
+  if (branch !== "dev" || ["not-started", "setup-failed", "rerun-pending", "rerun-unclear"].includes(state.name)) return none;
+  const { failures, starts, records } = history;
+  const open = pulls.find(pull => pull.issue === issue.number && pull.state === "open");
+  if (open) return { kind: "open", pr: open.number, line: `pull request #${open.number} is open. Read it and merge or close it.` };
+  const last = records.at(-1) ?? null;
+  const pending = starts.filter(start => !last || after(start.at, last.at));
+  const lost = pending.filter(start => now.getTime() - Date.parse(start.at) >= limits.startedHours * 3600 * 1000).length;
+  const used = records.filter(record => !UNREPRODUCED_ENDS.has(record.end) && record.end !== "duplicate").length + lost;
+  if (pending.length > lost) return { kind: "running", attempt: used + 1, line: `try ${used + 1} is running.` };
+  const stopped = end => ({ kind: "stopped", attempt: used, end, line: `stopped after try ${used} (${end}). A person has to look.` });
+  if (lost > 0) return stopped("unfinished");
+  const eligible = state.name === "broken" || (state.name === "collecting" && state.passedCount >= limits.collecting);
+  const start = previous => (used >= limits.tries ? stopped(last?.end ?? "tries") : { kind: "start", attempt: used + 1, previous, inputs: fixInputs(issue, failures, previous) });
+  if (!last) return eligible ? start(null) : none;
+  const newFailureSince = time => failures.some(failure => after(failure.at, time));
+  if (last.end === "stillFailing") return start(last.run);
+  if (last.end === "duplicate") return none;
+  if (UNREPRODUCED_ENDS.has(last.end)) {
+    if (records.filter(record => UNREPRODUCED_ENDS.has(record.end)).length >= limits.unreproduced) return stopped(last.end);
+    return eligible && newFailureSince(last.at) ? start(null) : none;
+  }
+  if (last.end === "opened") {
+    const pull = pulls.find(found => found.issue === issue.number && found.run === last.run);
+    if (!pull) return none;
+    if (pull.mergedAt) return eligible && newFailureSince(pull.mergedAt) ? start(null) : none;
+    return newFailureSince(pull.closedAt) ? start(last.run) : none;
+  }
+  return stopped(last.end);
+}
+
+export function notHeld(issues, pulls, since = null) {
+  let count = 0;
+  for (const issue of issues) {
+    const { failures } = fixHistory([issue.body, ...issue.comments], [issue.createdAt, ...(issue.commentTimes ?? [])]);
+    for (const pull of pulls.filter(found => found.issue === issue.number && found.mergedAt)) {
+      if (failures.some(failure => after(failure.at, pull.mergedAt) && (!since || after(failure.at, since)))) count += 1;
+    }
+  }
+  return count;
 }
 
 export function withStatus(body, state) {
@@ -137,7 +228,7 @@ export function withStatus(body, state) {
   return start >= 0 && end > start ? `${body.slice(0, start)}${block}${body.slice(end + STATUS_CLOSE.length)}` : `${block}\n\n${body}`;
 }
 
-export function plan(snapshot) {
+export function plan(snapshot, { mode = "off", now = new Date() } = {}) {
   const issues = snapshot.issues.filter(issue => issue.title.startsWith(PREFIX));
   const recorded = key => issues.some(issue => issue.body.includes(key) || issue.comments.some(comment => comment.includes(key)));
   const reruns = [], pending = new Map();
@@ -178,9 +269,43 @@ export function plan(snapshot) {
     }
   }
   const upkeep = [];
+  const fixes = [];
+  const pulls = snapshot.pulls ?? [];
+  const stops = snapshot.issues.filter(issue => issue.title === FIX_STOP_TITLE);
+  const acknowledged = stops.filter(stop => stop.state === "closed" && stop.closedAt).map(stop => stop.closedAt).sort().at(-1) ?? null;
+  const openStop = stops.find(stop => stop.state === "open");
+  const paused = mode !== "off" && (Boolean(openStop) || notHeld(issues, pulls, acknowledged) >= FIX_LIMITS.notHeld);
+  if (paused && !openStop && mode === "on") {
+    upkeep.push({ type: "create", title: FIX_STOP_TITLE, labels: [FIX_LABEL], body: `Fixes that the automatic fix opened were merged, and the same failure was recorded again afterwards, ${FIX_LIMITS.notHeld} times or more. No new automatic fix starts while this issue is open.\n\nRead those issues and their pull requests. Close this issue to let automatic fixes start again.` });
+  }
+  let started = 0;
   for (const issue of issues.filter(found => found.state === "open")) {
-    const state = stateOf(issue.title, [issue.body, ...issue.comments, ...(added.get(issue.number) ?? [])], snapshot.latest);
+    const texts = [issue.body, ...issue.comments, ...(added.get(issue.number) ?? [])];
+    const state = stateOf(issue.title, texts, snapshot.latest);
     if (!state) continue;
+    if (mode !== "off") {
+      const times = [issue.createdAt ?? null, ...(issue.commentTimes ?? []), ...(added.get(issue.number) ?? []).map(() => now.toISOString())];
+      const history = fixHistory(texts, times);
+      let decision = fixDecision({ issue, state, branch: failuresOf(texts).at(-1)?.branch ?? null, history, pulls, now });
+      if (decision.kind === "start") {
+        const tried = `try ${decision.attempt}`;
+        if (paused) decision = { ...decision, kind: "paused", line: `paused${openStop ? `. See #${openStop.number}` : ""}.` };
+        else if ((snapshot.gates ?? 0) > 0) decision = { ...decision, kind: "waiting", line: `${tried} waits for a model gate to finish.` };
+        else if (started >= FIX_LIMITS.perPlan) decision = { ...decision, kind: "waiting", line: `${tried} waits for the next check.` };
+        else {
+          started += 1;
+          decision = { ...decision, line: mode === "on" ? `${tried} is running.` : `would start ${tried} now (report only).` };
+          if (mode === "on") fixes.push({ type: "fix", number: issue.number, title: issue.title, attempt: decision.attempt, inputs: decision.inputs });
+        }
+      }
+      state.fix = decision;
+      fixes.push({ type: "note", number: issue.number, title: issue.title, text: `${decision.kind}${decision.line ? `: ${decision.line}` : "."} State ${state.name}${state.name === "collecting" ? `, ${state.passedCount} of ${FIX_LIMITS.collecting}` : ""}. Inputs: ${Object.entries(decision.inputs ?? fixInputs(issue, history.failures)).map(([name, value]) => `${name}=${value}`).join(" ")}` });
+      if (mode === "on") {
+        const labelled = (issue.labels ?? []).includes(FIX_LABEL);
+        if (decision.kind === "stopped" && !labelled) upkeep.push({ type: "labels", number: issue.number, title: issue.title, add: [FIX_LABEL], remove: [] });
+        if (decision.kind !== "stopped" && labelled) upkeep.push({ type: "labels", number: issue.number, title: issue.title, add: [], remove: [FIX_LABEL] });
+      }
+    }
     const body = withStatus(issue.body, state);
     if (body !== issue.body) upkeep.push({ type: "status", number: issue.number, title: issue.title, body });
     const current = (issue.labels ?? []).filter(label => Object.values(LABELS).includes(label));
@@ -189,7 +314,7 @@ export function plan(snapshot) {
     if (add.length || remove.length) upkeep.push({ type: "labels", number: issue.number, title: issue.title, add, remove });
     if (state.closable) upkeep.push({ type: "close", number: issue.number, title: issue.title, body: "The job passed in the rerun or in a later run. Closing. A new failure of this job and step opens a new issue." });
   }
-  return [...actions, ...upkeep];
+  return [...actions, ...upkeep, ...fixes];
 }
 
 export function client(token, fetcher = fetch) {
@@ -212,7 +337,7 @@ async function pages(api, path, pick = value => value) {
 
 const jobOf = job => ({ name: job.name, conclusion: job.conclusion, url: job.html_url, steps: (job.steps ?? []).map(step => ({ name: step.name, conclusion: step.conclusion })) });
 
-export async function gather(api, { repository, since, until }) {
+export async function gather(api, { repository, since, until, fix = false }) {
   const base = `/repos/${repository}`;
   const created = until ? `${since}..${until}` : `>=${since}`;
   const listed = [];
@@ -247,9 +372,23 @@ export async function gather(api, { repository, since, until }) {
   for (const issue of await pages(api, `${base}/issues?state=all&creator=${encodeURIComponent(BOT)}`)) {
     if (issue.pull_request || issue.user?.login !== BOT || !issue.title.startsWith(PREFIX)) continue;
     const comments = await pages(api, `${base}/issues/${issue.number}/comments`);
+    const own = comments.filter(comment => comment.user?.login === BOT);
     issues.push({ number: issue.number, title: issue.title, state: issue.state, body: issue.body ?? "",
       labels: (issue.labels ?? []).map(label => typeof label === "string" ? label : label.name),
-      comments: comments.filter(comment => comment.user?.login === BOT).map(comment => comment.body ?? "") });
+      comments: own.map(comment => comment.body ?? ""),
+      ...(fix ? { createdAt: issue.created_at ?? null, commentTimes: own.map(comment => comment.created_at ?? null) } : {}) });
+  }
+  let fixPulls = [], gates = 0;
+  if (fix) {
+    for (const issue of await pages(api, `${base}/issues?state=all&creator=${encodeURIComponent(BOT)}`)) {
+      if (issue.pull_request || issue.user?.login !== BOT || issue.title !== FIX_STOP_TITLE) continue;
+      issues.push({ number: issue.number, title: issue.title, state: issue.state, closedAt: issue.closed_at ?? null, body: "", labels: [], comments: [] });
+    }
+    fixPulls = (await pages(api, `${base}/pulls?state=all&base=dev`)).filter(pull => String(pull.head?.ref ?? "").startsWith(FIX_BRANCH_PREFIX)).flatMap(pull => {
+      const match = /^(\d+)-(\d+)$/.exec(pull.head.ref.slice(FIX_BRANCH_PREFIX.length));
+      return match ? [{ number: pull.number, issue: Number(match[1]), run: match[2], state: pull.state, mergedAt: pull.merged_at ?? null, closedAt: pull.closed_at ?? null }] : [];
+    });
+    for (const gate of GATES) for (const status of ["queued", "in_progress"]) gates += (await api("GET", `${base}/actions/workflows/${gate}/runs?status=${status}&per_page=1`)).total_count ?? 0;
   }
   const latest = [];
   for (const target of TARGETS) {
@@ -258,7 +397,7 @@ export async function gather(api, { repository, since, until }) {
     const jobs = await pages(api, `${base}/actions/runs/${newest.id}/jobs?filter=latest`, value => value.jobs);
     latest.push({ workflowName: newest.workflowName, branch: newest.branch, runId: newest.id, jobs: jobs.map(job => ({ name: job.name, conclusion: job.conclusion })) });
   }
-  return { runs, issues, latest };
+  return { runs, issues, latest, ...(fix ? { pulls: fixPulls, gates } : {}) };
 }
 
 async function ensureLabels(api, base, names, known) {
@@ -272,11 +411,18 @@ async function ensureLabels(api, base, names, known) {
   }
 }
 
-export async function apply(api, repository, actions) {
+export async function apply(api, repository, actions, now = new Date()) {
   const base = `/repos/${repository}`, results = [], known = new Set();
   for (const action of actions) {
     try {
-      if (action.type === "rerun") await api("POST", `${base}/actions/runs/${action.runId}/rerun-failed-jobs`);
+      if (action.type === "note") {
+        results.push({ ...action, ok: true });
+        continue;
+      }
+      if (action.type === "fix") {
+        await api("POST", `${base}/actions/workflows/${FIX_WORKFLOW}/dispatches`, { ref: "dev", inputs: action.inputs });
+        await api("POST", `${base}/issues/${action.number}/comments`, { body: `Automatic fix: try ${action.attempt} started${action.inputs.previous ? `, continuing run ${action.inputs.previous}` : ""}.\n${startMarkerOf(action.attempt, now.toISOString())}` });
+      } else if (action.type === "rerun") await api("POST", `${base}/actions/runs/${action.runId}/rerun-failed-jobs`);
       else if (action.type === "comment") await api("POST", `${base}/issues/${action.number}/comments`, { body: action.body });
       else if (action.type === "status") await api("PATCH", `${base}/issues/${action.number}`, { body: action.body });
       else if (action.type === "labels") {
@@ -298,13 +444,17 @@ export async function apply(api, repository, actions) {
   return results;
 }
 
-export function summarize(actions, dryRun) {
-  const describe = action => action.type === "rerun" ? `rerun the failed jobs of run ${action.runId}`
+export function summarize(actions, dryRun, mode = null) {
+  const describe = action => action.type === "note" ? `automatic fix of #${action.number}: ${action.text}`
+    : action.type === "fix" ? `start try ${action.attempt} of the automatic fix of #${action.number} ${action.title}`
+    : action.type === "rerun" ? `rerun the failed jobs of run ${action.runId}`
     : action.type === "comment" ? `add to #${action.number} ${action.title}`
       : action.type === "status" ? `rewrite the status of #${action.number} ${action.title}`
         : action.type === "labels" ? `set the labels of #${action.number} ${action.title}`
           : action.type === "close" ? `close #${action.number} ${action.title}` : `open ${action.title}`;
-  return [`${dryRun ? "Dry run: " : ""}${actions.length} action${actions.length === 1 ? "" : "s"}`,
+  const counted = actions.filter(action => action.type !== "note").length;
+  return [`${dryRun ? "Dry run: " : ""}${counted} action${counted === 1 ? "" : "s"}`,
+    ...(mode ? [`Automatic fix mode: ${mode}`] : []),
     ...actions.map(action => `- ${describe(action)}${action.ok === false ? ` (failed: ${action.error})` : ""}`)].join("\n");
 }
 
@@ -313,6 +463,7 @@ export function parse(argv) {
   for (let index = 0; index < argv.length; index++) {
     const name = argv[index];
     if (name === "--dry-run") options.dryRun = true;
+    else if (name === "--auto-fix-mode" && argv[index + 1] !== undefined) options.fixMode = fixMode(argv[++index]);
     else if (["--repository", "--since", "--until"].includes(name) && argv[index + 1] !== undefined) options[name.slice(2)] = argv[++index];
     else throw new Error(USAGE);
   }
@@ -327,10 +478,11 @@ export async function main(argv, env, now = new Date()) {
   if (!token) throw new Error("GH_TOKEN is required");
   const api = client(token);
   const since = new Date(options.since ?? now.getTime() - LOOKBACK_HOURS * 3600 * 1000).toISOString();
-  const snapshot = await gather(api, { repository: options.repository, since, until: options.until ? new Date(options.until).toISOString() : undefined });
-  const actions = plan(snapshot);
-  const results = options.dryRun ? actions : await apply(api, options.repository, actions);
-  const text = summarize(results, options.dryRun);
+  const mode = options.fixMode ?? "off";
+  const snapshot = await gather(api, { repository: options.repository, since, until: options.until ? new Date(options.until).toISOString() : undefined, fix: mode !== "off" });
+  const actions = plan(snapshot, { mode, now });
+  const results = options.dryRun ? actions : await apply(api, options.repository, actions, now);
+  const text = summarize(results, options.dryRun, mode);
   console.log(text);
   if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${text}\n`);
   return results.some(result => result.ok === false) ? 1 : 0;

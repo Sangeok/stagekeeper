@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";
-import { LABELS, NOT_STARTED, RUNNER_SETUP_STEP, SETUP_STEPS, STATES, apply, failedJobs, gather, markerOf, parse, plan, stateOf, summarize, titleOf, withStatus } from "./record.mjs";
+import { FIX_BRANCH_PREFIX, FIX_LABEL, FIX_LIMITS, FIX_MODEL, FIX_STOP_TITLE, FIX_WORKFLOW, LABELS, NOT_STARTED, RUNNER_SETUP_STEP, SETUP_STEPS, STATES, apply, failedJobs, fixDecision, fixHistory, fixInputs, fixMode, gather, markerOf, notHeld, parse, plan, startMarkerOf, stateOf, summarize, titleOf, withStatus } from "./record.mjs";
 
 const SHA = "a".repeat(40);
 const job = (name, conclusion, steps = []) => ({ name, conclusion, url: `https://example.test/job/${encodeURIComponent(name)}`, steps });
@@ -245,3 +245,237 @@ it("accepts only its documented arguments", () => {
   assert.deepEqual(parse(["--repository", "owner/name", "--since", "2026-11-10T00:00:00Z", "--dry-run"]), { dryRun: true, repository: "owner/name", since: "2026-11-10T00:00:00Z" });
   for (const argv of [[], ["--repository", "not a repository"], ["--repository", "owner/name", "--since", "yesterday"], ["--repository", "owner/name", "--unknown"]]) assert.throws(() => parse(argv), /Usage/);
 });
+
+const REAL = JSON.parse(readFileSync(new URL("./fixtures/real-issues.json", import.meta.url), "utf8")).issues;
+const real = number => REAL.find(found => found.number === number);
+const NOW = new Date("2026-11-28T10:00:00Z");
+const at = minutes => new Date(Date.parse("2026-11-28T00:00:00Z") + minutes * 60000).toISOString().replace(".000Z", "Z");
+const attemptRecord = (runId, end) => `<!-- auto-fix-attempt run=${runId} attempt=1 end=${end} -->`;
+const fixPull = (number, issueNumber, runId, extra = {}) => ({ number, issue: issueNumber, run: String(runId), state: "closed", mergedAt: null, closedAt: null, ...extra });
+const brokenIssue = (comments = [], commentTimes = comments.map((_, index) => at(20 + index * 10))) => issue({ body: `${failure(100)}\n${rerun(100, "failed")}`, createdAt: at(0), comments, commentTimes });
+const decide = (found, pulls = [], latest = [latestRun(100, "failure")], now = NOW) => {
+  const texts = [found.body, ...found.comments];
+  return fixDecision({ issue: found, state: stateOf(found.title, texts, latest), branch: "dev", history: fixHistory(texts, [found.createdAt, ...found.commentTimes]), pulls, now });
+};
+
+it("reads the real issues of this repository the way the automatic fix would have", () => {
+  const snapshot = { runs: [], latest: [], issues: REAL.filter(found => found.number !== 430), pulls: [], gates: 0 };
+  assert.deepEqual(plan(snapshot).filter(action => ["fix", "note"].includes(action.type)), []);
+  for (const mode of ["report", "on"]) {
+    const actions = plan(snapshot, { mode, now: NOW });
+    assert.deepEqual(actions.filter(action => action.type === "fix"), []);
+    const notes = actions.filter(action => action.type === "note");
+    assert.deepEqual(notes.map(note => note.number), [458]);
+    assert.equal(notes[0].text, "none. State collecting, 1 of 3. Inputs: issue=458 runner=windows-2022 workflow=none source=agent model=claude-opus-5-5 runs=45618963416 job=task worktree tests (windows-2022, 4/4) open_pr=true");
+    assert.ok(actions.filter(action => action.type === "status").every(action => !action.body.includes("Automatic fix")));
+    assert.deepEqual(actions.filter(action => action.type === "labels" && (action.add.includes(FIX_LABEL) || action.remove.includes(FIX_LABEL))), []);
+  }
+
+  const windows = real(418);
+  assert.deepEqual(fixInputs(windows, fixHistory([windows.body, ...windows.comments]).failures), { issue: "418", runner: "windows-2022", workflow: "windows-role-runtime", source: "agent", model: FIX_MODEL, runs: "44461325389", job: "native-runtime", open_pr: "true" });
+  const notStarted = real(461);
+  assert.equal(fixInputs(notStarted, []).runner, "macos-15");
+  assert.equal(stateOf(notStarted.title, [notStarted.body, ...notStarted.comments]).name, "not-started");
+  assert.equal(fixDecision({ issue: notStarted, state: { name: "not-started" }, branch: "dev", history: fixHistory([]), now: NOW }).kind, "none");
+  assert.equal(fixInputs(issue({ title: titleOf("macos-runtime-contracts", "runtime contracts (macos-15-intel)", "Run tests") }), [{ run: 5 }, { run: 9 }, { run: 5 }], "77").runner, "macos-15-intel");
+  assert.deepEqual(Object.entries(fixInputs(issue({ title: titleOf("macos-runtime-contracts", "runtime contracts (macos-15-intel)", "Run tests") }), [{ run: 5 }, { run: 9 }, { run: 5 }], "77")).slice(-4), [["runs", "9,5"], ["job", "runtime contracts (macos-15-intel)"], ["open_pr", "true"], ["previous", "77"]]);
+  assert.equal(fixInputs(issue({ title: titleOf("check", "build", "Run npm run build") }), []).runner, "ubuntu-latest");
+
+  const practice = real(430);
+  const history = fixHistory(practice.comments, practice.commentTimes);
+  assert.equal(practice.comments.length, 41);
+  assert.deepEqual(history.records.slice(-4).map(record => [record.run, record.end]), [["45726743772", "notReproduced"], ["45730258726", "notReproduced"], ["45732297359", "stillFailing"], ["46116884019", "opened"]]);
+  assert.equal(history.records.some(record => ["rehearsed", "reproduced"].includes(record.end)), false);
+  assert.equal(history.records.filter(record => record.run === "45612219654").length, 0);
+  assert.equal(history.records.find(record => record.run === "45302754685").end, "opened");
+});
+
+it("starts the first try on a failure that failed again or that came back three times, on dev only", () => {
+  assert.deepEqual(decide(brokenIssue()), { kind: "start", attempt: 1, previous: null, inputs: fixInputs(brokenIssue(), [{ run: 100 }]) });
+  assert.equal(decide(brokenIssue(), [], [latestRun(100, "success")]).kind, "none");
+  const collecting = count => issue({ body: Array.from({ length: count }, (_, index) => `${failure(100 + index)}\n${rerun(100 + index, "passed")}`).join("\n"), createdAt: at(0), comments: [], commentTimes: [] });
+  assert.equal(decide(collecting(FIX_LIMITS.collecting - 1)).kind, "none");
+  assert.equal(decide(collecting(FIX_LIMITS.collecting)).kind, "start");
+  assert.equal(decide(collecting(FIX_LIMITS.collecting)).inputs.runs, "102,101,100");
+  const found = brokenIssue();
+  const state = stateOf(found.title, [found.body], [latestRun(100, "failure")]);
+  assert.equal(fixDecision({ issue: found, state, branch: "main", history: fixHistory([found.body], [at(0)]), now: NOW }).kind, "none");
+  for (const name of ["not-started", "setup-failed", "rerun-pending", "rerun-unclear"]) assert.equal(fixDecision({ issue: found, state: { name }, branch: "dev", history: fixHistory([found.body], [at(0)]), now: NOW }).kind, "none");
+  assert.deepEqual(decide(brokenIssue(), [fixPull(50, 10, 900, { state: "open" })]), { kind: "open", pr: 50, line: "pull request #50 is open. Read it and merge or close it." });
+  assert.equal(decide(brokenIssue(), [fixPull(50, 11, 900, { state: "open" })]).kind, "start");
+});
+
+it("continues a try that still failed, three tries at most, and hands the rest to a person", () => {
+  const second = decide(brokenIssue([attemptRecord(900, "stillFailing")]), [], [latestRun(100, "success")]);
+  assert.deepEqual([second.kind, second.attempt, second.previous, second.inputs.previous], ["start", 2, "900", "900"]);
+  const third = decide(brokenIssue([attemptRecord(900, "stillFailing"), attemptRecord(901, "stillFailing")]));
+  assert.deepEqual([third.kind, third.attempt, third.previous], ["start", 3, "901"]);
+  assert.deepEqual(decide(brokenIssue([attemptRecord(900, "stillFailing"), attemptRecord(901, "stillFailing"), attemptRecord(902, "stillFailing")])), { kind: "stopped", attempt: 3, end: "stillFailing", line: "stopped after try 3 (stillFailing). A person has to look." });
+  for (const end of ["nothingAdded", "noChange", "noOutput", "testsDropped", "refused", "fullCheckFailed", "failingUnreproduced", "recordOnly", "unfinished"]) {
+    assert.deepEqual(decide(brokenIssue([attemptRecord(900, end)])), { kind: "stopped", attempt: 1, end, line: `stopped after try 1 (${end}). A person has to look.` }, end);
+  }
+  assert.equal(decide(brokenIssue([attemptRecord(900, "duplicate")])).kind, "none");
+  assert.equal(decide(brokenIssue([attemptRecord(900, "rehearsed"), attemptRecord(901, "reproduced")])).attempt, 1);
+});
+
+it("does not count a failure it could not reproduce as a try, and waits for a new failure before it tries again", () => {
+  assert.equal(decide(brokenIssue([attemptRecord(900, "notReproduced")])).kind, "none");
+  const again = decide(brokenIssue([attemptRecord(900, "notReproduced"), `${failure(101)}\n${rerun(101, "failed")}`]), [], [latestRun(101, "failure")]);
+  assert.deepEqual([again.kind, again.attempt, again.previous], ["start", 1, null]);
+  const three = [attemptRecord(900, "notReproduced"), attemptRecord(901, "unhandled"), attemptRecord(902, "notReproduced"), `${failure(101)}\n${rerun(101, "failed")}`];
+  assert.deepEqual(decide(brokenIssue(three), [], [latestRun(101, "failure")]), { kind: "stopped", attempt: 0, end: "notReproduced", line: "stopped after try 0 (notReproduced). A person has to look." });
+});
+
+it("leaves an opened pull request to a person and tries again only after a new failure", () => {
+  const opened = [attemptRecord(900, "opened")];
+  assert.equal(decide(brokenIssue(opened), [fixPull(50, 10, 900, { state: "open" })]).kind, "open");
+  assert.equal(decide(brokenIssue(opened), []).kind, "none");
+  const merged = fixPull(50, 10, 900, { mergedAt: at(30), closedAt: at(30) });
+  assert.equal(decide(brokenIssue(opened), [merged]).kind, "none");
+  const recurred = brokenIssue([...opened, `${failure(101)}\n${rerun(101, "failed")}`], [at(20), at(40)]);
+  const afterMerge = decide(recurred, [merged], [latestRun(101, "failure")]);
+  assert.deepEqual([afterMerge.kind, afterMerge.attempt, afterMerge.previous], ["start", 2, null]);
+  assert.equal(decide(brokenIssue([...opened, `${failure(101)}\n${rerun(101, "failed")}`], [at(20), at(25)]), [merged], [latestRun(101, "failure")]).kind, "none");
+  const closed = fixPull(50, 10, 900, { closedAt: at(30) });
+  assert.equal(decide(brokenIssue(opened), [closed]).kind, "none");
+  const afterClose = decide(recurred, [closed], [latestRun(101, "success")]);
+  assert.deepEqual([afterClose.kind, afterClose.attempt, afterClose.previous], ["start", 2, "900"]);
+});
+
+it("does not start a try twice while one is running and counts a start that left no record as unfinished", () => {
+  const recent = startMarkerOf(1, "2026-11-28T09:00:00.000Z");
+  assert.deepEqual(decide(brokenIssue([recent])), { kind: "running", attempt: 1, line: "try 1 is running." });
+  assert.equal(decide(brokenIssue([recent, attemptRecord(900, "stillFailing")], [at(540), at(560)])).kind, "start");
+  const next = startMarkerOf(2, "2026-11-28T09:30:00.000Z");
+  assert.deepEqual(decide(brokenIssue([startMarkerOf(1, "2026-11-28T00:05:00.000Z"), attemptRecord(900, "stillFailing"), next], [at(5), at(60), at(570)])), { kind: "running", attempt: 2, line: "try 2 is running." });
+  const old = startMarkerOf(1, new Date(NOW.getTime() - FIX_LIMITS.startedHours * 3600 * 1000).toISOString());
+  assert.deepEqual(decide(brokenIssue([old])), { kind: "stopped", attempt: 1, end: "unfinished", line: "stopped after try 1 (unfinished). A person has to look." });
+});
+
+it("writes what it would start in report mode and starts it only when it is on", () => {
+  const broken = brokenIssue();
+  const snapshot = { runs: [], latest: [latestRun(100, "failure")], issues: [broken], pulls: [], gates: 0 };
+  const off = plan(snapshot);
+  assert.deepEqual(off.map(action => action.type), ["status", "labels"]);
+  assert.ok(!off[0].body.includes("Automatic fix"));
+
+  const report = plan(snapshot, { mode: "report", now: NOW });
+  assert.deepEqual(report.map(action => action.type), ["status", "labels", "note"]);
+  assert.match(report[0].body, /\*\*To do:\*\* [^\n]+\n\*\*Automatic fix:\*\* would start try 1 now \(report only\)\.\n<!-- \/post-merge-status -->/);
+  assert.match(report[2].text, /^start: would start try 1 now \(report only\)\. State broken\. Inputs: issue=10 runner=ubuntu-latest workflow=none /);
+
+  const on = plan(snapshot, { mode: "on", now: NOW });
+  assert.deepEqual(on.map(action => action.type), ["status", "labels", "fix", "note"]);
+  assert.match(on[0].body, /\*\*Automatic fix:\*\* try 1 is running\./);
+  assert.deepEqual(on[2], { type: "fix", number: 10, title: broken.title, attempt: 1, inputs: fixInputs(broken, [{ run: 100 }]) });
+
+  const waiting = plan({ ...snapshot, gates: 1 }, { mode: "on", now: NOW });
+  assert.equal(waiting.some(action => action.type === "fix"), false);
+  assert.match(waiting[0].body, /\*\*Automatic fix:\*\* try 1 waits for a model gate to finish\./);
+
+  const many = [10, 11, 12].map(number => ({ ...broken, number }));
+  const capped = plan({ ...snapshot, issues: many }, { mode: "on", now: NOW });
+  assert.deepEqual(capped.filter(action => action.type === "fix").map(action => action.number), [10, 11]);
+  assert.match(capped.find(action => action.type === "status" && action.number === 12).body, /try 1 waits for the next check\./);
+
+  const stopped = brokenIssue([attemptRecord(900, "noChange")]);
+  const handed = plan({ ...snapshot, issues: [stopped] }, { mode: "on", now: NOW });
+  assert.deepEqual(handed.find(action => action.type === "labels" && action.add.includes(FIX_LABEL)), { type: "labels", number: 10, title: stopped.title, add: [FIX_LABEL], remove: [] });
+  assert.equal(plan({ ...snapshot, issues: [stopped] }, { mode: "report", now: NOW }).some(action => action.type === "labels" && action.add.includes(FIX_LABEL)), false);
+  const cleared = plan({ ...snapshot, issues: [{ ...broken, labels: [LABELS.failed, FIX_LABEL] }] }, { mode: "on", now: NOW });
+  assert.deepEqual(cleared.find(action => action.type === "labels"), { type: "labels", number: 10, title: broken.title, add: [], remove: [FIX_LABEL] });
+});
+
+it("stops starting fixes when two merged fixes did not hold, until a person closes the notice", () => {
+  const recurredIssue = number => ({ ...brokenIssue([attemptRecord(900 + number, "opened"), `${failure(101)}\n${rerun(101, "failed")}`], [at(20), at(40)]), number });
+  const merged = number => fixPull(50 + number, number, 900 + number, { mergedAt: at(30), closedAt: at(30) });
+  const issues = [recurredIssue(10), recurredIssue(11)];
+  const pulls = [merged(10), merged(11)];
+  assert.equal(notHeld(issues, pulls), 2);
+  assert.equal(notHeld(issues, pulls, at(50)), 0);
+  assert.equal(notHeld(issues, [merged(10), fixPull(61, 11, 911, { closedAt: at(30) })]), 1);
+  assert.equal(FIX_LIMITS.notHeld, 2);
+
+  const snapshot = { runs: [], latest: [latestRun(101, "failure")], issues, pulls, gates: 0 };
+  const paused = plan(snapshot, { mode: "on", now: NOW });
+  assert.equal(paused.some(action => action.type === "fix"), false);
+  assert.deepEqual(paused.filter(action => action.type === "create").map(action => [action.title, action.labels]), [[FIX_STOP_TITLE, [FIX_LABEL]]]);
+  assert.match(paused.find(action => action.type === "status").body, /\*\*Automatic fix:\*\* paused\./);
+  assert.equal(plan(snapshot, { mode: "report", now: NOW }).some(action => action.type === "create"), false);
+
+  const noticed = { number: 90, title: FIX_STOP_TITLE, state: "open", closedAt: null, body: "", labels: [], comments: [] };
+  const stillPaused = plan({ ...snapshot, issues: [...issues, noticed] }, { mode: "on", now: NOW });
+  assert.equal(stillPaused.some(action => action.type === "fix" || action.type === "create"), false);
+  assert.match(stillPaused.find(action => action.type === "status").body, /paused\. See #90\./);
+
+  const resumed = plan({ ...snapshot, issues: [...issues, { ...noticed, state: "closed", closedAt: at(50) }] }, { mode: "on", now: NOW });
+  assert.deepEqual(resumed.filter(action => action.type === "fix").map(action => [action.number, action.attempt, action.inputs.previous ?? null]), [[10, 2, null], [11, 2, null]]);
+});
+
+it("starts the fix workflow on dev with the inputs it planned and leaves a start mark only when that worked", async () => {
+  const inputs = fixInputs(brokenIssue(), [{ run: 100 }], "900");
+  const api = fakeApi({ [`POST /repos/owner/name/actions/workflows/${FIX_WORKFLOW}/dispatches`]: null, "POST /repos/owner/name/issues/10/comments": {} });
+  const results = await apply(api, "owner/name", [{ type: "fix", number: 10, title: "t", attempt: 2, inputs }, { type: "note", number: 10, title: "t", text: "start" }], NOW);
+  assert.deepEqual(results.map(result => result.ok), [true, true]);
+  assert.deepEqual(api.calls.map(call => [call.method, call.path, call.body]), [
+    ["POST", `/repos/owner/name/actions/workflows/${FIX_WORKFLOW}/dispatches`, { ref: "dev", inputs }],
+    ["POST", "/repos/owner/name/issues/10/comments", { body: `Automatic fix: try 2 started, continuing run 900.\n${startMarkerOf(2, NOW.toISOString())}` }]]);
+  assert.ok(Object.values(inputs).every(value => typeof value === "string"));
+  assert.deepEqual(fixHistory([api.calls[1].body.body], [at(0)]).starts, [{ attempt: 2, at: NOW.toISOString() }]);
+
+  const refused = fakeApi({ [`POST /repos/owner/name/actions/workflows/${FIX_WORKFLOW}/dispatches`]: () => { throw new Error("POST dispatches returned 422"); } });
+  const failedStart = await apply(refused, "owner/name", [{ type: "fix", number: 10, title: "t", attempt: 1, inputs }], NOW);
+  assert.deepEqual([failedStart[0].ok, refused.calls.length], [false, 1]);
+
+  const text = summarize([...results, { type: "rerun", runId: 1, ok: true }], false, "on");
+  assert.deepEqual(text.split("\n").slice(0, 2), ["2 actions", "Automatic fix mode: on"]);
+  assert.match(text, /- start try 2 of the automatic fix of #10 t\n- automatic fix of #10: start\n/);
+  assert.equal(summarize([], true).includes("Automatic fix mode"), false);
+});
+
+it("reads the fix pull requests, the running gates and the comment times only when the automatic fix is not off", async () => {
+  const routes = {
+    "GET /repos/owner/name/actions/workflows/agent-eval.yml/runs?status=in_progress": { total_count: 1 },
+    "GET /repos/owner/name/actions/workflows/agent-eval.yml/runs": { total_count: 0 },
+    "GET /repos/owner/name/actions/workflows/pipeline-smoke.yml/runs": { total_count: 0 },
+    "GET /repos/owner/name/actions/workflows/": { workflow_runs: [] },
+    "GET /repos/owner/name/issues?state=all": [
+      { number: 10, title: "[post-merge] check/check (test): Run tests", state: "open", body: "x", created_at: "2026-11-28T00:00:00Z", labels: [], user: { login: "github-actions[bot]" } },
+      { number: 90, title: FIX_STOP_TITLE, state: "closed", closed_at: "2026-11-28T05:00:00Z", body: "x", user: { login: "github-actions[bot]" } },
+      { number: 91, title: FIX_STOP_TITLE, state: "open", body: "x", user: { login: "someone" } }],
+    "GET /repos/owner/name/issues/10/comments": [{ body: "kept", created_at: "2026-11-28T01:00:00Z", user: { login: "github-actions[bot]" } }, { body: "dropped", created_at: "2026-11-28T02:00:00Z", user: { login: "someone" } }],
+    "GET /repos/owner/name/pulls?state=all&base=dev": [
+      { number: 50, state: "closed", merged_at: "2026-11-28T03:00:00Z", closed_at: "2026-11-28T03:00:00Z", head: { ref: `${FIX_BRANCH_PREFIX}10-900` } },
+      { number: 51, state: "open", merged_at: null, closed_at: null, head: { ref: "harness/some-task" } },
+      { number: 52, state: "open", merged_at: null, closed_at: null, head: { ref: `${FIX_BRANCH_PREFIX}0-probe` } }],
+  };
+  const api = fakeApi(routes);
+  const snapshot = await gather(api, { repository: "owner/name", since: "2026-11-27T00:00:00.000Z", fix: true });
+  assert.deepEqual(snapshot.issues, [
+    { number: 10, title: "[post-merge] check/check (test): Run tests", state: "open", body: "x", labels: [], comments: ["kept"], createdAt: "2026-11-28T00:00:00Z", commentTimes: ["2026-11-28T01:00:00Z"] },
+    { number: 90, title: FIX_STOP_TITLE, state: "closed", closedAt: "2026-11-28T05:00:00Z", body: "", labels: [], comments: [] }]);
+  assert.deepEqual(snapshot.pulls, [{ number: 50, issue: 10, run: "900", state: "closed", mergedAt: "2026-11-28T03:00:00Z", closedAt: "2026-11-28T03:00:00Z" }]);
+  assert.equal(snapshot.gates, 1);
+  assert.ok(api.calls.every(call => call.method === "GET"));
+
+  const plain = fakeApi(routes);
+  const without = await gather(plain, { repository: "owner/name", since: "2026-11-27T00:00:00.000Z" });
+  assert.deepEqual(Object.keys(without), ["runs", "issues", "latest"]);
+  assert.equal(plain.calls.some(call => /pulls\?state|agent-eval|pipeline-smoke/.test(call.path)), false);
+});
+
+it("takes the mode from the repository variable and treats anything unknown as off", () => {
+  assert.deepEqual(["off", "report", "on", "", "ON", "yes", undefined].map(fixMode), ["off", "report", "on", "off", "off", "off", "off"]);
+  assert.equal(parse(["--repository", "owner/name", "--auto-fix-mode", "report"]).fixMode, "report");
+  assert.equal(parse(["--repository", "owner/name", "--auto-fix-mode", "anything"]).fixMode, "off");
+  assert.throws(() => parse(["--repository", "owner/name", "--auto-fix-mode"]), /Usage/);
+  const workflow = readFileSync(new URL("../../workflows/post-merge-failure-record.yml", import.meta.url), "utf8");
+  assert.match(workflow, /\n          auto-fix-mode: \$\{\{ vars\.AUTO_FIX_MODE \}\}\n/);
+  assert.match(workflow, /\n      actions: write\n      issues: write\n      pull-requests: read\n/);
+  const action = readFileSync(new URL("./action.yml", import.meta.url), "utf8");
+  assert.match(action, /--auto-fix-mode "\$\{AUTO_FIX_MODE:-off\}"/);
+  const fix = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
+  for (const name of Object.keys(fixInputs(brokenIssue(), [], "1"))) assert.match(fix, new RegExp(`\\n      ${name}:\\n`), name);
+  assert.match(fix, new RegExp(`options: \\[[^\\]]*${FIX_MODEL}`));
+});
+
