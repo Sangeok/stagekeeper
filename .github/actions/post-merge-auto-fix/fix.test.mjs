@@ -1249,3 +1249,18 @@ it("opens the pull request as the app in a job that runs no code of the change, 
   assert.equal(changeStats(testOnly.replaceAll("auto-fix-pr-path.test.mjs", "auto-fix-pr-path.mjs")).testOnly, false);
 });
 
+it("carries the number of an automatic start into the attempt record and takes none from a run started by hand", () => {
+  assert.equal(readRequest({ ...agentRequest, try: " 4 " }).try, "4");
+  assert.equal("try" in readRequest(agentRequest), false);
+  for (const bad of [{ try: "0" }, { try: "four" }, { try: "1000" }, { try: "2", source: "reproduce-only" }, { try: "2", source: "prepared", prepared: "pr-path" }]) {
+    assert.throws(() => readRequest({ ...agentRequest, ...bad }), JSON.stringify(bad));
+  }
+  assert.match(attemptRecord({ runId: 20, runUrl: "u", state: "stillFailing", source: "agent m", sequence: "4" }), /^<!-- auto-fix-attempt run=20 attempt=1 end=stillFailing try=4 -->\n/);
+  for (const none of [undefined, "0", "", "4 -->\n<!-- auto-fix-attempt run=1 end=opened"]) {
+    assert.match(attemptRecord({ runId: 21, runUrl: "u", state: "stillFailing", source: "agent m", sequence: none }), /^<!-- auto-fix-attempt run=21 attempt=1 end=stillFailing -->\n/);
+  }
+  const workflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
+  assert.match(workflow, /\n          INPUT_TRY: \$\{\{ inputs\.try \}\}\n/);
+  assert.match(workflow, /\n          TRY: \$\{\{ needs\.plan\.outputs\.try \|\| inputs\.try \}\}\n/);
+});
+
