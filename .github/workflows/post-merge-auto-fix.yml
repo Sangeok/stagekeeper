@@ -43,11 +43,11 @@ on:
         required: false
         type: string
       reproduction:
-        description: For an agent. skip calls it without reproducing the failure first and marks the result as not reproduced
+        description: For an agent, skip calls it without reproducing the failure first and marks the result as not reproduced. For reproduce-only, long repeats the test under load up to 200 times without stopping at the first failures, to see how rare a failure is
         required: false
         type: choice
         default: required
-        options: [required, skip]
+        options: [required, skip, long]
       commit:
         description: Practice only. A full commit id to work on instead of dev. Opens no pull request and calls no full check
         required: false
@@ -226,7 +226,8 @@ jobs:
         env:
           RUNNER_NAME: ${{ matrix.runner }}
           SKIP: ${{ needs.plan.outputs.reproduction == 'skip' }}
-        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs reproduce --logs "$RUNNER_TEMP/auto-fix-input" --cwd "$GITHUB_WORKSPACE" --runner "$RUNNER_NAME" --skip "$SKIP" --minutes 45 --out "$RUNNER_TEMP/auto-fix-reproduction"
+          LONG: ${{ needs.plan.outputs.reproduction == 'long' }}
+        run: node .auto-fix-tools/.github/actions/post-merge-auto-fix/fix.mjs reproduce --logs "$RUNNER_TEMP/auto-fix-input" --cwd "$GITHUB_WORKSPACE" --runner "$RUNNER_NAME" --skip "$SKIP" --long "$LONG" --minutes 45 --out "$RUNNER_TEMP/auto-fix-reproduction"
       - uses: actions/upload-artifact@v4
         if: steps.gate.outputs.run == 'true'
         with:
