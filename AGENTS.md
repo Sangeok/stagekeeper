@@ -105,6 +105,12 @@ commits that were already green on `dev`.
   checks run by themselves; a person reads the pull request and merges or closes it.
   Do not merge or close one unless the user asks. A pull request labeled
   `auto-fix:product-code` changes a file other than a test.
+- Do not close a `[post-merge]` issue whose status block says an automatic fix try is
+  running: the same failure then opens a new issue and a second try starts beside the
+  first. An issue that stopped as `unfinished` starts again only after the comment with
+  its start mark is deleted; before deleting it, confirm in the run list that the fix
+  run has ended. Do not record a practice run (`commit` input) on a `[post-merge]`
+  issue; use the practice issue #430.
 - The repository variable `AUTO_FIX_MODE` (`off`, `report`, `on`) decides whether the
   `post-merge-failure-record` workflow starts that fix. Change it only when the user
   says so, and write the new value and the time in
