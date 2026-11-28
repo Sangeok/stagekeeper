@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
@@ -30,6 +30,7 @@ import {
   checkLines,
   combine,
   continueRequest,
+  assignmentsOfFailedStep,
   describePlan,
   digestOf,
   droppedTests,
@@ -1262,5 +1263,81 @@ it("carries the number of an automatic start into the attempt record and takes n
   const workflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
   assert.match(workflow, /\n          INPUT_TRY: \$\{\{ inputs\.try \}\}\n/);
   assert.match(workflow, /\n          TRY: \$\{\{ needs\.plan\.outputs\.try \|\| inputs\.try \}\}\n/);
+});
+
+const windowsWorkflow = readFileSync(new URL("../../workflows/windows-role-runtime.yml", import.meta.url), "utf8");
+const RUNTIME_LINE = '$env:STAGEKEEPER_TEST_WINDOWS_RUNTIME = "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"';
+const scriptStepLog = (assignment = RUNTIME_LINE, { before = [], envBlock = [] } = {}) =>
+  stamped([
+    ...before,
+    `##[group]Run ${assignment}`,
+    `\u001b[36;1m${assignment}\u001b[0m`,
+    "\u001b[36;1mnode --test plugin/runtime/role-command-execution.test.mjs\u001b[0m",
+    "\u001b[36;1mif ($LASTEXITCODE -ne 0) { throw 'Native role command acceptance failed' }\u001b[0m",
+    "\u001b[36;1mnode --test scripts/windows/windows-role-readlink.test.mjs\u001b[0m",
+    "shell: C:\\Program Files\\PowerShell\\7\\pwsh.EXE -command \". '{0}'\"",
+    ...(envBlock.length ? ["env:", ...envBlock.map(line => `  ${line}`)] : []),
+    "##[endgroup]",
+    "TAP version 13",
+    "# Subtest: preserves readlink's non-link semantics, callback validation and denied paths inside actual LPAC",
+    "not ok 1 - preserves readlink's non-link semantics, callback validation and denied paths inside actual LPAC",
+  ]);
+
+it("reads a value that the failed step's own script sets, in the form a log of issue 418 shows it", () => {
+  assert.deepEqual(assignmentsOfFailedStep(scriptStepLog()), { STAGEKEEPER_TEST_WINDOWS_RUNTIME: { value: "{RUNNER_TEMP}/stagekeeper-node-source/runtime", line: RUNTIME_LINE } });
+  const earlier = ["##[group]Run $env:STAGEKEEPER_EARLIER = \"1\"", "\u001b[36;1m$env:STAGEKEEPER_EARLIER = \"1\"\u001b[0m", "shell: pwsh", "##[endgroup]"];
+  assert.deepEqual(Object.keys(assignmentsOfFailedStep(scriptStepLog(RUNTIME_LINE, { before: earlier }))), ["STAGEKEEPER_TEST_WINDOWS_RUNTIME"]);
+  assert.deepEqual(assignmentsOfFailedStep(scriptStepLog(RUNTIME_LINE, { envBlock: ["STAGEKEEPER_LATER: $env:STAGEKEEPER_SET = \"1\""] })).STAGEKEEPER_SET, undefined);
+  assert.deepEqual(assignmentsOfFailedStep(stamped(["##[group]Run $env:STAGEKEEPER_X = \"1\"", "\u001b[36;1m$env:STAGEKEEPER_X = \"1\"\u001b[0m", "shell: pwsh", "##[endgroup]", "ok 1 - passes"])), {});
+
+  const known = runEnvironment({}, "windows-2022");
+  assert.deepEqual(stepEnvironment({ logs: [scriptStepLog()], workflows: [windowsWorkflow], known }), { STAGEKEEPER_TEST_WINDOWS_RUNTIME: "{RUNNER_TEMP}/stagekeeper-node-source/runtime" });
+  assert.deepEqual(stepEnvironment({ logs: [scriptStepLog(), scriptStepLog()], workflows: [windowsWorkflow], known }), { STAGEKEEPER_TEST_WINDOWS_RUNTIME: "{RUNNER_TEMP}/stagekeeper-node-source/runtime" });
+  const elsewhere = '$env:STAGEKEEPER_TEST_WINDOWS_RUNTIME = "$env:RUNNER_TEMP/elsewhere"';
+  for (const [logs, workflows] of [
+    [[scriptStepLog()], [checkWorkflow]],
+    [[scriptStepLog()], []],
+    [[scriptStepLog(), scriptStepLog(elsewhere)], [windowsWorkflow, `      run: ${elsewhere}`]],
+    [[scriptStepLog(), stamped(["not ok 1 - x"])], [windowsWorkflow]],
+  ]) assert.deepEqual(stepEnvironment({ logs, workflows, known }), {}, JSON.stringify(workflows.length));
+  for (const line of ['$env:STAGEKEEPER_X = "$env:HOME/x"', '$env:STAGEKEEPER_X = "$env:RUNNER_TEMP/../x"', '$env:STAGEKEEPER_X = "C:\\x"', '$env:STAGEKEEPER_X = "$env:RUNNER_TEMP"', '$env:STAGEKEEPER_X = "a`b"', '$env:PATH = "$env:RUNNER_TEMP/bin"', "$env:STAGEKEEPER_X = $(Get-Item x)"]) {
+    assert.deepEqual(stepEnvironment({ logs: [scriptStepLog(line)], workflows: [`        ${line}`], known }), {}, line);
+  }
+  assert.deepEqual(stepEnvironment({ logs: [scriptStepLog("export STAGEKEEPER_X=\"$RUNNER_TEMP/a/b\"")], workflows: ["          export STAGEKEEPER_X=\"$RUNNER_TEMP/a/b\""], known }), { STAGEKEEPER_X: "{RUNNER_TEMP}/a/b" });
+  assert.deepEqual(stepEnvironment({ logs: [scriptStepLog("export STAGEKEEPER_X=on")], workflows: ["          export STAGEKEEPER_X=on"], known }), { STAGEKEEPER_X: "on" });
+  assert.deepEqual(stepEnvironment({ logs: [scriptStepLog('$env:STAGEKEEPER_RELEASED_READERS = "off"')], workflows: ['        $env:STAGEKEEPER_RELEASED_READERS = "off"'], known }), {});
+  const both = scriptStepLog(RUNTIME_LINE, { envBlock: ["STAGEKEEPER_TEST_WINDOWS_RUNTIME: plain"] });
+  assert.deepEqual(stepEnvironment({ logs: [both], workflows: [windowsWorkflow, "        STAGEKEEPER_TEST_WINDOWS_RUNTIME: plain"], known }), { STAGEKEEPER_TEST_WINDOWS_RUNTIME: "{RUNNER_TEMP}/stagekeeper-node-source/runtime" });
+});
+
+it("keeps a value under the runner's temporary directory as a place holder until the test runs", () => {
+  assert.deepEqual(readStepValues({ STAGEKEEPER_TEST_WINDOWS_RUNTIME: "{RUNNER_TEMP}/stagekeeper-node-source/runtime" }), { STAGEKEEPER_TEST_WINDOWS_RUNTIME: "{RUNNER_TEMP}/stagekeeper-node-source/runtime" });
+  for (const value of ["{RUNNER_TEMP}", "{RUNNER_TEMP}/../x", "{RUNNER_TEMP}/a/../b", "{HOME}/x", "/tmp/x", "{RUNNER_TEMP}/a b", "x{RUNNER_TEMP}/a"]) assert.throws(() => readStepValues({ STAGEKEEPER_X: value }), new RegExp("plain STAGEKEEPER_"), value);
+  const env = { STAGEKEEPER_TEST_WINDOWS_RUNTIME: "{RUNNER_TEMP}/stagekeeper-node-source/runtime", STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1" };
+  assert.deepEqual(runEnvironment({ env }, "windows-2022", "D:\\a\\_temp"), { STAGEKEEPER_TEST_WINDOWS_RUNTIME: "D:\\a\\_temp/stagekeeper-node-source/runtime", STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1", STAGEKEEPER_RELEASED_READERS: "required" });
+  assert.deepEqual(runEnvironment({ env }, "windows-2022", ""), { STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1", STAGEKEEPER_RELEASED_READERS: "required" });
+  assert.equal(describePlan({ file: "scripts/windows/windows-role-readlink.test.mjs", env, load: false }), "STAGEKEEPER_TEST_WINDOWS_RUNTIME=$RUNNER_TEMP/stagekeeper-node-source/runtime STAGEKEEPER_USAGE_NATIVE_REQUIRED=1 node --test scripts/windows/windows-role-readlink.test.mjs, one at a time without load");
+  assert.match(reproductionLines({ kind: "always", env }).join("\n"), /Set as in the failed step: STAGEKEEPER_TEST_WINDOWS_RUNTIME=\$RUNNER_TEMP\/stagekeeper-node-source\/runtime STAGEKEEPER_USAGE_NATIVE_REQUIRED=1/);
+  assert.deepEqual(readMeasurePlan({ ...namedPlan, env }).env, env);
+});
+
+it("runs a test that the failed step's script enabled once the value it set is given", async () => {
+  const temp = mkdtempSync(path.join(realpathSync(tmpdir()), "auto-fix-runner-temp-"));
+  const file = "gated-runtime.test.mjs";
+  const names = ["fails when the runtime is there"];
+  mkdirSync(path.join(temp, "stagekeeper-node-source", "runtime"), { recursive: true });
+  writeFileSync(
+    path.join(temp, file),
+    'import assert from "node:assert/strict";\nimport { existsSync } from "node:fs";\nimport path from "node:path";\nimport { it } from "node:test";\nconst runtime = process.env.STAGEKEEPER_TEST_WINDOWS_RUNTIME;\nit("fails when the runtime is there", { skip: !runtime }, () => assert.equal(existsSync(runtime), false));\n',
+  );
+  try {
+    const without = await reproduce({ file, names, cwd: temp, env: runEnvironment({}, "ubuntu-latest", temp), minutes: 5 });
+    assert.deepEqual([without.kind, without.plain.runs, without.plain.notRun], ["unhandled", 0, 5]);
+    const env = stepEnvironment({ logs: [scriptStepLog()], workflows: [windowsWorkflow], known: {} });
+    const withValue = await reproduce({ file, names, cwd: temp, env: runEnvironment({ env }, "ubuntu-latest", temp), minutes: 5 });
+    assert.deepEqual([withValue.kind, withValue.plain.original, withValue.plain.notRun], ["always", 5, 0]);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
 });
 

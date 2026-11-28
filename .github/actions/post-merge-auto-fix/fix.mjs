@@ -36,6 +36,10 @@ export const MAX_STEP_VALUES = 8;
 const WORKFLOW_FILE = /^\.github\/workflows\/[\w.-]{1,80}\.ya?ml$/;
 const STEP_NAME = /^STAGEKEEPER_[A-Z0-9_]{1,60}$/;
 const STEP_VALUE = /^[A-Za-z0-9._-]{1,40}$/;
+const RUNNER_TEMP = "{RUNNER_TEMP}";
+const TEMP_VALUE = /^\{RUNNER_TEMP\}(?:\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,59}){1,8}$/;
+const STEP_ASSIGNMENT = /^(?:\$env:(STAGEKEEPER_[A-Z0-9_]{1,60})\s*=\s*(["'])([^"'`$]*|\$env:RUNNER_TEMP[^"'`$]*)\2|export (STAGEKEEPER_[A-Z0-9_]{1,60})=(["']?)([^"'`$\s]*|\$\{?RUNNER_TEMP\}?[^"'`$\s]*)\5)$/;
+const isStepValue = value => typeof value === "string" && (STEP_VALUE.test(value) || (TEMP_VALUE.test(value) && !value.split("/").includes("..")));
 export const MODELS = Object.freeze(["claude-sonnet-5-5", "claude-opus-5-5"]);
 export const SOURCES = Object.freeze(["prepared", "agent", "reproduce-only"]);
 export const MAX_RUNS = 200;
@@ -149,12 +153,13 @@ export function readMeasurePlan(raw) {
 export function readStepValues(raw) {
   if (raw === undefined || raw === null) return {};
   const entries = typeof raw === "object" && !Array.isArray(raw) ? Object.entries(raw) : null;
-  if (!entries || entries.length > MAX_STEP_VALUES || entries.some(([name, value]) => !STEP_NAME.test(name) || typeof value !== "string" || !STEP_VALUE.test(value))) throw new Error("the environment of the failed step must be a few plain STAGEKEEPER_ values");
+  if (!entries || entries.length > MAX_STEP_VALUES || entries.some(([name, value]) => !STEP_NAME.test(name) || !isStepValue(value))) throw new Error("the environment of the failed step must be a few plain STAGEKEEPER_ values");
   return Object.fromEntries(entries.sort(([left], [right]) => left.localeCompare(right)));
 }
 
-export const runEnvironment = (plan, runner) => ({ ...(plan?.env ?? {}), ...(STEP_ENVIRONMENT[runner]?.env ?? {}) });
-const stepValuesText = env => Object.entries(env ?? {}).map(([name, value]) => `${name}=${value}`).join(" ");
+const expanded = (env, temp) => Object.fromEntries(Object.entries(env ?? {}).flatMap(([name, value]) => (!String(value).startsWith(RUNNER_TEMP) ? [[name, value]] : temp ? [[name, `${temp}${String(value).slice(RUNNER_TEMP.length)}`]] : [])));
+export const runEnvironment = (plan, runner, temp = process.env.RUNNER_TEMP) => ({ ...expanded(plan?.env, temp), ...(STEP_ENVIRONMENT[runner]?.env ?? {}) });
+const stepValuesText = env => Object.entries(env ?? {}).map(([name, value]) => `${name}=${String(value).replace(RUNNER_TEMP, "$RUNNER_TEMP")}`).join(" ");
 
 export const describePlan = plan => `${plan.env ? `${stepValuesText(plan.env)} ` : ""}node --test ${plan.file}${plan.load ? `, ${LOAD_PARALLEL} at once with every core busy` : ", one at a time without load"}`;
 
@@ -182,6 +187,26 @@ export function valuesOfFailedStep(text) {
   return {};
 }
 
+export function assignmentsOfFailedStep(text) {
+  let found = {};
+  let script = false;
+  for (const line of stripAnsi(text).split(/\r?\n/).map(cleanLine)) {
+    if (/^##\[group\]Run /.test(line)) {
+      found = {};
+      script = true;
+    } else if (/^shell: |^##\[endgroup\]|^env:\s*$/.test(line)) script = false;
+    else if (script) {
+      const match = STEP_ASSIGNMENT.exec(line.trim());
+      if (match) {
+        const name = match[1] ?? match[4];
+        const value = (match[3] ?? match[6]).replace(/^\$env:RUNNER_TEMP|^\$\{RUNNER_TEMP\}|^\$RUNNER_TEMP/, RUNNER_TEMP);
+        found[name] = { value, line: line.trim() };
+      }
+    } else if (/^\s*not ok \d+ - /.test(line)) return found;
+  }
+  return {};
+}
+
 export function valuesSetInWorkflow(text) {
   const values = new Map();
   for (const line of String(text).split(/\r?\n/)) {
@@ -202,7 +227,13 @@ export function stepEnvironment({ logs, workflows, known = {} }) {
     ([name, value]) =>
       STEP_NAME.test(name) && STEP_VALUE.test(value) && !(name in known) && seen.every(values => values[name] === value) && set.some(values => values.get(name)?.has(value)),
   );
-  return Object.fromEntries(kept.sort(([left], [right]) => left.localeCompare(right)).slice(0, MAX_STEP_VALUES));
+  const assigned = logs.map(assignmentsOfFailedStep);
+  const lines = new Set(workflows.flatMap(text => String(text).split(/\r?\n/).map(line => line.trim())));
+  const fromScript = Object.entries(assigned[0] ?? {}).filter(
+    ([name, { value, line }]) => STEP_NAME.test(name) && isStepValue(value) && !(name in known) && lines.has(line) && assigned.every(values => values[name]?.value === value),
+  ).map(([name, { value }]) => [name, value]);
+  const merged = { ...Object.fromEntries(kept), ...Object.fromEntries(fromScript) };
+  return Object.fromEntries(Object.entries(merged).sort(([left], [right]) => left.localeCompare(right)).slice(0, MAX_STEP_VALUES));
 }
 
 export function failuresInLog(text) {
