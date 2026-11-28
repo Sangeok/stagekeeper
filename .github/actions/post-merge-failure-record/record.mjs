@@ -205,7 +205,9 @@ export function fixDecision({ issue, state, branch, history, pulls = [], related
   let last = records.at(-1) ?? null;
   if (last?.end === "duplicate") {
     const before = records.filter(record => record.end !== "duplicate").at(-1) ?? null;
-    if (before?.end !== "opened") return stopped("duplicate");
+    const own = before?.end === "opened" ? pulls.find(found => found.issue === issue.number && found.run === before.run) : null;
+    const closed = own ? own.mergedAt ?? own.closedAt : null;
+    if (!own || !closed || after(last.at, closed)) return stopped("duplicate");
     last = before;
   }
   const eligible = (state.name === "broken" && state.latestJob === "failed") || (state.name === "collecting" && collected >= limits.collecting);
@@ -413,7 +415,7 @@ export async function gather(api, { repository, since, until, fix = false }) {
         return match ? [{ number: pull.number, issue: Number(match[1]), run: match[2], state: pull.state, mergedAt: pull.merged_at ?? null, closedAt: pull.closed_at ?? null }] : [];
       });
       for (const gate of GATES) for (const status of ["queued", "in_progress"]) gates += (await api("GET", `${base}/actions/workflows/${gate}/runs?status=${status}&per_page=1`)).total_count ?? 0;
-      for (const issue of issues.filter(found => found.state === "open" && found.title.startsWith(PREFIX))) {
+      for (const issue of issues.filter(found => found.title.startsWith(PREFIX) && (found.state === "open" || fixPulls.some(pull => pull.issue === found.number)))) {
         const wanted = fixHistory([issue.body, ...issue.comments]).failures.map(failure => String(failure.run)).slice(-MAX_RUN_TIMES);
         for (const run of wanted.filter(found => !(found in runTimes))) {
           const known = listed.find(found => String(found.id) === run)?.createdAt;

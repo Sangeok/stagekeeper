@@ -351,6 +351,10 @@ it("leaves an opened pull request to a person and tries again only after a failu
   assert.equal(decide(recurred, [closed], [latestRun(101, "success")]).kind, "none");
   const twice = brokenIssue([...opened, attemptRecord(901, "duplicate", 2), newFailure(101)], [at(20), at(22), at(40)]);
   assert.deepEqual(shape(decide(twice, [closed], [latestRun(101, "failure")])), ["start", 3, 3, "900"]);
+  const ofAnother = brokenIssue([...opened, newFailure(101), attemptRecord(901, "duplicate", 2)], [at(20), at(40), at(60)]);
+  assert.deepEqual(decide(ofAnother, [merged], [latestRun(101, "failure")]), { kind: "stopped", attempt: 2, end: "duplicate", line: "stopped after try 2 (duplicate). A person has to look." });
+  assert.equal(decide(ofAnother, [closed], [latestRun(101, "failure")]).kind, "stopped");
+  assert.equal(decide(ofAnother, [], [latestRun(101, "failure")]).kind, "stopped");
   const elsewhere = { ...brokenIssue(), number: 12 };
   const sameTitle = fixPull(50, 10, 900, { state: "open" });
   const texts = [elsewhere.body];
@@ -512,6 +516,10 @@ it("reads the fix pull requests of this repository, the running gates and the ti
   assert.deepEqual(snapshot.pulls, [{ number: 50, issue: 10, run: "900", state: "closed", mergedAt: "2026-11-28T03:00:00Z", closedAt: "2026-11-28T03:00:00Z" }]);
   assert.equal(snapshot.gates, 1);
   assert.deepEqual(snapshot.runTimes, { 100: "2026-11-27T23:50:00Z" });
+  const closedWithFix = { ...routes, "GET /repos/owner/name/actions/runs/100": { created_at: "2026-11-27T23:50:00Z" }, "GET /repos/owner/name/issues?state=all": routes["GET /repos/owner/name/issues?state=all"].map(found => (found.number === 10 ? { ...found, state: "closed" } : found)) };
+  assert.deepEqual((await gather(fakeApi(closedWithFix), { repository: "owner/name", since: "2026-11-27T00:00:00.000Z", fix: true })).runTimes, { 100: "2026-11-27T23:50:00Z" });
+  const closedWithout = { ...closedWithFix, "GET /repos/owner/name/pulls?state=all&base=dev": [] };
+  assert.deepEqual((await gather(fakeApi(closedWithout), { repository: "owner/name", since: "2026-11-27T00:00:00.000Z", fix: true })).runTimes, {});
   assert.ok(api.calls.every(call => call.method === "GET"));
 
   const plain = fakeApi(routes);
@@ -593,7 +601,7 @@ it("cannot be handed a record through the title or the files of a merged pull re
   assert.deepEqual([history.records, history.starts], [[], []]);
   assert.equal(history.failures.length, 1);
   const fixWorkflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
-  assert.match(fixWorkflow, /gh pr list --state open --base dev --json number,headRefName,isCrossRepository --jq '\.\[\] \| select\(\.isCrossRepository == false and \(\.headRefName \| startswith\("harness\/auto-fix-"\)\)\) \| \.number'/);
+  assert.match(fixWorkflow, /gh pr list --state open --base dev --limit 200 --json number,headRefName,isCrossRepository --jq '\.\[\] \| select\(\.isCrossRepository == false and \(\.headRefName \| startswith\("harness\/auto-fix-"\)\)\) \| \.number'/);
   assert.doesNotMatch(fixWorkflow, /--author 'app\/github-actions'/);
 });
 
