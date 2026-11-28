@@ -643,7 +643,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           own="$(git patch-id --stable < "$RUNNER_TEMP/auto-fix/change.patch" | cut -d' ' -f1)"
-          for number in $(gh pr list --state open --base dev --author 'app/github-actions' --json number,headRefName --jq '.[] | select(.headRefName | startswith("harness/auto-fix-")) | .number'); do
+          for number in $(gh pr list --state open --base dev --json number,headRefName,isCrossRepository --jq '.[] | select(.isCrossRepository == false and (.headRefName | startswith("harness/auto-fix-"))) | .number'); do
             other="$(gh pr diff "$number" | git patch-id --stable | cut -d' ' -f1)"
             if [ -n "$own" ] && [ "$own" = "$other" ]; then echo "pr=$number" >> "$GITHUB_OUTPUT"; break; fi
           done

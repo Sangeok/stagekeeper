@@ -67,13 +67,15 @@ export function failedJobs(jobs) {
   return (broken.length ? broken : jobs.filter(job => job.conclusion && !PASSED.has(job.conclusion))).map(describe);
 }
 
+const plain = text => String(text).replaceAll("<!--", "<! --");
+
 function failureEntry(run, job, attempt) {
   const short = run.sha.slice(0, 7);
   const lines = [`### ${short} on ${run.branch}: attempt ${attempt} failed`,
     `- Commit: [${short}](https://github.com/${run.repository}/commit/${run.sha})`,
-    run.pull ? `- Pull request: #${run.pull.number} ${run.pull.title}` : "- Pull request: none found for this commit"];
+    run.pull ? `- Pull request: #${run.pull.number} ${plain(run.pull.title)}` : "- Pull request: none found for this commit"];
   if (run.pull) {
-    const shown = run.pull.files.slice(0, LISTED_FILES).map(file => `\`${file}\``).join(", ");
+    const shown = run.pull.files.slice(0, LISTED_FILES).map(file => `\`${plain(file)}\``).join(", ");
     const rest = run.pull.files.length - LISTED_FILES;
     lines.push(`- Changed files (${run.pull.files.length}): ${shown}${rest > 0 ? ` and ${rest} more` : ""}`);
   }
@@ -151,13 +153,13 @@ function statusBlock(state) {
 export const fixMode = value => (FIX_MODES.includes(value) ? value : "off");
 export const startMarkerOf = (sequence, at) => `<!-- auto-fix-start try=${sequence} at=${at} -->`;
 
-export function fixHistory(texts, times = [], runTimes = {}) {
+export function fixHistory(texts, times = [], runTimes) {
   const failures = new Map(), starts = new Map(), latest = new Map();
   texts.forEach((text, index) => {
     const at = times[index] ?? null;
     for (const [, run, rest] of text.matchAll(FIRST_FAILURE)) {
       const branch = /(?:^| )branch=(\S+)/.exec(rest)?.[1] ?? null;
-      if (!failures.has(run)) failures.set(run, { run: Number(run), branch, at: runTimes[run] ?? at });
+      if (!failures.has(run)) failures.set(run, { run: Number(run), branch, at: runTimes === undefined ? at : runTimes[run] ?? null });
     }
     for (const [, sequence, started] of text.matchAll(START)) starts.set(sequence, { sequence: Number(sequence), at: started });
     for (const [, run, end, sequence] of text.matchAll(ATTEMPT)) {
@@ -187,22 +189,27 @@ export function fixInputs(issue, failures, previous = null, sequence = null) {
 
 const after = (time, reference) => Boolean(time && reference) && Date.parse(time) > Date.parse(reference);
 
-export function fixDecision({ issue, state, branch, history, pulls = [], now, limits = FIX_LIMITS }) {
+export function fixDecision({ issue, state, branch, history, pulls = [], related = [issue.number], collected = state.passedCount, now, limits = FIX_LIMITS }) {
+  if (branch !== "dev") return { kind: "none", foreign: true };
   const none = { kind: "none" };
-  if (branch !== "dev" || ["not-started", "setup-failed", "rerun-pending", "rerun-unclear"].includes(state.name)) return none;
-  const { failures, starts } = history;
-  const records = history.records.filter(record => record.end !== "duplicate");
-  const open = pulls.find(pull => pull.issue === issue.number && pull.state === "open");
+  if (["not-started", "setup-failed", "rerun-pending", "rerun-unclear"].includes(state.name)) return none;
+  const { failures, starts, records } = history;
+  const open = pulls.find(pull => related.includes(pull.issue) && pull.state === "open");
   if (open) return { kind: "open", pr: open.number, line: `pull request #${open.number} is open. Read it and merge or close it.` };
-  const pending = starts.filter(start => !history.records.some(record => record.sequence === start.sequence));
+  const pending = starts.filter(start => !records.some(record => record.sequence === start.sequence));
   const lost = pending.filter(start => now.getTime() - Date.parse(start.at) >= limits.startedHours * 3600 * 1000);
   const used = records.filter(record => !UNREPRODUCED_ENDS.has(record.end)).length + pending.length;
   if (pending.length > lost.length) return { kind: "running", attempt: used, line: `try ${used} is running.` };
   const stopped = end => ({ kind: "stopped", attempt: used, end, line: `stopped${used > 0 ? ` after try ${used}` : ""} (${end}). A person has to look.` });
   if (lost.length > 0) return stopped("unfinished");
-  const last = records.at(-1) ?? null;
-  const eligible = (state.name === "broken" && state.latestJob === "failed") || (state.name === "collecting" && state.passedCount >= limits.collecting);
-  const sequence = Math.max(0, ...starts.map(found => found.sequence)) + 1;
+  let last = records.at(-1) ?? null;
+  if (last?.end === "duplicate") {
+    const before = records.filter(record => record.end !== "duplicate").at(-1) ?? null;
+    if (before?.end !== "opened") return stopped("duplicate");
+    last = before;
+  }
+  const eligible = (state.name === "broken" && state.latestJob === "failed") || (state.name === "collecting" && collected >= limits.collecting);
+  const sequence = Math.max(0, ...starts.map(found => found.sequence), ...records.map(found => found.sequence ?? 0)) + 1;
   const start = previous => (used >= limits.tries ? stopped(last?.end ?? "tries") : { kind: "start", attempt: used + 1, sequence, previous, inputs: fixInputs(issue, failures, previous, sequence) });
   if (!last) return eligible ? start(null) : none;
   const newFailureSince = time => failures.some(failure => after(failure.at, time));
@@ -215,18 +222,20 @@ export function fixDecision({ issue, state, branch, history, pulls = [], now, li
     const pull = pulls.find(found => found.issue === issue.number && found.run === last.run);
     if (!pull) return none;
     if (pull.mergedAt) return eligible && newFailureSince(pull.mergedAt) ? start(null) : none;
-    return newFailureSince(pull.closedAt) ? start(last.run) : none;
+    return eligible && newFailureSince(pull.closedAt) ? start(last.run) : none;
   }
   return stopped(last.end);
 }
 
-export function notHeld(issues, pulls, since = null, runTimes = {}) {
+export function notHeld(issues, pulls, since = null, runTimes) {
   let count = 0;
-  for (const issue of issues.filter(found => found.state === "open")) {
-    const merged = pulls.filter(found => found.issue === issue.number && found.mergedAt).map(found => found.mergedAt).sort().at(-1);
+  for (const title of new Set(issues.map(issue => issue.title))) {
+    const group = issues.filter(issue => issue.title === title);
+    const merged = pulls.filter(found => found.mergedAt && group.some(issue => issue.number === found.issue)).map(found => found.mergedAt).sort((a, b) => Date.parse(a) - Date.parse(b)).at(-1);
     if (!merged) continue;
-    const { failures } = fixHistory([issue.body, ...issue.comments], [issue.createdAt, ...(issue.commentTimes ?? [])], runTimes);
-    count += failures.filter(failure => after(failure.at, merged) && (!since || after(failure.at, since))).length;
+    const runs = new Map();
+    for (const issue of group) for (const failure of fixHistory([issue.body, ...issue.comments], [issue.createdAt, ...(issue.commentTimes ?? [])], runTimes).failures) runs.set(failure.run, failure);
+    count += [...runs.values()].filter(failure => after(failure.at, merged) && (!since || after(failure.at, since))).length;
   }
   return count;
 }
@@ -283,7 +292,7 @@ export function plan(snapshot, { mode = "off", now = new Date() } = {}) {
   const stops = snapshot.issues.filter(issue => issue.title === FIX_STOP_TITLE);
   const acknowledged = stops.filter(stop => stop.state === "closed" && stop.closedAt).map(stop => stop.closedAt).sort().at(-1) ?? null;
   const openStop = stops.find(stop => stop.state === "open");
-  const runTimes = snapshot.runTimes ?? {};
+  const runTimes = { ...(snapshot.runTimes ?? {}), ...Object.fromEntries((snapshot.runs ?? []).filter(run => run.createdAt).map(run => [run.id, run.createdAt])) };
   const paused = mode !== "off" && (Boolean(openStop) || notHeld(issues, pulls, acknowledged, runTimes) >= FIX_LIMITS.notHeld);
   if (paused && !openStop && mode === "on") {
     upkeep.push({ type: "create", title: FIX_STOP_TITLE, labels: [FIX_LABEL], body: `Fixes that the automatic fix opened were merged, and the same failure was recorded again afterwards, ${FIX_LIMITS.notHeld} times or more. No new automatic fix starts while this issue is open.\n\nRead those issues and their pull requests. Close this issue to let automatic fixes start again.` });
@@ -296,7 +305,10 @@ export function plan(snapshot, { mode = "off", now = new Date() } = {}) {
     if (mode !== "off") {
       const times = [issue.createdAt ?? null, ...(issue.commentTimes ?? []), ...(added.get(issue.number) ?? []).map(() => now.toISOString())];
       const history = fixHistory(texts, times, runTimes);
-      let decision = fixDecision({ issue, state, branch: failuresOf(texts).at(-1)?.branch ?? null, history, pulls, now });
+      const recorded = failuresOf(texts);
+      const collected = recorded.filter(failure => failure.result === "passed" && failure.branch !== "main").length;
+      const related = issues.filter(found => found.title === issue.title).map(found => found.number);
+      let decision = fixDecision({ issue, state, branch: recorded.at(-1)?.branch ?? null, history, pulls, related, collected, now });
       if (decision.kind === "start") {
         const tried = `try ${decision.attempt}`;
         if (paused) decision = { ...decision, kind: "paused", line: `paused${openStop ? `. See #${openStop.number}` : ""}.` };
@@ -309,8 +321,8 @@ export function plan(snapshot, { mode = "off", now = new Date() } = {}) {
         }
       }
       state.fix = decision;
-      fixes.push({ type: "note", number: issue.number, title: issue.title, text: `${decision.kind}${decision.line ? `: ${decision.line}` : "."} State ${state.name}${state.name === "collecting" ? `, ${state.passedCount} of ${FIX_LIMITS.collecting}` : ""}. Inputs: ${Object.entries(decision.inputs ?? fixInputs(issue, history.failures)).map(([name, value]) => `${name}=${value}`).join(" ")}` });
-      if (mode === "on") {
+      fixes.push({ type: "note", number: issue.number, title: issue.title, text: `${decision.kind}${decision.line ? `: ${decision.line}` : "."} State ${state.name}${state.name === "collecting" ? `, ${collected} of ${FIX_LIMITS.collecting}` : ""}. Inputs: ${Object.entries(decision.inputs ?? fixInputs(issue, history.failures)).map(([name, value]) => `${name}=${value}`).join(" ")}` });
+      if (mode === "on" && !decision.foreign) {
         const labelled = (issue.labels ?? []).includes(FIX_LABEL);
         if (decision.kind === "stopped" && !labelled) upkeep.push({ type: "labels", number: issue.number, title: issue.title, add: [FIX_LABEL], remove: [] });
         if (decision.kind !== "stopped" && labelled) upkeep.push({ type: "labels", number: issue.number, title: issue.title, add: [], remove: [FIX_LABEL] });
@@ -388,28 +400,32 @@ export async function gather(api, { repository, since, until, fix = false }) {
       comments: own.map(comment => comment.body ?? ""),
       ...(fix ? { createdAt: issue.created_at ?? null, commentTimes: own.map(comment => comment.created_at ?? null) } : {}) });
   }
-  let fixPulls = [], gates = 0;
+  let fixPulls = [], gates = 0, fixUnavailable = null;
   const runTimes = {};
   if (fix) {
-    for (const issue of await pages(api, `${base}/issues?state=all&creator=${encodeURIComponent(BOT)}`)) {
-      if (issue.pull_request || issue.user?.login !== BOT || issue.title !== FIX_STOP_TITLE) continue;
-      issues.push({ number: issue.number, title: issue.title, state: issue.state, closedAt: issue.closed_at ?? null, body: "", labels: [], comments: [] });
-    }
-    fixPulls = (await pages(api, `${base}/pulls?state=all&base=dev`)).filter(pull => pull.head?.repo?.full_name === repository && String(pull.head?.ref ?? "").startsWith(FIX_BRANCH_PREFIX)).flatMap(pull => {
-      const match = /^(\d+)-(\d+)$/.exec(pull.head.ref.slice(FIX_BRANCH_PREFIX.length));
-      return match ? [{ number: pull.number, issue: Number(match[1]), run: match[2], state: pull.state, mergedAt: pull.merged_at ?? null, closedAt: pull.closed_at ?? null }] : [];
-    });
-    for (const gate of GATES) for (const status of ["queued", "in_progress"]) gates += (await api("GET", `${base}/actions/workflows/${gate}/runs?status=${status}&per_page=1`)).total_count ?? 0;
-    for (const issue of issues.filter(found => found.state === "open" && found.title.startsWith(PREFIX))) {
-      const wanted = fixHistory([issue.body, ...issue.comments]).failures.map(failure => String(failure.run)).slice(-MAX_RUN_TIMES);
-      for (const run of wanted.filter(found => !(found in runTimes))) {
-        const known = listed.find(found => String(found.id) === run)?.createdAt;
-        try {
-          runTimes[run] = known ?? (await api("GET", `${base}/actions/runs/${run}`)).created_at ?? null;
-        } catch {
-          runTimes[run] = null;
+    try {
+      for (const issue of await pages(api, `${base}/issues?state=all&creator=${encodeURIComponent(BOT)}`)) {
+        if (issue.pull_request || issue.user?.login !== BOT || issue.title !== FIX_STOP_TITLE) continue;
+        issues.push({ number: issue.number, title: issue.title, state: issue.state, closedAt: issue.closed_at ?? null, body: "", labels: [], comments: [] });
+      }
+      fixPulls = (await pages(api, `${base}/pulls?state=all&base=dev`)).filter(pull => pull.head?.repo?.full_name === repository && String(pull.head?.ref ?? "").startsWith(FIX_BRANCH_PREFIX)).flatMap(pull => {
+        const match = /^(\d+)-(\d+)$/.exec(pull.head.ref.slice(FIX_BRANCH_PREFIX.length));
+        return match ? [{ number: pull.number, issue: Number(match[1]), run: match[2], state: pull.state, mergedAt: pull.merged_at ?? null, closedAt: pull.closed_at ?? null }] : [];
+      });
+      for (const gate of GATES) for (const status of ["queued", "in_progress"]) gates += (await api("GET", `${base}/actions/workflows/${gate}/runs?status=${status}&per_page=1`)).total_count ?? 0;
+      for (const issue of issues.filter(found => found.state === "open" && found.title.startsWith(PREFIX))) {
+        const wanted = fixHistory([issue.body, ...issue.comments]).failures.map(failure => String(failure.run)).slice(-MAX_RUN_TIMES);
+        for (const run of wanted.filter(found => !(found in runTimes))) {
+          const known = listed.find(found => String(found.id) === run)?.createdAt;
+          try {
+            runTimes[run] = known ?? (await api("GET", `${base}/actions/runs/${run}`)).created_at ?? null;
+          } catch {
+            runTimes[run] = null;
+          }
         }
       }
+    } catch (error) {
+      fixUnavailable = error instanceof Error ? error.message : "the automatic fix could not be judged";
     }
   }
   const latest = [];
@@ -419,7 +435,7 @@ export async function gather(api, { repository, since, until, fix = false }) {
     const jobs = await pages(api, `${base}/actions/runs/${newest.id}/jobs?filter=latest`, value => value.jobs);
     latest.push({ workflowName: newest.workflowName, branch: newest.branch, runId: newest.id, jobs: jobs.map(job => ({ name: job.name, conclusion: job.conclusion })) });
   }
-  return { runs, issues, latest, ...(fix ? { pulls: fixPulls, gates, runTimes: Object.fromEntries(Object.entries(runTimes).filter(([, time]) => time)) } : {}) };
+  return { runs, issues, latest, ...(fix ? { pulls: fixPulls, gates, runTimes: Object.fromEntries(Object.entries(runTimes).filter(([, time]) => time)), ...(fixUnavailable ? { fixUnavailable } : {}) } : {}) };
 }
 
 async function ensureLabels(api, base, names, known) {
@@ -446,7 +462,7 @@ export async function apply(api, repository, actions, now = new Date()) {
         try {
           await api("POST", `${base}/actions/workflows/${FIX_WORKFLOW}/dispatches`, { ref: "dev", inputs: action.inputs });
         } catch (error) {
-          if (mark?.id) await api("DELETE", `${base}/issues/comments/${mark.id}`).catch(() => null);
+          if (mark?.id && / returned 4\d\d$/.test(String(error?.message))) await api("DELETE", `${base}/issues/comments/${mark.id}`).catch(() => null);
           throw error;
         }
       } else if (action.type === "rerun") await api("POST", `${base}/actions/runs/${action.runId}/rerun-failed-jobs`);
@@ -507,9 +523,9 @@ export async function main(argv, env, now = new Date()) {
   const since = new Date(options.since ?? now.getTime() - LOOKBACK_HOURS * 3600 * 1000).toISOString();
   const mode = options.fixMode ?? "off";
   const snapshot = await gather(api, { repository: options.repository, since, until: options.until ? new Date(options.until).toISOString() : undefined, fix: mode !== "off" });
-  const actions = plan(snapshot, { mode, now });
+  const actions = plan(snapshot, { mode: snapshot.fixUnavailable ? "off" : mode, now });
   const results = options.dryRun ? actions : await apply(api, options.repository, actions, now);
-  const text = summarize(results, options.dryRun, mode);
+  const text = summarize(results, options.dryRun, snapshot.fixUnavailable ? `${mode}, not judged in this pass (${snapshot.fixUnavailable})` : mode);
   console.log(text);
   if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${text}\n`);
   return results.some(result => result.ok === false) ? 1 : 0;
