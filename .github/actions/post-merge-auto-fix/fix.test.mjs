@@ -9,7 +9,9 @@ import {
   END_STATES,
   FIX_BRANCH_PREFIX,
   LABELS,
+  LOAD_MAX_RUNS,
   LOAD_MEASURE_RUNNERS,
+  LONG_LOAD_RUNS,
   MAX_FAILURE_OUTPUT,
   MAX_FAILURE_OUTPUTS,
   MAX_STEP_VALUES,
@@ -1339,5 +1341,32 @@ it("runs a test that the failed step's script enabled once the value it set is g
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }
+});
+
+it("repeats a reproduce-only run up to two hundred times under load to show how rare a failure is", async () => {
+  const request = { issue: "430", runner: "windows-2022", workflow: "none", openPr: "false", source: "reproduce-only", runs: "44461325389", job: "native-runtime" };
+  assert.equal(readRequest({ ...request, reproduction: "long" }).reproduction, "long");
+  for (const bad of [{ source: "agent", model: "claude-opus-5-5" }, { source: "prepared", prepared: "pr-path" }, { reproduction: "longer" }]) assert.throws(() => readRequest({ ...request, reproduction: "long", ...bad }), JSON.stringify(bad));
+
+  const rare = scriptedBatches((load, call) => (load && call % 10 === 0 ? ranNamed(true, namedPlan.names) : ranNamed(false)));
+  const long = await reproduce({ file: namedPlan.file, names: namedPlan.names, cwd: ".", env: {}, minutes: 6000, long: true, batch: rare.batch, now: rare.now });
+  assert.equal(LONG_LOAD_RUNS, 200);
+  assert.deepEqual([long.kind, long.plain.runs, long.loaded.runs, long.loaded.original], ["load", 5, LONG_LOAD_RUNS, 20]);
+  assert.equal(rare.calls.filter(call => call.load).every(call => call.size === 4), true);
+
+  const usual = scriptedBatches((load, call) => (load && call % 10 === 0 ? ranNamed(true, namedPlan.names) : ranNamed(false)));
+  const short = await reproduce({ file: namedPlan.file, names: namedPlan.names, cwd: ".", env: {}, minutes: 6000, batch: usual.batch, now: usual.now });
+  assert.deepEqual([short.kind, short.loaded.runs, short.loaded.original], ["load", 20, 4]);
+  const quiet = scriptedBatches(() => ranNamed(false));
+  assert.equal((await reproduce({ file: namedPlan.file, names: namedPlan.names, cwd: ".", env: {}, minutes: 6000, batch: quiet.batch, now: quiet.now })).loaded.runs, LOAD_MAX_RUNS);
+
+  const timed = scriptedBatches(() => ranNamed(false));
+  const cut = await reproduce({ file: namedPlan.file, names: namedPlan.names, cwd: ".", env: {}, minutes: 20, long: true, batch: timed.batch, now: timed.now });
+  assert.deepEqual([cut.kind, cut.cutShort, cut.loaded.runs < LONG_LOAD_RUNS], ["not-reproduced", true, true]);
+
+  const workflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
+  assert.match(workflow, /\n        options: \[required, skip, long\]\n/);
+  assert.match(workflow, /\n          LONG: \$\{\{ needs\.plan\.outputs\.reproduction == 'long' \}\}\n/);
+  assert.match(workflow, /fix\.mjs reproduce [^\n]*--skip "\$SKIP" --long "\$LONG"/);
 });
 

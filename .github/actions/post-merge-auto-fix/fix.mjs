@@ -18,6 +18,7 @@ export const PLAIN_FAILURES = 2;
 export const LOAD_MIN_RUNS = 10;
 export const LOAD_MAX_RUNS = 30;
 export const LOAD_STOP_FAILURES = 3;
+export const LONG_LOAD_RUNS = 200;
 export const LOAD_PARALLEL = 4;
 export const MEASURE_FLOOR = 20;
 export const MAX_ROUNDS = 3;
@@ -116,7 +117,8 @@ export function readRequest(raw) {
   const openPr = raw.openPr === true || raw.openPr === "true";
   if (rehearsal && (openPr || raw.workflow !== "none")) throw new Error("a run on an older commit opens no pull request and calls no full check");
   const reproduction = raw.reproduction || "required";
-  if (reproduction !== "required" && reproduction !== "skip") throw new Error("reproduction must be required or skip");
+  if (!["required", "skip", "long"].includes(reproduction)) throw new Error("reproduction must be required, skip or long");
+  if (reproduction === "long" && source !== "reproduce-only") throw new Error("a long reproduction is only for a run that only reproduces");
   const previous = String(raw.previous ?? "").trim();
   if (previous && !RUN_NUMBER.test(previous)) throw new Error("previous must be the number of an earlier run of this workflow");
   if (previous && (source !== "agent" || reproduction === "skip")) throw new Error("only an agent continues an earlier run, and it takes the reproduction of that run");
@@ -362,7 +364,8 @@ export async function runBatch({ file, cwd, env = {}, load, size, timeoutMs, sta
   }
 }
 
-export async function reproduce({ file, names, cwd, env, minutes, batch = runBatch, now = Date.now }) {
+export async function reproduce({ file, names, cwd, env, minutes, long = false, batch = runBatch, now = Date.now }) {
+  const loadRuns = long ? LONG_LOAD_RUNS : LOAD_MAX_RUNS;
   const plan = { file, names, match: "named" };
   const deadline = now() + minutes * 60 * 1000;
   const plain = emptyCounts();
@@ -384,8 +387,8 @@ export async function reproduce({ file, names, cwd, env, minutes, batch = runBat
   if (plain.runs === 0) return finished("unhandled");
   if (plain.original === plain.runs && plain.runs === PLAIN_RUNS) return finished("always");
   if (plain.original >= PLAIN_FAILURES) return finished("sometimes");
-  while (loaded.runs + loaded.notRun < LOAD_MAX_RUNS && now() < deadline && !(loaded.runs >= LOAD_MIN_RUNS && loaded.original >= LOAD_STOP_FAILURES)) {
-    const size = Math.min(LOAD_PARALLEL, LOAD_MAX_RUNS - loaded.runs - loaded.notRun);
+  while (loaded.runs + loaded.notRun < loadRuns && now() < deadline && (long || !(loaded.runs >= LOAD_MIN_RUNS && loaded.original >= LOAD_STOP_FAILURES))) {
+    const size = Math.min(LOAD_PARALLEL, loadRuns - loaded.runs - loaded.notRun);
     record("load", loaded, await batch({ file, cwd, env, load: true, size, timeoutMs: Math.max(1000, deadline - now()) }));
   }
   return finished(loaded.original > 0 ? "load" : "not-reproduced");
@@ -1198,7 +1201,7 @@ const commands = {
       publish({ kind: "skipped", ...described }, { file: print.file, names: print.names, match: "named", load: false, runs: MEASURE_FLOOR, kind: "skipped", ...withEnv });
       return;
     }
-    const result = await reproduce({ file: print.file, names: print.names, cwd: args.cwd, env: runEnvironment({ env }, args.runner), minutes: Number(args.minutes) });
+    const result = await reproduce({ file: print.file, names: print.names, cwd: args.cwd, env: runEnvironment({ env }, args.runner), minutes: Number(args.minutes), long: args.long === "true" });
     for (const entry of result.log) console.log(JSON.stringify(entry));
     let revertFirst = false;
     if (result.kind === "always") {
