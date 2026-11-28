@@ -97,6 +97,19 @@ commits that were already green on `dev`.
   the user about each one together with the latest run result in its status block.
   The label says that the latest recorded failure failed again when rerun, not that
   the job still fails. Do not start fixing one unless the user asks.
+- At the start of each independent task, also list the open issues labeled
+  `auto-fix:needs-person` (`gh issue list --label auto-fix:needs-person`) and the open
+  pull requests whose branch starts with `harness/auto-fix-`, and tell the user about
+  each one. The automatic fix of post-merge failures opens those pull requests as the
+  app `stagekeeper-auto-fix` and stops with that label when a person has to look. Its
+  checks run by themselves; a person reads the pull request and merges or closes it.
+  Do not merge or close one unless the user asks. A pull request labeled
+  `auto-fix:product-code` changes a file other than a test.
+- The repository variable `AUTO_FIX_MODE` (`off`, `report`, `on`) decides whether the
+  `post-merge-failure-record` workflow starts that fix. Change it only when the user
+  says so, and write the new value and the time in
+  `docs/proposals/active/post-merge-auto-fix-automatic.md`: a repository variable keeps
+  no history.
 - Before choosing a branch or worktree, state whether the request is read-only,
   a continuation of the current task, or an independent change. Read-only inspection,
   explanation and review do not need a new branch or worktree. Continue the same

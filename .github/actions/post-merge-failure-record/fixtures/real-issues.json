@@ -1,0 +1,147 @@
+{
+  "note": "Titles, bodies and bot comments of real issues of this repository as they stood on 2026-11-28. Issue 430 keeps only the first line of each attempt record.",
+  "issues": [
+    {
+      "number": 418,
+      "title": "[post-merge] windows-role-runtime/native-runtime: Validate actual Windows role commands and bundled npm",
+      "state": "closed",
+      "createdAt": "2026-11-21T16:06:58Z",
+      "body": "A post-merge check failed: `windows-role-runtime/native-runtime` at step `Validate actual Windows role commands and bundled npm`.\n\nClose this issue after writing the cause and what was done. While it is open, another failure of the same job and step is added here.\n\n### 669349a on dev: attempt 1 failed\n- Commit: [669349a](https://github.com/Sangeok/stagekeeper/commit/669349af2be470fc169312a3af5f49e432eaaddb)\n- Pull request: #392 test(ci): CVO3 후보 84d8016 인수 결과 기록\n- Changed files (3): `docs/proposals/active/ci-verification-code-organization-phase-cvo3.md`, `docs/proposals/active/ci-verification-code-organization.md`, `docs/test-reports/completed/2026-11-19-cvo3-client-acceptance-84d8016.md`\n- Failed job: [native-runtime](https://github.com/Sangeok/stagekeeper/actions/runs/44461325389/job/135348538129), step `Validate actual Windows role commands and bundled npm`\n- Same workflow on the previous push: success ([run](https://github.com/Sangeok/stagekeeper/actions/runs/44446952082))\n- Other post-merge workflows on this commit: check success, macos-runtime-contracts success\n- Run: https://github.com/Sangeok/stagekeeper/actions/runs/44461325389\n<!-- post-merge-record run=44461325389 attempt=1 job=native-runtime -->",
+      "labels": [],
+      "comments": [
+        "### 669349a on dev: rerun (attempt 2) passed\n- Job: [native-runtime](https://github.com/Sangeok/stagekeeper/actions/runs/44461325389/job/136902197949)\n- Run: https://github.com/Sangeok/stagekeeper/actions/runs/44461325389\n<!-- post-merge-record run=44461325389 attempt=2 job=native-runtime -->"
+      ],
+      "commentTimes": [
+        "2026-11-21T16:23:33Z"
+      ]
+    },
+    {
+      "number": 458,
+      "title": "[post-merge] check/task worktree tests (windows-2022, 4/4): Windows directory observation counterexamples",
+      "state": "open",
+      "createdAt": "2026-11-25T13:02:51Z",
+      "body": "<!-- post-merge-status -->\n**Status:** Failures whose rerun passed: 1.\n**To do:** Nothing. Close it if it stops happening.\n<!-- /post-merge-status -->\n\nA post-merge check failed: `check/task worktree tests (windows-2022, 4/4)` at step `Windows directory observation counterexamples`.\n\nClose this issue after writing the cause and what was done. While it is open, another failure of the same job and step is added here.\n\n### 0f559fd on dev: attempt 1 failed\n- Commit: [0f559fd](https://github.com/Sangeok/stagekeeper/commit/0f559fd27188776829b4916ee40fa54bad5e3564)\n- Pull request: #457 feat(auto-fix): refuse a fix that drops a test and measure by the kind of failure\n- Changed files (4): `.github/actions/post-merge-auto-fix/fix.mjs`, `.github/actions/post-merge-auto-fix/fix.test.mjs`, `.github/workflows/post-merge-auto-fix.yml`, `docs/architecture/verification.md`\n- Failed job: [task worktree tests (windows-2022, 4/4)](https://github.com/Sangeok/stagekeeper/actions/runs/45618963416/job/139221712645), step `Windows directory observation counterexamples`\n- Same workflow on the previous push: success ([run](https://github.com/Sangeok/stagekeeper/actions/runs/45618567063))\n- Other post-merge workflows on this commit: windows-role-runtime pending, macos-runtime-contracts pending\n- Run: https://github.com/Sangeok/stagekeeper/actions/runs/45618963416\n<!-- post-merge-record run=45618963416 attempt=1 job=task%20worktree%20tests%20(windows-2022%2C%204%2F4) branch=dev -->",
+      "labels": [
+        "post-merge:rerun-passed"
+      ],
+      "comments": [
+        "### 0f559fd on dev: rerun (attempt 2) passed\n- Job: [task worktree tests (windows-2022, 4/4)](https://github.com/Sangeok/stagekeeper/actions/runs/45618963416/job/139224014621)\n- Run: https://github.com/Sangeok/stagekeeper/actions/runs/45618963416\n<!-- post-merge-record run=45618963416 attempt=2 job=task%20worktree%20tests%20(windows-2022%2C%204%2F4) result=passed -->"
+      ],
+      "commentTimes": [
+        "2026-11-25T13:07:04Z"
+      ]
+    },
+    {
+      "number": 461,
+      "title": "[post-merge] check/task worktree tests (macos-15): did not start",
+      "state": "closed",
+      "createdAt": "2026-11-25T13:27:45Z",
+      "body": "<!-- post-merge-status -->\n**Status:** The job did not start. Latest run of this job: passed.\n**To do:** Wait. This issue closes when the job passes. If it keeps failing, look at why the runner does not start.\n<!-- /post-merge-status -->\n\nA post-merge check failed: `check/task worktree tests (macos-15)` at step `did not start`.\n\nClose this issue after writing the cause and what was done. While it is open, another failure of the same job and step is added here.\n\n### b6ea9fe on dev: attempt 1 failed\n- Commit: [b6ea9fe](https://github.com/Sangeok/stagekeeper/commit/b6ea9fea13d8d2786b7ff67880a39dfb937f01da)\n- Pull request: #459 feat(auto-fix): record where and why an attempt stopped and what the agent did\n- Changed files (4): `.github/actions/post-merge-auto-fix/fix.mjs`, `.github/actions/post-merge-auto-fix/fix.test.mjs`, `.github/workflows/post-merge-auto-fix.yml`, `docs/architecture/verification.md`\n- Failed job: [task worktree tests (macos-15)](https://github.com/Sangeok/stagekeeper/actions/runs/45621192053/job/139229473371), step `did not start`\n- Same workflow on the previous push: success ([run](https://github.com/Sangeok/stagekeeper/actions/runs/45618963416))\n- Other post-merge workflows on this commit: windows-role-runtime in_progress, macos-runtime-contracts queued\n- Run: https://github.com/Sangeok/stagekeeper/actions/runs/45621192053\n<!-- post-merge-record run=45621192053 attempt=1 job=task%20worktree%20tests%20(macos-15) branch=dev -->",
+      "labels": [
+        "post-merge:rerun-passed"
+      ],
+      "comments": [
+        "### b6ea9fe on dev: rerun (attempt 2) passed\n- Job: [task worktree tests (macos-15)](https://github.com/Sangeok/stagekeeper/actions/runs/45621192053/job/139238673909)\n- Run: https://github.com/Sangeok/stagekeeper/actions/runs/45621192053\n<!-- post-merge-record run=45621192053 attempt=2 job=task%20worktree%20tests%20(macos-15) result=passed -->",
+        "The job passed in the rerun or in a later run. Closing. A new failure of this job and step opens a new issue."
+      ],
+      "commentTimes": [
+        "2026-11-25T13:37:46Z",
+        "2026-11-25T13:37:49Z"
+      ]
+    },
+    {
+      "number": 430,
+      "title": "[auto-fix practice] attempt records of manual runs",
+      "state": "open",
+      "createdAt": "2026-11-24T00:40:18Z",
+      "body": "",
+      "labels": [],
+      "comments": [
+        "<!-- auto-fix-attempt run=45299079273 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45300986830 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45302754685 end=opened -->",
+        "<!-- auto-fix-attempt run=45308756966 end=opened -->",
+        "<!-- auto-fix-attempt run=45308913459 end=duplicate -->",
+        "<!-- auto-fix-attempt run=45309071088 end=refused -->",
+        "<!-- auto-fix-attempt run=45309159295 end=stillFailing -->",
+        "<!-- auto-fix-attempt run=45309343266 end=recordOnly -->",
+        "<!-- auto-fix-attempt run=45315619797 end=opened -->",
+        "<!-- auto-fix-attempt run=45315890787 end=fullCheckFailed -->",
+        "<!-- auto-fix-attempt run=45326159691 end=opened -->",
+        "<!-- auto-fix-attempt run=45327679306 end=duplicate -->",
+        "<!-- auto-fix-attempt run=45327842082 end=refused -->",
+        "<!-- auto-fix-attempt run=45327910215 end=stillFailing -->",
+        "<!-- auto-fix-attempt run=45328061484 end=recordOnly -->",
+        "<!-- auto-fix-attempt run=45330804545 end=opened -->",
+        "<!-- auto-fix-attempt run=45336617148 end=stillFailing -->",
+        "<!-- auto-fix-attempt run=45342349384 end=noChange -->",
+        "<!-- auto-fix-attempt run=45342831596 end=stillFailing -->",
+        "<!-- auto-fix-attempt run=45348084573 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45549594556 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45549607462 end=reproduced -->",
+        "<!-- auto-fix-attempt run=45556846087 end=stillFailing -->",
+        "<!-- auto-fix-attempt run=45564676037 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45608028656 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45608047189 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45612219654 end=unfinished -->",
+        "<!-- auto-fix-attempt run=45612219654 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45617017134 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45620038853 attempt=1 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45620060216 attempt=1 end=unfinished -->",
+        "<!-- auto-fix-attempt run=45622716898 attempt=1 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45641807006 attempt=1 end=unfinished -->",
+        "<!-- auto-fix-attempt run=45726743772 attempt=1 end=notReproduced -->",
+        "<!-- auto-fix-attempt run=45730258726 attempt=1 end=notReproduced -->",
+        "<!-- auto-fix-attempt run=45732297359 attempt=1 end=stillFailing -->",
+        "<!-- auto-fix-attempt run=45747202116 attempt=1 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45754119274 attempt=1 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45757859106 attempt=1 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=45769288360 attempt=1 end=rehearsed -->",
+        "<!-- auto-fix-attempt run=46116884019 attempt=1 end=opened -->"
+      ],
+      "commentTimes": [
+        "2026-11-24T00:53:55Z",
+        "2026-11-24T01:45:48Z",
+        "2026-11-24T01:47:25Z",
+        "2026-11-24T01:58:00Z",
+        "2026-11-24T01:59:17Z",
+        "2026-11-24T01:59:52Z",
+        "2026-11-24T02:01:17Z",
+        "2026-11-24T02:02:59Z",
+        "2026-11-24T03:11:54Z",
+        "2026-11-24T03:27:36Z",
+        "2026-11-24T04:37:14Z",
+        "2026-11-24T04:38:23Z",
+        "2026-11-24T04:39:13Z",
+        "2026-11-24T04:40:33Z",
+        "2026-11-24T04:41:57Z",
+        "2026-11-24T05:23:23Z",
+        "2026-11-24T06:40:47Z",
+        "2026-11-24T06:44:33Z",
+        "2026-11-24T07:06:01Z",
+        "2026-11-24T07:30:37Z",
+        "2026-11-25T04:52:21Z",
+        "2026-11-25T05:12:48Z",
+        "2026-11-25T06:37:07Z",
+        "2026-11-25T07:31:02Z",
+        "2026-11-25T12:11:58Z",
+        "2026-11-25T12:13:08Z",
+        "2026-11-25T12:32:27Z",
+        "2026-11-25T12:44:18Z",
+        "2026-11-25T12:57:24Z",
+        "2026-11-25T13:06:31Z",
+        "2026-11-25T13:07:12Z",
+        "2026-11-25T14:36:06Z",
+        "2026-11-25T15:10:11Z",
+        "2026-11-26T00:30:29Z",
+        "2026-11-26T00:55:44Z",
+        "2026-11-26T02:22:52Z",
+        "2026-11-26T03:51:30Z",
+        "2026-11-26T04:49:10Z",
+        "2026-11-26T05:56:55Z",
+        "2026-11-26T07:02:33Z",
+        "2026-11-28T06:32:10Z"
+      ]
+    }
+  ]
+}

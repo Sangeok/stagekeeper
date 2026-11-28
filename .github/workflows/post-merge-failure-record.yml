@@ -42,3 +42,4 @@ jobs:
       - uses: ./.github/actions/post-merge-failure-record
         with:
           dry-run: ${{ inputs.dry-run || false }}
+          auto-fix-mode: ${{ vars.AUTO_FIX_MODE }}
