@@ -751,7 +751,7 @@ function shownActions(actions) {
   return { text: shown.join("\n"), entries: lines.length };
 }
 
-export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes, attempt, stops, actions, change, checks, earlier = null, perRunner = [] }) {
+export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes, attempt, stops, actions, change, checks, earlier = null, perRunner = [], openedAs = null }) {
   const attemptNumber = Number.isInteger(Number(attempt)) && Number(attempt) > 0 ? Number(attempt) : 1;
   const lines = [
     `Attempt: run ${runId}, attempt ${attemptNumber}`,
@@ -768,7 +768,7 @@ export function attemptRecord({ runId, runUrl, state, source, reproduction, meas
     ...(measured && decision ? [`Tests compared before and after: ${Number(compared) > 0 ? compared : "none"}`] : []),
     ...Object.entries(missing ?? {}).map(([name, times]) => `Ran before the change and not after it: ${times} passing runs, ${inert(name)}`),
     `Full check: ${fullCheckWorkflow && fullCheckWorkflow !== "none" ? `${fullCheckWorkflow}: ${fullCheck ?? "not run"}` : "not run"}`,
-    `Pull request: ${pr ? `#${pr}` : duplicateOf ? `none, same change as #${duplicateOf}` : "none"}`,
+    `Pull request: ${pr ? `#${pr}${/^[a-z0-9][a-z0-9-]{0,60}$/.test(String(openedAs ?? "")) ? `, opened as ${openedAs}` : ""}` : duplicateOf ? `none, same change as #${duplicateOf}` : "none"}`,
     `Usage: ${usageLine(agent)}`,
     ...agentLine(agent),
     ...checkLines(checks),
@@ -1302,7 +1302,7 @@ const commands = {
     if (!judged) throw new Error("the measured counts are missing");
     const otherTestFiles = changedFiles(patch).filter(file => isTestFile(file) && file !== plan.file);
     writeFileSync(args.out, prBody({ issue: Number(args.issue), runUrl: args["run-url"], source: args.source, ...judged, stats: changeStats(patch), fullCheck: args["full-check"], fullCheckWorkflow: args.workflow, otherTestFiles, compared: Number(args.compared) || 0, earlier: readEarlierDir(args.earlier), earlierPr: Number(args["earlier-pr"]) || null, perRunner: readPerRunner(args["per-runner"]) }));
-    output({ title: prTitle(Number(args.issue)) });
+    output({ title: prTitle(Number(args.issue)), product: !changeStats(patch).testOnly });
   },
   record(args) {
     let measuredHow = null;
@@ -1363,7 +1363,7 @@ const commands = {
       fullCheck,
       pr,
     });
-    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes, earlier, perRunner: readPerRunner(args["per-runner"]), ...recordExtras(args, pr) }));
+    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes, earlier, perRunner: readPerRunner(args["per-runner"]), openedAs: args["opened-as"], ...recordExtras(args, pr) }));
     output({ state });
   },
 };

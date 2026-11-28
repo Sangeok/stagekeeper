@@ -1224,3 +1224,28 @@ it("gives a pull request from a fix branch no private templates in the workflows
   assert.equal(FIX_BRANCH_PREFIX, "harness/auto-fix-");
 });
 
+it("opens the pull request as the app in a job that runs no code of the change, and names who opened it", () => {
+  const workflow = readFileSync(new URL("../../workflows/post-merge-auto-fix.yml", import.meta.url), "utf8");
+  const job = workflow.slice(workflow.indexOf("\n  pull-request:\n"), workflow.indexOf("\n  record:\n"));
+  const steps = job.split("\n      - ").slice(1);
+  assert.equal(workflow.split("AUTO_FIX_APP_PRIVATE_KEY").length - 1, job.split("AUTO_FIX_APP_PRIVATE_KEY").length - 1);
+  const app = steps.filter(step => step.includes("secrets.AUTO_FIX_APP_PRIVATE_KEY"));
+  assert.equal(app.length, 1);
+  assert.match(app[0], /if: needs\.plan\.outputs\.open_pr == 'true' && steps\.full\.outputs\.result != 'failed' && vars\.AUTO_FIX_APP_ID != '' && env\.HAS_APP_KEY == 'true'\n        uses: actions\/create-github-app-token@v2\n/);
+  assert.doesNotMatch(app[0], /\n        run:/);
+  assert.match(job, /GH_TOKEN="\$\{APP_TOKEN:-\$GH_TOKEN\}" gh pr create /);
+  assert.match(job, /echo "opened_as=\$\{APP_SLUG:-github-actions\}" >> "\$GITHUB_OUTPUT"/);
+  assert.match(job, /for label in \$\{LABELS\/\/,\/ \} \$\(\[ "\$product" = "true" \] && echo auto-fix:product-code\); do/);
+  assert.match(job, /sparse-checkout: \.github\/actions\/post-merge-auto-fix\n/);
+  assert.doesNotMatch(job, /git apply|npm ci|node --test|ref: \$\{\{ needs\.plan\.outputs\.(base|branch)/);
+
+  const record = attemptRecord({ runId: 16, runUrl: "u", state: "opened", source: "agent m", pr: 480, openedAs: "stagekeeper-auto-fix" });
+  assert.match(record, /\nPull request: #480, opened as stagekeeper-auto-fix\n/);
+  assert.match(attemptRecord({ runId: 17, runUrl: "u", state: "opened", source: "agent m", pr: 481, openedAs: "none\nEnd: x" }), /\nPull request: #481\n/);
+  assert.match(attemptRecord({ runId: 18, runUrl: "u", state: "unfinished", source: "agent m", openedAs: "stagekeeper-auto-fix" }), /\nPull request: none\n/);
+
+  const testOnly = readFileSync(new URL("./prepared/pr-path/change.patch", import.meta.url), "utf8");
+  assert.equal(changeStats(testOnly).testOnly, true);
+  assert.equal(changeStats(testOnly.replaceAll("auto-fix-pr-path.test.mjs", "auto-fix-pr-path.mjs")).testOnly, false);
+});
+

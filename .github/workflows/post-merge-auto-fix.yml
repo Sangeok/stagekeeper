@@ -685,7 +685,10 @@ jobs:
       issues: write
     outputs:
       number: ${{ steps.open.outputs.number }}
+      opened_as: ${{ steps.open.outputs.opened_as }}
       full_check: ${{ steps.full.outputs.result }}
+    env:
+      HAS_APP_KEY: ${{ secrets.AUTO_FIX_APP_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -715,12 +718,21 @@ jobs:
             *) result=failed ;;
           esac
           echo "result=$result" >> "$GITHUB_OUTPUT"
+      - name: Get a token of the app that opens the pull request
+        id: app
+        if: needs.plan.outputs.open_pr == 'true' && steps.full.outputs.result != 'failed' && vars.AUTO_FIX_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.AUTO_FIX_APP_ID }}
+          private-key: ${{ secrets.AUTO_FIX_APP_PRIVATE_KEY }}
       - name: Open the pull request
         id: open
         if: needs.plan.outputs.open_pr == 'true' && steps.full.outputs.result != 'failed'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          APP_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
           BRANCH: ${{ needs.plan.outputs.branch }}
           ISSUE: ${{ needs.plan.outputs.issue }}
           SOURCE: ${{ needs.change.outputs.source }}
@@ -742,15 +754,16 @@ jobs:
           if [ -n "$PREVIOUS" ]; then
             earlier_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --state all --head "harness/auto-fix-$ISSUE-$PREVIOUS" --json number --jq '.[0].number // 0')"
           fi
-          title="$(node .github/actions/post-merge-auto-fix/fix.mjs body --earlier "$RUNNER_TEMP/auto-fix-earlier" --earlier-pr "${earlier_pr:-0}" --per-runner "${PER_RUNNER:-none}" --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --issue "$ISSUE" --source "$SOURCE" --workflow "$WORKFLOW" --verdict "$VERDICT" --open true --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/body.md" | sed -n 's/^title=//p')"
+          title="$(node .github/actions/post-merge-auto-fix/fix.mjs body --earlier "$RUNNER_TEMP/auto-fix-earlier" --earlier-pr "${earlier_pr:-0}" --per-runner "${PER_RUNNER:-none}" --change "$RUNNER_TEMP/auto-fix" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --issue "$ISSUE" --source "$SOURCE" --workflow "$WORKFLOW" --verdict "$VERDICT" --open true --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --full-check "$FULL" --run-url "$RUN_URL" --out "$RUNNER_TEMP/body.md" | tee "$RUNNER_TEMP/body.out" | sed -n 's/^title=//p')"
           test -n "$title"
-          arguments=(--repo "$GITHUB_REPOSITORY" --base dev --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md")
-          if [ -n "$LABELS" ]; then
-            gh label create "$LABELS" --repo "$GITHUB_REPOSITORY" --color BFD4F2 --force
-            arguments+=(--label "$LABELS")
-          fi
-          url="$(gh pr create "${arguments[@]}")"
+          product="$(sed -n 's/^product=//p' "$RUNNER_TEMP/body.out")"
+          url="$(GH_TOKEN="${APP_TOKEN:-$GH_TOKEN}" gh pr create --repo "$GITHUB_REPOSITORY" --base dev --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md")"
           echo "number=${url##*/}" >> "$GITHUB_OUTPUT"
+          echo "opened_as=${APP_SLUG:-github-actions}" >> "$GITHUB_OUTPUT"
+          for label in ${LABELS//,/ } $([ "$product" = "true" ] && echo auto-fix:product-code); do
+            gh label create "$label" --repo "$GITHUB_REPOSITORY" --color BFD4F2 --force
+            gh pr edit "${url##*/}" --repo "$GITHUB_REPOSITORY" --add-label "$label"
+          done
       - name: Remove the fix branch when no pull request was opened
         if: always() && steps.open.outputs.number == ''
         shell: bash
@@ -836,8 +849,9 @@ jobs:
           DUPLICATE: ${{ needs.branch.outputs.duplicate }}
           FULL: ${{ needs.pull-request.outputs.full_check }}
           PR: ${{ needs.pull-request.outputs.number }}
+          OPENED_AS: ${{ needs.pull-request.outputs.opened_as }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           [[ "$ISSUE" =~ ^[1-9][0-9]*$ ]] || { echo "the issue to write to is not a number"; exit 1; }
-          node .github/actions/post-merge-auto-fix/fix.mjs record --stops "$RUNNER_TEMP/stops.json" --attempt "$GITHUB_RUN_ATTEMPT" --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --earlier "$RUNNER_TEMP/auto-fix-earlier" --per-runner "${PER_RUNNER:-none}" --out "$RUNNER_TEMP/record.md"
+          node .github/actions/post-merge-auto-fix/fix.mjs record --stops "$RUNNER_TEMP/stops.json" --attempt "$GITHUB_RUN_ATTEMPT" --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --earlier "$RUNNER_TEMP/auto-fix-earlier" --per-runner "${PER_RUNNER:-none}" --opened-as "${OPENED_AS:-none}" --out "$RUNNER_TEMP/record.md"
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"
