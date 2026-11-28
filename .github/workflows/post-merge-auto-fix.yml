@@ -56,6 +56,10 @@ on:
         description: For an agent. The number of an earlier run of this workflow to continue from. Its change is applied first, its reproduction is reused, and the agent is told what its measurement saw
         required: false
         type: string
+      try:
+        description: Set by the failure record when it starts this run by itself. It ties the attempt record to that start. Leave empty for a run started by hand
+        required: false
+        type: string
       open_pr:
         description: Open a pull request when the checks allow it
         required: false
@@ -93,6 +97,7 @@ jobs:
       reproduction: ${{ steps.plan.outputs.reproduction }}
       base: ${{ steps.plan.outputs.base }}
       previous: ${{ steps.plan.outputs.previous }}
+      try: ${{ steps.plan.outputs.try }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -124,6 +129,7 @@ jobs:
           INPUT_RUNS: ${{ inputs.runs }}
           INPUT_JOB: ${{ inputs.job }}
           INPUT_PREVIOUS: ${{ inputs.previous }}
+          INPUT_TRY: ${{ inputs.try }}
         run: |
           dev="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/dev | cut -f1)"
           test -n "$dev"
@@ -850,8 +856,9 @@ jobs:
           FULL: ${{ needs.pull-request.outputs.full_check }}
           PR: ${{ needs.pull-request.outputs.number }}
           OPENED_AS: ${{ needs.pull-request.outputs.opened_as }}
+          TRY: ${{ needs.plan.outputs.try || inputs.try }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           [[ "$ISSUE" =~ ^[1-9][0-9]*$ ]] || { echo "the issue to write to is not a number"; exit 1; }
-          node .github/actions/post-merge-auto-fix/fix.mjs record --stops "$RUNNER_TEMP/stops.json" --attempt "$GITHUB_RUN_ATTEMPT" --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --earlier "$RUNNER_TEMP/auto-fix-earlier" --per-runner "${PER_RUNNER:-none}" --opened-as "${OPENED_AS:-none}" --out "$RUNNER_TEMP/record.md"
+          node .github/actions/post-merge-auto-fix/fix.mjs record --stops "$RUNNER_TEMP/stops.json" --attempt "$GITHUB_RUN_ATTEMPT" --change "$RUNNER_TEMP/auto-fix" --agent "$RUNNER_TEMP/auto-fix-agent" --reproduction "$RUNNER_TEMP/auto-fix-reproduction" --patch-sha "$PATCH_SHA" --plan-sha "$PLAN_SHA" --source "${SOURCE:-$REQUESTED $MODEL}" --requested "$REQUESTED" --model "$MODEL" --workflow "$WORKFLOW" --open-pr "$OPEN_PR" --rehearsal "$REHEARSAL" --changed "$CHANGED" --refused "$REFUSED" --verdict "$VERDICT" --open "$OPEN" --required "$REQUIRED" --compared "$COMPARED" --before "$BEFORE" --after "$AFTER" --remaining "${REMAINING:-{\}}" --missing "${MISSING:-{\}}" --pushed "${PUSHED:-false}" --duplicate "${DUPLICATE:-0}" --full-check "$FULL" --pr "${PR:-0}" --run "$GITHUB_RUN_ID" --run-url "$RUN_URL" --earlier "$RUNNER_TEMP/auto-fix-earlier" --per-runner "${PER_RUNNER:-none}" --opened-as "${OPENED_AS:-none}" --try "${TRY:-0}" --out "$RUNNER_TEMP/record.md"
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/record.md"

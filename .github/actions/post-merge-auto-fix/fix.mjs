@@ -116,7 +116,9 @@ export function readRequest(raw) {
   const previous = String(raw.previous ?? "").trim();
   if (previous && !RUN_NUMBER.test(previous)) throw new Error("previous must be the number of an earlier run of this workflow");
   if (previous && (source !== "agent" || reproduction === "skip")) throw new Error("only an agent continues an earlier run, and it takes the reproduction of that run");
-  const request = { issue, runner: raw.runner, workflow: raw.workflow, openPr, source, commit, rehearsal, reproduction, ...(previous ? { previous } : {}) };
+  const sequence = String(raw.try ?? "").trim();
+  if (sequence && (!/^[1-9]\d{0,2}$/.test(sequence) || source !== "agent")) throw new Error("try is the number the failure record gives an automatic start of an agent");
+  const request = { issue, runner: raw.runner, workflow: raw.workflow, openPr, source, commit, rehearsal, reproduction, ...(previous ? { previous } : {}), ...(sequence ? { try: sequence } : {}) };
   if (source === "prepared") {
     if (!NAME.test(String(raw.prepared ?? ""))) throw new Error("prepared must be a lowercase name");
     return { ...request, prepared: raw.prepared };
@@ -751,7 +753,7 @@ function shownActions(actions) {
   return { text: shown.join("\n"), entries: lines.length };
 }
 
-export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes, attempt, stops, actions, change, checks, earlier = null, perRunner = [], openedAs = null }) {
+export function attemptRecord({ runId, runUrl, state, source, reproduction, measured, decision, fullCheck, fullCheckWorkflow, pr, measuredHow, remaining, missing, compared, duplicateOf, agent, notes, attempt, stops, actions, change, checks, earlier = null, perRunner = [], openedAs = null, sequence = null }) {
   const attemptNumber = Number.isInteger(Number(attempt)) && Number(attempt) > 0 ? Number(attempt) : 1;
   const lines = [
     `Attempt: run ${runId}, attempt ${attemptNumber}`,
@@ -776,7 +778,7 @@ export function attemptRecord({ runId, runUrl, state, source, reproduction, meas
   ];
   const text = lines.join("\n");
   const mark = fence(text);
-  const record = [`<!-- auto-fix-attempt run=${runId} attempt=${attemptNumber} end=${state} -->`, `Automatic fix attempt: ${END_STATES[state]}.`, "", mark, text, mark, ""];
+  const record = [`<!-- auto-fix-attempt run=${runId} attempt=${attemptNumber} end=${state}${/^[1-9]\d{0,2}$/.test(String(sequence ?? "")) ? ` try=${sequence}` : ""} -->`, `Automatic fix attempt: ${END_STATES[state]}.`, "", mark, text, mark, ""];
   if (notes) {
     const safe = inert(notes);
     const shown = safe.length > MAX_NOTES ? `${safe.slice(0, MAX_NOTES)}\n[cut at ${MAX_NOTES} characters]` : safe;
@@ -1083,6 +1085,7 @@ const commands = {
       runs: process.env.INPUT_RUNS,
       job: process.env.INPUT_JOB,
       previous: process.env.INPUT_PREVIOUS,
+      try: process.env.INPUT_TRY,
     });
     const earlier = request.previous ? readEarlierDir(args.earlier) : null;
     if (request.previous && !earlier) throw new Error("the earlier run was not read");
@@ -1106,6 +1109,7 @@ const commands = {
       reproduction: request.reproduction,
       base: continued.base,
       previous: request.previous ?? "",
+      try: request.try ?? "",
     });
   },
   async logs(args) {
@@ -1363,7 +1367,7 @@ const commands = {
       fullCheck,
       pr,
     });
-    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes, earlier, perRunner: readPerRunner(args["per-runner"]), openedAs: args["opened-as"], ...recordExtras(args, pr) }));
+    writeFileSync(args.out, attemptRecord({ runId: args.run, runUrl: args["run-url"], state, source: args.source || "unknown", reproduction, measured: judged?.measured, decision: judged?.decision, fullCheck, fullCheckWorkflow: args.workflow, pr, measuredHow, remaining, missing, compared: Number(args.compared) || 0, duplicateOf, agent, notes, earlier, perRunner: readPerRunner(args["per-runner"]), openedAs: args["opened-as"], sequence: args.try, ...recordExtras(args, pr) }));
     output({ state });
   },
 };
