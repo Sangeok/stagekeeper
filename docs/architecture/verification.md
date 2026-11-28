@@ -187,7 +187,7 @@ GitHub이 통과로 처리하므로, 의존한 잡이 실패했을 때 이 잡�
   `scripts/rehearsals/rehearse-client-init-smoke.ts`를 실행한다. `update`는 `origin/main`의 플러그인으로 먼저 연결한 뒤
   PR 플러그인으로 갱신한다. 이전 판이 템플릿 릴리스 프로토콜을 쓰는 0.6.0 이상이면 템플릿 cutover를 그 연결보다 먼저 하고,
   그보다 낮으면 두 판 사이에 한다. `dev`를 향한 PR(플러그인·서버·`prisma`·리허설 경로)과
-  수동 실행에서 돌고, 비밀값 `E2E_TEMPLATES_TOKEN`이 없는 실행(외부 포크 PR)은 사유를 남기고 건너뛴다. 공개 로그에는
+  수동 실행에서 돌고, 비밀값 `E2E_TEMPLATES_TOKEN`이 없는 실행(외부 포크 PR)은 사유를 남기고 건너뛴다. 브랜치 이름이 `harness/auto-fix-`로 시작하는 PR(병합 후 실패의 자동 수정이 연 PR)도 같은 저장소의 브랜치이지만 비공개 템플릿을 받지 못하고 건너뛴다. `shared-distribution-acceptance`도 같다. 에이전트가 쓴 코드가 사람의 확인 없이 템플릿을 읽을 수 있는 잡에서 실행되지 않게 한다(`docs/proposals/active/post-merge-auto-fix-automatic.md` 2절). 공개 로그에는
   허용 필드의 요약 한 줄만 남긴다. 요약에는 클라이언트 버전·OS 버전·플러그인 판(`clientVersion`·`osVersion`·
   `pluginVersion`)도 남는다. 브라우저 E2E가 아니므로 `tests/e2e/`가 아니라 리허설로 둔다. Codex job은 Codex 공개
   배포에 착수할 때 붙인다.
